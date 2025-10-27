@@ -1,7 +1,8 @@
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { MapPin, Navigation, Clock, Star, User } from "lucide-react";
+import { MapPin, Navigation, Clock, Star, User, MessageCircle } from "lucide-react";
 
 interface RideListProps {
   rides: Array<{
@@ -26,6 +27,8 @@ interface RideListProps {
 }
 
 export default function RideList({ rides, onContactDriver }: RideListProps) {
+  const navigate = useNavigate();
+  
   if (rides.length === 0) {
     return (
       <Card>
@@ -119,9 +122,19 @@ export default function RideList({ rides, onContactDriver }: RideListProps) {
                 )}
               </div>
 
-              <Button onClick={() => onContactDriver(ride.id)} className="w-full">
-                联系车主 / Contact Driver
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => onContactDriver(ride.id)} className="flex-1">
+                  联系车主
+                </Button>
+                <Button
+                  onClick={() => navigate(`/ride-chat/${ride.id}`)}
+                  variant="outline"
+                  className="flex-1 gap-2"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  聊天
+                </Button>
+              </div>
             </CardContent>
           </Card>
         );

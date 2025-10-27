@@ -56,6 +56,44 @@ export type Database = {
           },
         ]
       }
+      chats: {
+        Row: {
+          created_at: string
+          id: string
+          message: Json
+          read_at: string | null
+          receiver_id: string
+          ride_id: string
+          sender_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: Json
+          read_at?: string | null
+          receiver_id: string
+          ride_id: string
+          sender_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: Json
+          read_at?: string | null
+          receiver_id?: string
+          ride_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chats_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       housing_posts: {
         Row: {
           bathrooms: number | null
