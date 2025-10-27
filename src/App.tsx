@@ -10,6 +10,7 @@ import CreateRide from "./pages/CreateRide";
 import CreateCarpool from "./pages/CreateCarpool";
 import SearchRides from "./pages/SearchRides";
 import RideChat from "./pages/RideChat";
+import Community from "./pages/Community";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/rides/carpool" element={<CreateCarpool />} />
           <Route path="/search" element={<SearchRides />} />
           <Route path="/ride-chat/:rideId" element={<RideChat />} />
+          <Route path="/community" element={<Community />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

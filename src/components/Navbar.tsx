@@ -74,6 +74,11 @@ const Navbar = () => {
                 拼车
               </Button>
             </Link>
+            <Link to="/community">
+              <Button variant="ghost" size="sm">
+                社区
+              </Button>
+            </Link>
           </div>
         </div>
 
