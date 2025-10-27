@@ -3,9 +3,7 @@ import {
   LiveKitRoom,
   RoomAudioRenderer,
   ControlBar,
-  useVoiceAssistant,
 } from '@livekit/components-react';
-import '@livekit/components-react/dist/index.css';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { PhoneOff, Loader2 } from 'lucide-react';
