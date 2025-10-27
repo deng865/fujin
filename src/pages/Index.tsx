@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Car, Building, Briefcase, MapPin, Clock, Users, Star } from "lucide-react";
+import { Car, Users, Star } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -25,24 +25,17 @@ const Index = () => {
   const features = [
     {
       icon: Car,
-      title: "拼车服务",
-      description: "发布或查找拼车信息，安全便捷",
-      link: "/rides",
+      title: "打车服务",
+      description: "发布或查找实时打车信息",
+      link: "/rides/realtime",
       color: "text-blue-500",
     },
     {
-      icon: Building,
-      title: "租房信息",
-      description: "寻找或发布租房信息",
-      link: "/housing",
+      icon: Car,
+      title: "拼车服务",
+      description: "发布实时或未来拼车行程",
+      link: "/rides/carpool",
       color: "text-green-500",
-    },
-    {
-      icon: Briefcase,
-      title: "招聘信息",
-      description: "发布或查找工作机会",
-      link: "/jobs",
-      color: "text-purple-500",
     },
   ];
 
@@ -59,17 +52,17 @@ const Index = () => {
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center">
         <h1 className="mb-6 text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-          华人拼车伙伴
+          华人滴滴
         </h1>
         <p className="mb-8 text-xl text-muted-foreground max-w-2xl mx-auto">
-          安全、便捷的拼车信息共享平台<br />
-          为华人社区提供拼车、租房、招聘一站式服务
+          安全、便捷的打车拼车信息共享平台<br />
+          为华人社区提供实时打车和拼车服务
         </p>
         <div className="flex gap-4 justify-center">
           {user ? (
             <>
-              <Button size="lg" onClick={() => navigate("/rides")}>
-                开始拼车
+            <Button size="lg" onClick={() => navigate("/rides/realtime")}>
+                立即打车
               </Button>
               <Button size="lg" variant="outline" onClick={() => navigate("/profile")}>
                 个人中心
@@ -106,7 +99,7 @@ const Index = () => {
       {/* Features Section */}
       <section className="container mx-auto px-4 py-16">
         <h2 className="text-3xl font-bold text-center mb-12">平台服务</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {features.map((feature, index) => (
             <Card
               key={index}
@@ -165,7 +158,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="container mx-auto px-4 py-8 mt-16 border-t text-center text-muted-foreground">
-        <p>&copy; 2024 华人拼车伙伴. All rights reserved.</p>
+        <p>&copy; 2024 华人滴滴. All rights reserved.</p>
       </footer>
     </div>
   );

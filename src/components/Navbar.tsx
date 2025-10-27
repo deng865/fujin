@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Home, Car, Building, Briefcase } from "lucide-react";
+import { User, LogOut, Car } from "lucide-react";
 import { toast } from "sonner";
 
 const Navbar = () => {
@@ -59,25 +59,19 @@ const Navbar = () => {
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
             <Car className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">华人拼车伙伴</span>
+            <span className="text-xl font-bold">华人滴滴</span>
           </Link>
           <div className="hidden md:flex gap-4">
-            <Link to="/rides">
+            <Link to="/rides/realtime">
+              <Button variant="ghost" size="sm">
+                <Car className="mr-2 h-4 w-4" />
+                打车
+              </Button>
+            </Link>
+            <Link to="/rides/carpool">
               <Button variant="ghost" size="sm">
                 <Car className="mr-2 h-4 w-4" />
                 拼车
-              </Button>
-            </Link>
-            <Link to="/housing">
-              <Button variant="ghost" size="sm">
-                <Building className="mr-2 h-4 w-4" />
-                租房
-              </Button>
-            </Link>
-            <Link to="/jobs">
-              <Button variant="ghost" size="sm">
-                <Briefcase className="mr-2 h-4 w-4" />
-                招聘
               </Button>
             </Link>
           </div>
