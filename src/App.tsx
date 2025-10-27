@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import CreateRide from "./pages/CreateRide";
 import CreateCarpool from "./pages/CreateCarpool";
+import SearchRides from "./pages/SearchRides";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/rides/realtime" element={<CreateRide />} />
           <Route path="/rides/carpool" element={<CreateCarpool />} />
+          <Route path="/search" element={<SearchRides />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

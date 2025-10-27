@@ -61,11 +61,11 @@ const Index = () => {
         <div className="flex gap-4 justify-center">
           {user ? (
             <>
-            <Button size="lg" onClick={() => navigate("/rides/realtime")}>
-                立即打车
+              <Button size="lg" onClick={() => navigate("/search")}>
+                搜索行程
               </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate("/profile")}>
-                个人中心
+              <Button size="lg" variant="outline" onClick={() => navigate("/rides/realtime")}>
+                发布打车
               </Button>
             </>
           ) : (
