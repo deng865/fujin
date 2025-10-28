@@ -74,7 +74,8 @@ export default function RideChat() {
         return;
       }
 
-      // Fetch profile data
+      // Fetch only non-sensitive profile fields (excludes phone/wechat for privacy)
+      // Query profiles directly with only safe columns selected
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, name, avatar_url')
@@ -85,7 +86,14 @@ export default function RideChat() {
         console.error('Error fetching profile:', profileError);
       }
 
-      setOtherUser(profileData);
+      // Set the profile data (type safe now)
+      if (profileData) {
+        setOtherUser({
+          id: profileData.id,
+          name: profileData.name,
+          avatar_url: profileData.avatar_url
+        });
+      }
     } catch (error) {
       console.error('Error in fetchData:', error);
     }

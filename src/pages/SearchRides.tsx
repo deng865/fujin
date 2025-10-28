@@ -106,7 +106,7 @@ export default function SearchRides() {
         .from("rides")
         .select(`
           *,
-          profiles:user_id (
+          profiles:user_id!inner (
             name,
             average_rating
           )
