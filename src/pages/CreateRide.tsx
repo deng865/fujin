@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useGoogleMaps } from "@/lib/googleMaps";
@@ -22,13 +21,35 @@ export default function CreateRide() {
   const { toast } = useToast();
   const { isLoaded: mapsLoaded } = useGoogleMaps();
   const [loading, setLoading] = useState(false);
-  const [role, setRole] = useState<UserRole>("driver");
+  const [role, setRole] = useState<UserRole | null>(null);
   const [isVisible, setIsVisible] = useState(true);
   
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
   const [destination, setDestination] = useState<{ lat: number; lng: number; address: string } | null>(null);
   const [seatsAvailable, setSeatsAvailable] = useState(1);
   const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    const fetchUserType = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("user_type")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        setRole(profile.user_type as UserRole);
+      }
+    };
+
+    fetchUserType();
+  }, [navigate]);
 
   // Map data for preview
   const previewRides = currentLocation ? [{
@@ -113,26 +134,34 @@ export default function CreateRide() {
     }
   };
 
+  if (!role) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8 flex justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
         <Card className="max-w-3xl mx-auto">
           <CardHeader>
-            <CardTitle className="text-2xl">发布打车信息</CardTitle>
+            <CardTitle className="text-2xl">
+              {role === "driver" ? "发布打车服务" : "发布打车需求"}
+            </CardTitle>
             <CardDescription>
-              车主收费 $6/24小时 | 乘客收费 $1/4小时
+              {role === "driver" ? "车主收费 $6/24小时" : "乘客收费 $1/4小时"}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <Tabs value={role} onValueChange={(v) => setRole(v as UserRole)}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="driver">我是车主</TabsTrigger>
-                  <TabsTrigger value="passenger">我是乘客</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="driver" className="space-y-4">
+              {role === "driver" ? (
+                <>
                   <LocationPicker
                     label="当前位置 / Current Location"
                     onLocationSelect={setCurrentLocation}
@@ -150,9 +179,9 @@ export default function CreateRide() {
                       required
                     />
                   </div>
-                </TabsContent>
-
-                <TabsContent value="passenger" className="space-y-4">
+                </>
+              ) : (
+                <>
                   <LocationPicker
                     label="当前位置 / Current Location"
                     onLocationSelect={setCurrentLocation}
@@ -162,8 +191,8 @@ export default function CreateRide() {
                     label="目的地 / Destination"
                     onLocationSelect={setDestination}
                   />
-                </TabsContent>
-              </Tabs>
+                </>
+              )}
 
               <div>
                 <Label htmlFor="description">备注 / Notes</Label>
@@ -206,7 +235,6 @@ export default function CreateRide() {
         {/* Real-time Map Preview */}
         {mapsLoaded && currentLocation && (
           <div className="max-w-3xl mx-auto mt-6">
-            <h3 className="text-lg font-semibold mb-4">实时地图预览 / Real-time Map Preview</h3>
             <RideMap
               rides={previewRides}
               center={currentLocation}
