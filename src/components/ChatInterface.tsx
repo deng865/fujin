@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Send, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { chatMessageSchema } from '@/lib/validation';
 
 interface Message {
   id: string;
@@ -100,6 +101,21 @@ export const ChatInterface = ({
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
 
+    // Validate input with zod
+    const validation = chatMessageSchema.safeParse({
+      message: newMessage
+    });
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      toast({
+        title: '验证失败',
+        description: firstError.message,
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase
       .from('chats')
@@ -108,7 +124,7 @@ export const ChatInterface = ({
         sender_id: currentUserId,
         receiver_id: otherUserId,
         message: {
-          text: newMessage,
+          text: validation.data.message,
           type: 'text'
         }
       });

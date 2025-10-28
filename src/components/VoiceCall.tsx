@@ -31,6 +31,19 @@ export const VoiceCall = ({ rideId, userName, onEndCall }: VoiceCallProps) => {
       setLoading(true);
       console.log('Fetching LiveKit token...');
       
+      // Get the current session to include auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: '认证失败',
+          description: '请先登录',
+          variant: 'destructive',
+        });
+        onEndCall();
+        return;
+      }
+      
       const { data, error } = await supabase.functions.invoke('generate-livekit-token', {
         body: {
           roomName: rideId,

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
+import { signUpSchema, signInSchema } from "@/lib/validation";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -24,6 +25,23 @@ const Auth = () => {
     const name = formData.get("name") as string;
     const wechatId = formData.get("wechat_id") as string;
     const phone = formData.get("phone") as string;
+
+    // Validate input with zod
+    const validation = signUpSchema.safeParse({
+      email,
+      password,
+      name,
+      wechat_id: wechatId,
+      phone,
+      user_type: userType
+    });
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      toast.error(firstError.message);
+      setLoading(false);
+      return;
+    }
 
     try {
       const { error } = await supabase.auth.signUp({
@@ -56,6 +74,19 @@ const Auth = () => {
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+
+    // Validate input with zod
+    const validation = signInSchema.safeParse({
+      email,
+      password
+    });
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
+      toast.error(firstError.message);
+      setLoading(false);
+      return;
+    }
 
     try {
       const { error } = await supabase.auth.signInWithPassword({

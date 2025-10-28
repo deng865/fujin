@@ -9,6 +9,7 @@ import { MessageSquare, ThumbsUp, User, Calendar } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { communityPostSchema } from "@/lib/validation";
 
 interface Post {
   id: string;
@@ -80,10 +81,18 @@ const Community = () => {
       return;
     }
 
-    if (!title.trim() || !content.trim()) {
+    // Validate input with zod
+    const validation = communityPostSchema.safeParse({
+      title,
+      content,
+      category: "experience"
+    });
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0];
       toast({
-        title: "信息不完整",
-        description: "请填写标题和内容",
+        title: "验证失败",
+        description: firstError.message,
         variant: "destructive",
       });
       return;
@@ -92,9 +101,9 @@ const Community = () => {
     try {
       const { error } = await supabase.from("community_posts").insert({
         user_id: user.id,
-        title: title.trim(),
-        content: content.trim(),
-        category: "experience",
+        title: validation.data.title,
+        content: validation.data.content,
+        category: validation.data.category,
       });
 
       if (error) throw error;
