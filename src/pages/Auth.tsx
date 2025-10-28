@@ -9,11 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { signUpSchema, signInSchema } from "@/lib/validation";
+import { LocationPermissionDialog } from "@/components/LocationPermissionDialog";
 
 const Auth = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [userType, setUserType] = useState<"passenger" | "driver">("passenger");
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -59,7 +61,7 @@ const Auth = () => {
 
       if (error) throw error;
       toast.success("注册成功！");
-      navigate("/");
+      setShowLocationDialog(true);
     } catch (error: any) {
       toast.error(error.message || "注册失败");
     } finally {
@@ -96,7 +98,7 @@ const Auth = () => {
 
       if (error) throw error;
       toast.success("登录成功！");
-      navigate("/");
+      setShowLocationDialog(true);
     } catch (error: any) {
       toast.error(error.message || "登录失败");
     } finally {
@@ -104,8 +106,27 @@ const Auth = () => {
     }
   };
 
+  const handleLocationPermission = (permission: "once" | "always" | "never") => {
+    localStorage.setItem("locationPermission", permission);
+    
+    if (permission === "never") {
+      toast.info("您可以随时在设置中更改位置权限");
+    } else if (permission === "once") {
+      toast.success("本次使用将获取您的位置信息");
+    } else {
+      toast.success("位置权限已开启");
+    }
+    
+    setShowLocationDialog(false);
+    navigate("/");
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
+      <LocationPermissionDialog
+        open={showLocationDialog}
+        onSelect={handleLocationPermission}
+      />
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold">华人拼车伙伴</CardTitle>
