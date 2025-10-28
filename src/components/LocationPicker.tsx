@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { MapPin } from "lucide-react";
+import { MapPin, Map } from "lucide-react";
+import MapLocationSelector from "./MapLocationSelector";
+import { useGoogleMaps } from "@/lib/googleMaps";
 
 interface LocationPickerProps {
   onLocationSelect: (location: { lat: number; lng: number; address: string }) => void;
@@ -14,6 +16,8 @@ export default function LocationPicker({ onLocationSelect, label = "选择位置
   const [addressInput, setAddressInput] = useState("");
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
   const [searching, setSearching] = useState(false);
+  const [showMapSelector, setShowMapSelector] = useState(false);
+  const { isLoaded } = useGoogleMaps();
 
   const handleAddressSearch = async () => {
     if (!addressInput) return;
@@ -102,15 +106,28 @@ export default function LocationPicker({ onLocationSelect, label = "选择位置
           </Button>
         </div>
         
-        <Button 
-          type="button"
-          onClick={handleGetCurrentLocation} 
-          variant="outline"
-          className="w-full"
-        >
-          <MapPin className="mr-2 h-4 w-4" />
-          使用当前位置 / Use Current Location
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            type="button"
+            onClick={handleGetCurrentLocation} 
+            variant="outline"
+            className="flex-1"
+          >
+            <MapPin className="mr-2 h-4 w-4" />
+            使用当前位置
+          </Button>
+          
+          <Button
+            type="button"
+            onClick={() => setShowMapSelector(true)}
+            variant="outline"
+            className="flex-1"
+            disabled={!isLoaded}
+          >
+            <Map className="mr-2 h-4 w-4" />
+            在地图中选择
+          </Button>
+        </div>
 
         {selectedLocation && (
           <div className="p-3 bg-secondary rounded-md">
@@ -129,6 +146,17 @@ export default function LocationPicker({ onLocationSelect, label = "选择位置
           </div>
         )}
       </div>
+
+      <MapLocationSelector
+        open={showMapSelector}
+        onClose={() => setShowMapSelector(false)}
+        onLocationSelect={(location) => {
+          setSelectedLocation(location);
+          setAddressInput(location.address);
+          onLocationSelect(location);
+        }}
+        initialCenter={selectedLocation || undefined}
+      />
     </Card>
   );
 }

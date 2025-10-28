@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import LocationPicker from "@/components/LocationPicker";
+import RideMap from "@/components/RideMap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,12 +13,14 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { useGoogleMaps } from "@/lib/googleMaps";
 
 type UserRole = "driver" | "passenger";
 
 export default function CreateCarpool() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isLoaded: mapsLoaded } = useGoogleMaps();
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<UserRole>("driver");
   const [isVisible, setIsVisible] = useState(true);
@@ -29,6 +32,21 @@ export default function CreateCarpool() {
   const [seats, setSeats] = useState(1);
   const [priceShare, setPriceShare] = useState("");
   const [description, setDescription] = useState("");
+
+  // Map data for preview
+  const previewRides = fromLocation && toLocation ? [{
+    id: 'preview',
+    title: role === "driver" ? "拼车车主" : "拼车乘客",
+    ride_type: "carpool" as const,
+    from_location: fromLocation,
+    to_location: toLocation,
+    price_share: parseFloat(priceShare) || (role === "driver" ? 6 : 1),
+    seats_available: role === "driver" ? seats : null,
+    user: {
+      name: "我",
+      average_rating: 5,
+    },
+  }] : [];
 
   const handleAddWaypoint = (location: { lat: number; lng: number; address: string }) => {
     setWaypoints([...waypoints, location]);
@@ -267,6 +285,17 @@ export default function CreateCarpool() {
             </form>
           </CardContent>
         </Card>
+
+        {/* Real-time Map Preview */}
+        {mapsLoaded && fromLocation && toLocation && (
+          <div className="max-w-3xl mx-auto mt-6">
+            <h3 className="text-lg font-semibold mb-4">实时地图预览 / Real-time Map Preview</h3>
+            <RideMap
+              rides={previewRides}
+              center={fromLocation}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
