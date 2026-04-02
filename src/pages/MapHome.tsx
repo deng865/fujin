@@ -153,14 +153,15 @@ export default function MapHome() {
           zoomControl={false}
           className="h-full w-full"
         >
-          <MapContent
-            selectedCategory={selectedCategory}
-            posts={posts}
-            center={center}
-            searchRadius={searchRadius}
-            onBoundsChanged={handleBoundsChanged}
-            onSelectPost={setSelectedPost}
-          />
+            <MapContent
+              selectedCategory={selectedCategory}
+              posts={posts}
+              center={center}
+              searchRadius={searchRadius}
+              onBoundsChanged={handleBoundsChanged}
+              onSelectPost={setSelectedPost}
+              favoriteIds={favoriteIds}
+            />
         </Map>
 
         {/* Floating search bar */}
