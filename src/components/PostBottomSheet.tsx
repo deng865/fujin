@@ -41,9 +41,9 @@ export default function PostBottomSheet({ post, onClose }: PostBottomSheetProps)
     <Drawer open={!!post} onOpenChange={(open) => !open && onClose()}>
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="text-left pb-2">
-          <DrawerTitle className="text-lg">{post.title}</DrawerTitle>
-          {post.price != null && (
-            <DrawerDescription className="text-base font-semibold text-emerald-600">
+          <DrawerTitle className="text-lg">{post?.title}</DrawerTitle>
+          {post?.price != null && (
+            <DrawerDescription className="text-base font-semibold text-primary">
               ${post.price}
             </DrawerDescription>
           )}
