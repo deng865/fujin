@@ -48,40 +48,39 @@ export default function PostBottomSheet({ post, onClose }: PostBottomSheetProps)
             </DrawerDescription>
           )}
         </DrawerHeader>
-        <div className="px-4 pb-6 space-y-3 overflow-y-auto">
-          {/* Image */}
-          {post.image_urls?.[0] && (
-            <img
-              src={post.image_urls[0]}
-              alt={post.title}
-              className="w-full h-48 object-cover rounded-xl"
-            />
-          )}
+        {post && (
+          <div className="px-4 pb-6 space-y-3 overflow-y-auto">
+            {post.image_urls?.[0] && (
+              <img
+                src={post.image_urls[0]}
+                alt={post.title}
+                className="w-full h-48 object-cover rounded-xl"
+              />
+            )}
 
-          {/* Description */}
-          {post.description && (
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {post.description}
-            </p>
-          )}
+            {post.description && (
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {post.description}
+              </p>
+            )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={() => { onClose(); navigate(`/post/${post.id}`); }}
-              className="flex-1 py-3 text-sm font-semibold text-center bg-accent rounded-xl hover:bg-accent/80 transition-colors active:scale-[0.98]"
-            >
-              查看详情
-            </button>
-            <button
-              onClick={() => openNavigation(post.latitude, post.longitude)}
-              className="flex items-center justify-center gap-2 py-3 px-6 text-sm font-semibold bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all active:scale-[0.98]"
-            >
-              <Navigation className="h-4 w-4" />
-              导航
-            </button>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => { onClose(); navigate(`/post/${post.id}`); }}
+                className="flex-1 py-3 text-sm font-semibold text-center bg-accent rounded-xl hover:bg-accent/80 transition-colors active:scale-[0.98]"
+              >
+                查看详情
+              </button>
+              <button
+                onClick={() => openNavigation(post.latitude, post.longitude)}
+                className="flex items-center justify-center gap-2 py-3 px-6 text-sm font-semibold bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all active:scale-[0.98]"
+              >
+                <Navigation className="h-4 w-4" />
+                导航
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </DrawerContent>
     </Drawer>
   );
