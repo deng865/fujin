@@ -14,6 +14,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
 
@@ -37,6 +38,27 @@ const Auth = () => {
       setShowLocationDialog(true);
     } catch (error: any) {
       toast.error(error.message || "登录失败 / Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const emailInput = document.querySelector<HTMLInputElement>('input[name="email"]');
+    const email = emailInput?.value;
+    if (!email) {
+      toast.error("请先输入邮箱 / Please enter your email first");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("重置链接已发送，请查看邮箱 / Reset link sent to your email");
+    } catch (error: any) {
+      toast.error(error.message || "发送失败 / Failed to send reset email");
     } finally {
       setLoading(false);
     }
@@ -204,6 +226,15 @@ const Auth = () => {
               <Button type="submit" className="w-full h-11 rounded-xl" disabled={loading}>
                 {loading ? "登录中..." : "登录 / Login"}
               </Button>
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  忘记密码？/ Forgot password?
+                </button>
+              </div>
             </form>
           </TabsContent>
 
