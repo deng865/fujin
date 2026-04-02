@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone } from "lucide-react";
+import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { toast } from "@/hooks/use-toast";
 
-interface PostDetail {
+interface PostDetailData {
   id: string;
   title: string;
   description: string | null;
@@ -36,24 +37,30 @@ const categoryLabels: Record<string, string> = {
   legal: "⚖️ 法律 Legal",
 };
 
+const greetingTemplates: Record<string, string> = {
+  housing: "你好，我对你发布的房产信息很感兴趣，请问还在吗？",
+  driver: "你好，我看到你发布的司机服务，请问现在可以接单吗？",
+  jobs: "你好，我对你发布的招工信息很感兴趣，请问还在招人吗？",
+  default: "你好，我看到你在地图上发布的信息，想了解更多详情。",
+};
+
 export default function PostDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [post, setPost] = useState<PostDetail | null>(null);
+  const [post, setPost] = useState<PostDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showContact, setShowContact] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     (async () => {
       const { data } = await supabase
         .from("posts")
-        .select(`*, profiles:user_id (name, phone, wechat_id, avatar_url)`)
+        .select("*")
         .eq("id", id)
         .single();
 
-      // The profiles join returns based on user_id FK — but we don't have FK on posts table.
-      // So let's fetch profile separately.
       if (data) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -66,6 +73,61 @@ export default function PostDetail() {
       setLoading(false);
     })();
   }, [id]);
+
+  const handleStartChat = async () => {
+    if (!post) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { navigate("/auth"); return; }
+
+    if (user.id === post.user_id) {
+      toast({ title: "提示", description: "不能和自己聊天哦" });
+      return;
+    }
+
+    setStartingChat(true);
+
+    // Check if conversation already exists
+    const { data: existing } = await supabase
+      .from("conversations")
+      .select("id")
+      .or(
+        `and(participant_1.eq.${user.id},participant_2.eq.${post.user_id}),and(participant_1.eq.${post.user_id},participant_2.eq.${user.id})`
+      )
+      .maybeSingle();
+
+    if (existing) {
+      navigate(`/chat/${existing.id}`);
+      return;
+    }
+
+    // Create new conversation
+    const greeting = greetingTemplates[post.category] || greetingTemplates.default;
+
+    const { data: newConv, error } = await supabase
+      .from("conversations")
+      .insert({
+        participant_1: user.id,
+        participant_2: post.user_id,
+        last_message: greeting,
+      })
+      .select("id")
+      .single();
+
+    if (error || !newConv) {
+      toast({ title: "创建会话失败", description: "请稍后重试", variant: "destructive" });
+      setStartingChat(false);
+      return;
+    }
+
+    // Send greeting message
+    await supabase.from("messages").insert({
+      conversation_id: newConv.id,
+      sender_id: user.id,
+      content: greeting,
+    });
+
+    navigate(`/chat/${newConv.id}`);
+  };
 
   if (loading) {
     return (
@@ -163,13 +225,24 @@ export default function PostDetail() {
             </div>
           </div>
 
-          {/* Contact Button */}
+          {/* Chat Button */}
           <Button
-            onClick={() => setShowContact(!showContact)}
+            onClick={handleStartChat}
+            disabled={startingChat}
             className="w-full rounded-xl h-12 text-base"
           >
+            <Send className="h-4 w-4 mr-2" />
+            {startingChat ? "正在创建会话..." : "私聊 / Contact"}
+          </Button>
+
+          {/* Contact Info Toggle */}
+          <Button
+            variant="outline"
+            onClick={() => setShowContact(!showContact)}
+            className="w-full rounded-xl h-10 text-sm"
+          >
             <MessageCircle className="h-4 w-4 mr-2" />
-            {showContact ? "收起联系方式" : "查看联系方式 / Contact"}
+            {showContact ? "收起联系方式" : "查看联系方式"}
           </Button>
 
           {showContact && (
