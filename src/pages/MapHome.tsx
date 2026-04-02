@@ -7,7 +7,7 @@ import CategoryPanel from "@/components/CategoryPanel";
 import SearchBar from "@/components/SearchBar";
 import PostMarkers from "@/components/PostMarkers";
 
-const DEFAULT_CENTER = { lat: 32.7767, lng: -96.797 }; // Dallas
+const DEFAULT_CENTER = { lat: 32.7767, lng: -96.797 };
 
 interface Post {
   id: string;
@@ -28,7 +28,7 @@ function MapContent({
 }: {
   selectedCategory: string | null;
   posts: Post[];
-  onBoundsChanged: (bounds: google.maps.LatLngBounds) => void;
+  onBoundsChanged: (bounds: { north: number; south: number; east: number; west: number }) => void;
 }) {
   const map = useMap();
 
@@ -36,9 +36,22 @@ function MapContent({
     if (!map) return;
     const listener = map.addListener("idle", () => {
       const bounds = map.getBounds();
-      if (bounds) onBoundsChanged(bounds);
+      if (bounds) {
+        const ne = bounds.getNorthEast();
+        const sw = bounds.getSouthWest();
+        onBoundsChanged({
+          north: ne.lat(),
+          south: sw.lat(),
+          east: ne.lng(),
+          west: sw.lng(),
+        });
+      }
     });
-    return () => google.maps.event.removeListener(listener);
+    return () => {
+      if (typeof google !== "undefined") {
+        google.maps.event.removeListener(listener);
+      }
+    };
   }, [map, onBoundsChanged]);
 
   const filtered = selectedCategory
@@ -53,11 +66,7 @@ export default function MapHome() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchRadius, setSearchRadius] = useState(25);
-  const [boundsRef, setBoundsRef] = useState<{
-    north: number; south: number; east: number; west: number;
-  } | null>(null);
 
-  // Get user location on mount
   useEffect(() => {
     const perm = localStorage.getItem("locationPermission");
     if (perm !== "never") {
@@ -68,20 +77,14 @@ export default function MapHome() {
     }
   }, []);
 
-  // Fetch posts when bounds change
-  const handleBoundsChanged = useCallback(async (bounds: google.maps.LatLngBounds) => {
-    const ne = bounds.getNorthEast();
-    const sw = bounds.getSouthWest();
-    const b = { north: ne.lat(), south: sw.lat(), east: ne.lng(), west: sw.lng() };
-    setBoundsRef(b);
-
+  const handleBoundsChanged = useCallback(async (bounds: { north: number; south: number; east: number; west: number }) => {
     const { data } = await supabase
       .from("posts")
       .select("id, title, description, category, price, latitude, longitude, image_urls, created_at")
-      .gte("latitude", b.south)
-      .lte("latitude", b.north)
-      .gte("longitude", b.west)
-      .lte("longitude", b.east)
+      .gte("latitude", bounds.south)
+      .lte("latitude", bounds.north)
+      .gte("longitude", bounds.west)
+      .lte("longitude", bounds.east)
       .eq("is_visible", true)
       .limit(200);
 
@@ -95,7 +98,6 @@ export default function MapHome() {
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={["places"]}>
       <div className="relative h-screen w-screen overflow-hidden">
-        {/* Map */}
         <Map
           defaultCenter={center}
           center={center}
@@ -113,7 +115,6 @@ export default function MapHome() {
           />
         </Map>
 
-        {/* Category Panel - Left */}
         <CategoryPanel
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
@@ -121,10 +122,8 @@ export default function MapHome() {
           onSearchRadiusChange={setSearchRadius}
         />
 
-        {/* Search Bar - Top Center */}
         <SearchBar onPlaceSelect={handlePlaceSelect} />
 
-        {/* Post Button - Right */}
         <button
           onClick={() => window.location.href = "/create-post"}
           className="absolute top-4 right-4 z-10 bg-primary text-primary-foreground rounded-2xl shadow-lg p-3 hover:opacity-90 transition-opacity"

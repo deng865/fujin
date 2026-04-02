@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { Search } from "lucide-react";
-import { GOOGLE_MAPS_API_KEY } from "@/lib/googleMaps";
 
 interface SearchBarProps {
   onPlaceSelect: (location: { lat: number; lng: number; name: string }) => void;
@@ -11,7 +10,7 @@ export default function SearchBar({ onPlaceSelect }: SearchBarProps) {
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
   useEffect(() => {
-    if (!inputRef.current || !window.google?.maps?.places) return;
+    if (!inputRef.current || typeof google === "undefined" || !google.maps?.places) return;
 
     autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
       types: ["(cities)"],
@@ -31,7 +30,7 @@ export default function SearchBar({ onPlaceSelect }: SearchBarProps) {
   }, [onPlaceSelect]);
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-full max-w-md px-4">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-full max-w-md px-4 sm:px-0">
       <div className="bg-background/90 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 flex items-center px-4 py-3 gap-3">
         <Search className="h-4 w-4 text-muted-foreground shrink-0" />
         <input
