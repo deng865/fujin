@@ -43,6 +43,27 @@ const Auth = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const emailInput = document.querySelector<HTMLInputElement>('input[name="email"]');
+    const email = emailInput?.value;
+    if (!email) {
+      toast.error("请先输入邮箱 / Please enter your email first");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("重置链接已发送，请查看邮箱 / Reset link sent to your email");
+    } catch (error: any) {
+      toast.error(error.message || "发送失败 / Failed to send reset email");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
