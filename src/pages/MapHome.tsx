@@ -129,6 +129,14 @@ export default function MapHome() {
     setActiveTab(tab);
     if (tab === "profile") navigate(user ? "/profile" : "/auth");
     if (tab === "messages") navigate(user ? "/messages" : "/auth");
+    if (tab === "favorites") navigate(user ? "/favorites" : "/auth");
+  };
+
+  const handleToggleFavorite = async (postId: string) => {
+    if (!favUserId) { navigate("/auth"); return; }
+    const result = await toggleFavorite(postId);
+    if (result === true) toast({ title: "已收藏 ❤️" });
+    else if (result === false) toast({ title: "已取消收藏" });
   };
 
   return (
