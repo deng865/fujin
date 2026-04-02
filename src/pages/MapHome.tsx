@@ -43,6 +43,7 @@ function MapContent({
   searchRadius,
   onBoundsChanged,
   onSelectPost,
+  favoriteIds,
 }: {
   selectedCategory: string | null;
   posts: Post[];
@@ -50,6 +51,7 @@ function MapContent({
   searchRadius: number;
   onBoundsChanged: (bounds: { north: number; south: number; east: number; west: number }) => void;
   onSelectPost: (post: Post) => void;
+  favoriteIds: Set<string>;
 }) {
   const map = useMap();
 
