@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useFavorites } from "@/hooks/useFavorites";
+import FavoriteButton from "@/components/FavoriteButton";
 import { zhCN } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 
@@ -51,6 +53,13 @@ export default function PostDetail() {
   const [loading, setLoading] = useState(true);
   const [showContact, setShowContact] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
+  const { isFavorite, toggleFavorite, userId: favUserId } = useFavorites();
+
+  const handleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!favUserId) { navigate("/auth"); return; }
+    if (post) await toggleFavorite(post.id);
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -150,13 +159,16 @@ export default function PostDetail() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
-        <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-accent rounded-xl">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <span className="ml-2 text-sm text-muted-foreground">
-            {categoryLabels[post.category] || post.category}
-          </span>
+        <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
+          <div className="flex items-center">
+            <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-accent rounded-xl">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <span className="ml-2 text-sm text-muted-foreground">
+              {categoryLabels[post.category] || post.category}
+            </span>
+          </div>
+          <FavoriteButton isFavorite={isFavorite(post.id)} onClick={handleFavorite} size="sm" />
         </div>
       </div>
 

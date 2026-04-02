@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { APIProvider, Map, useMap } from "@vis.gl/react-google-maps";
 import { GOOGLE_MAPS_API_KEY } from "@/lib/googleMaps";
 import { supabase } from "@/integrations/supabase/client";
+import { useFavorites } from "@/hooks/useFavorites";
 import ControlBar from "@/components/ControlBar";
 import CategoryScroll from "@/components/CategoryScroll";
 import MapControls from "@/components/MapControls";
 import PostMarkers from "@/components/PostMarkers";
 import PostBottomSheet from "@/components/PostBottomSheet";
 import BottomNav from "@/components/BottomNav";
+import { toast } from "@/hooks/use-toast";
 
 const DEFAULT_CENTER = { lat: 32.7767, lng: -96.797 };
 
@@ -41,6 +43,7 @@ function MapContent({
   searchRadius,
   onBoundsChanged,
   onSelectPost,
+  favoriteIds,
 }: {
   selectedCategory: string | null;
   posts: Post[];
@@ -48,6 +51,7 @@ function MapContent({
   searchRadius: number;
   onBoundsChanged: (bounds: { north: number; south: number; east: number; west: number }) => void;
   onSelectPost: (post: Post) => void;
+  favoriteIds: Set<string>;
 }) {
   const map = useMap();
 
@@ -71,7 +75,7 @@ function MapContent({
     return haversine(center.lat, center.lng, p.latitude, p.longitude) <= searchRadius;
   });
 
-  return <PostMarkers posts={filtered} onSelectPost={onSelectPost} />;
+  return <PostMarkers posts={filtered} onSelectPost={onSelectPost} favoriteIds={favoriteIds} />;
 }
 
 export default function MapHome() {
@@ -84,6 +88,7 @@ export default function MapHome() {
   const [user, setUser] = useState<any>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [activeTab, setActiveTab] = useState("discover");
+  const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -124,6 +129,14 @@ export default function MapHome() {
     setActiveTab(tab);
     if (tab === "profile") navigate(user ? "/profile" : "/auth");
     if (tab === "messages") navigate(user ? "/messages" : "/auth");
+    if (tab === "favorites") navigate(user ? "/favorites" : "/auth");
+  };
+
+  const handleToggleFavorite = async (postId: string) => {
+    if (!favUserId) { navigate("/auth"); return; }
+    const result = await toggleFavorite(postId);
+    if (result === true) toast({ title: "已收藏 ❤️" });
+    else if (result === false) toast({ title: "已取消收藏" });
   };
 
   return (
@@ -140,14 +153,15 @@ export default function MapHome() {
           zoomControl={false}
           className="h-full w-full"
         >
-          <MapContent
-            selectedCategory={selectedCategory}
-            posts={posts}
-            center={center}
-            searchRadius={searchRadius}
-            onBoundsChanged={handleBoundsChanged}
-            onSelectPost={setSelectedPost}
-          />
+            <MapContent
+              selectedCategory={selectedCategory}
+              posts={posts}
+              center={center}
+              searchRadius={searchRadius}
+              onBoundsChanged={handleBoundsChanged}
+              onSelectPost={setSelectedPost}
+              favoriteIds={favoriteIds}
+            />
         </Map>
 
         {/* Floating search bar */}
@@ -174,6 +188,8 @@ export default function MapHome() {
         <PostBottomSheet
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
+          isFavorite={selectedPost ? isFavorite(selectedPost.id) : false}
+          onToggleFavorite={handleToggleFavorite}
         />
 
         {/* Bottom navigation */}

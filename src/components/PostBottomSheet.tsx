@@ -1,4 +1,4 @@
-import { Navigation } from "lucide-react";
+import { Navigation, Heart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Drawer,
@@ -7,6 +7,7 @@ import {
   DrawerTitle,
   DrawerDescription,
 } from "@/components/ui/drawer";
+import FavoriteButton from "@/components/FavoriteButton";
 
 interface Post {
   id: string;
@@ -23,6 +24,8 @@ interface Post {
 interface PostBottomSheetProps {
   post: Post | null;
   onClose: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (postId: string) => void;
 }
 
 function openNavigation(lat: number, lng: number) {
@@ -34,19 +37,30 @@ function openNavigation(lat: number, lng: number) {
   }
 }
 
-export default function PostBottomSheet({ post, onClose }: PostBottomSheetProps) {
+export default function PostBottomSheet({ post, onClose, isFavorite = false, onToggleFavorite }: PostBottomSheetProps) {
   const navigate = useNavigate();
 
   return (
     <Drawer open={!!post} onOpenChange={(open) => !open && onClose()}>
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="text-left pb-2">
-          <DrawerTitle className="text-lg">{post?.title}</DrawerTitle>
-          {post?.price != null && (
-            <DrawerDescription className="text-base font-semibold text-primary">
-              ${post.price}
-            </DrawerDescription>
-          )}
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
+              <DrawerTitle className="text-lg">{post?.title}</DrawerTitle>
+              {post?.price != null && (
+                <DrawerDescription className="text-base font-semibold text-primary">
+                  ${post.price}
+                </DrawerDescription>
+              )}
+            </div>
+            {post && onToggleFavorite && (
+              <FavoriteButton
+                isFavorite={isFavorite}
+                onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
+                size="sm"
+              />
+            )}
+          </div>
         </DrawerHeader>
         {post && (
           <div className="px-4 pb-6 space-y-3 overflow-y-auto">
