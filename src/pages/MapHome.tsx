@@ -88,6 +88,7 @@ export default function MapHome() {
   const [user, setUser] = useState<any>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [activeTab, setActiveTab] = useState("discover");
+  const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
