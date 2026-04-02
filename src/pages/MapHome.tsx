@@ -75,7 +75,7 @@ function MapContent({
     return haversine(center.lat, center.lng, p.latitude, p.longitude) <= searchRadius;
   });
 
-  return <PostMarkers posts={filtered} onSelectPost={onSelectPost} />;
+  return <PostMarkers posts={filtered} onSelectPost={onSelectPost} favoriteIds={favoriteIds} />;
 }
 
 export default function MapHome() {
