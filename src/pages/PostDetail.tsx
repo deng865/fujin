@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useFavorites } from "@/hooks/useFavorites";
+import FavoriteButton from "@/components/FavoriteButton";
 import { zhCN } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 
