@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { APIProvider, Map, useMap } from "@vis.gl/react-google-maps";
 import { GOOGLE_MAPS_API_KEY } from "@/lib/googleMaps";
-import { Plus } from "lucide-react";
+import { Plus, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import CategoryPanel from "@/components/CategoryPanel";
 import SearchBar from "@/components/SearchBar";
@@ -61,17 +62,20 @@ function MapContent({
 }
 
 export default function MapHome() {
+  const navigate = useNavigate();
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchRadius, setSearchRadius] = useState(25);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
     const perm = localStorage.getItem("locationPermission");
     if (perm !== "never") {
       navigator.geolocation.getCurrentPosition(
         (pos) => setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => console.log("Location denied, using default")
+        () => {}
       );
     }
   }, []);
@@ -89,10 +93,6 @@ export default function MapHome() {
 
     if (data) setPosts(data);
   }, []);
-
-  const handlePlaceSelect = (loc: { lat: number; lng: number }) => {
-    setCenter(loc);
-  };
 
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={["places"]}>
@@ -121,14 +121,23 @@ export default function MapHome() {
           onSearchRadiusChange={setSearchRadius}
         />
 
-        <SearchBar onPlaceSelect={handlePlaceSelect} />
+        <SearchBar onPlaceSelect={(loc) => setCenter(loc)} />
 
-        <button
-          onClick={() => window.location.href = "/create-post"}
-          className="absolute top-4 right-4 z-10 bg-primary text-primary-foreground rounded-2xl shadow-lg p-3 hover:opacity-90 transition-opacity"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
+        {/* Right side buttons */}
+        <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+          <button
+            onClick={() => user ? navigate("/create-post") : navigate("/auth")}
+            className="bg-primary text-primary-foreground rounded-2xl shadow-lg p-3 hover:opacity-90 transition-opacity"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => navigate(user ? "/profile" : "/auth")}
+            className="bg-background/90 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-3 hover:bg-accent transition-all"
+          >
+            <User className="h-5 w-5 text-foreground" />
+          </button>
+        </div>
       </div>
     </APIProvider>
   );
