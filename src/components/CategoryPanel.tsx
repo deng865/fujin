@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, Search, SlidersHorizontal } from "lucide-react";
+import { Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const categories = [
@@ -29,7 +29,6 @@ export default function CategoryPanel({
 
   return (
     <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-      {/* Category grid */}
       <div className="bg-background/90 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-2 flex flex-col gap-1">
         {categories.map((cat) => {
           const Icon = cat.icon;
@@ -52,7 +51,6 @@ export default function CategoryPanel({
         })}
       </div>
 
-      {/* Radius control */}
       <button
         onClick={() => setShowRadius(!showRadius)}
         className="bg-background/90 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50 p-3 flex items-center justify-center hover:bg-accent transition-all"
