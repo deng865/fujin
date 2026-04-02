@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { APIProvider, Map, useMap } from "@vis.gl/react-google-maps";
 import { GOOGLE_MAPS_API_KEY } from "@/lib/googleMaps";
-import { User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ControlBar from "@/components/ControlBar";
+import CategoryScroll from "@/components/CategoryScroll";
 import MapControls from "@/components/MapControls";
 import PostMarkers from "@/components/PostMarkers";
+import PostBottomSheet from "@/components/PostBottomSheet";
+import BottomNav from "@/components/BottomNav";
 
 const DEFAULT_CENTER = { lat: 32.7767, lng: -96.797 };
 
@@ -22,7 +24,6 @@ interface Post {
   created_at: string;
 }
 
-// Haversine distance in km
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -39,12 +40,14 @@ function MapContent({
   center,
   searchRadius,
   onBoundsChanged,
+  onSelectPost,
 }: {
   selectedCategory: string | null;
   posts: Post[];
   center: { lat: number; lng: number };
   searchRadius: number;
   onBoundsChanged: (bounds: { north: number; south: number; east: number; west: number }) => void;
+  onSelectPost: (post: Post) => void;
 }) {
   const map = useMap();
 
@@ -63,13 +66,12 @@ function MapContent({
     };
   }, [map, onBoundsChanged]);
 
-  // Filter by category + distance
   const filtered = posts.filter((p) => {
     if (selectedCategory && p.category !== selectedCategory) return false;
     return haversine(center.lat, center.lng, p.latitude, p.longitude) <= searchRadius;
   });
 
-  return <PostMarkers posts={filtered} />;
+  return <PostMarkers posts={filtered} onSelectPost={onSelectPost} />;
 }
 
 export default function MapHome() {
@@ -80,6 +82,8 @@ export default function MapHome() {
   const [searchRadius, setSearchRadius] = useState(25);
   const [mapType, setMapType] = useState("roadmap");
   const [user, setUser] = useState<any>(null);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [activeTab, setActiveTab] = useState("discover");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -116,6 +120,12 @@ export default function MapHome() {
     navigate(user ? "/create-post" : "/auth");
   };
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === "profile") navigate(user ? "/profile" : "/auth");
+    if (tab === "messages") navigate(user ? "/messages" : "/auth");
+  };
+
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={["places"]}>
       <div className="relative h-screen w-screen overflow-hidden">
@@ -127,7 +137,7 @@ export default function MapHome() {
           mapTypeId={mapType}
           gestureHandling="greedy"
           disableDefaultUI
-          zoomControl
+          zoomControl={false}
           className="h-full w-full"
         >
           <MapContent
@@ -136,35 +146,42 @@ export default function MapHome() {
             center={center}
             searchRadius={searchRadius}
             onBoundsChanged={handleBoundsChanged}
+            onSelectPost={setSelectedPost}
           />
         </Map>
 
-        {/* Top-left unified control bar */}
+        {/* Floating search bar */}
         <ControlBar
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
           searchRadius={searchRadius}
           onSearchRadiusChange={setSearchRadius}
           onPlaceSelect={(loc) => setCenter(loc)}
-          onPostClick={handlePostClick}
         />
 
-        {/* Bottom-right map controls */}
+        {/* Category horizontal scroll */}
+        <CategoryScroll
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+        />
+
+        {/* Map controls - right side */}
         <MapControls
           onLocateMe={handleLocateMe}
           onMapTypeChange={setMapType}
           currentMapType={mapType}
         />
 
-        {/* Profile button - top right */}
-        <div className="absolute top-4 right-4 z-10">
-          <button
-            onClick={() => navigate(user ? "/profile" : "/auth")}
-            className="bg-background/85 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/40 p-3 hover:bg-accent transition-all active:scale-95"
-          >
-            <User className="h-5 w-5 text-foreground" />
-          </button>
-        </div>
+        {/* Bottom sheet for selected post */}
+        <PostBottomSheet
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+        />
+
+        {/* Bottom navigation */}
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onPostClick={handlePostClick}
+        />
       </div>
     </APIProvider>
   );
