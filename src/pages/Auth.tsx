@@ -204,6 +204,15 @@ const Auth = () => {
               <Button type="submit" className="w-full h-11 rounded-xl" disabled={loading}>
                 {loading ? "登录中..." : "登录 / Login"}
               </Button>
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  忘记密码？/ Forgot password?
+                </button>
+              </div>
             </form>
           </TabsContent>
 
