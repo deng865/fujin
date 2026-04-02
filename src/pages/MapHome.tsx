@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { APIProvider, Map, useMap } from "@vis.gl/react-google-maps";
 import { GOOGLE_MAPS_API_KEY } from "@/lib/googleMaps";
 import { supabase } from "@/integrations/supabase/client";
+import { useFavorites } from "@/hooks/useFavorites";
 import ControlBar from "@/components/ControlBar";
 import CategoryScroll from "@/components/CategoryScroll";
 import MapControls from "@/components/MapControls";
 import PostMarkers from "@/components/PostMarkers";
 import PostBottomSheet from "@/components/PostBottomSheet";
 import BottomNav from "@/components/BottomNav";
+import { toast } from "@/hooks/use-toast";
 
 const DEFAULT_CENTER = { lat: 32.7767, lng: -96.797 };
 
