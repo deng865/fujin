@@ -9,6 +9,8 @@ import ResetPassword from "./pages/ResetPassword";
 import CreatePost from "./pages/CreatePost";
 import PostDetail from "./pages/PostDetail";
 import Profile from "./pages/Profile";
+import Messages from "./pages/Messages";
+import ChatRoom from "./pages/ChatRoom";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +28,8 @@ const App = () => (
           <Route path="/create-post" element={<CreatePost />} />
           <Route path="/post/:id" element={<PostDetail />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/chat/:id" element={<ChatRoom />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
