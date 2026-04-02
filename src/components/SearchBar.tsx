@@ -7,12 +7,13 @@ interface SearchBarProps {
 
 export default function SearchBar({ onPlaceSelect }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const autocompleteRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!inputRef.current || typeof google === "undefined" || !google.maps?.places) return;
+    if (!inputRef.current || !(window as any).google?.maps?.places) return;
 
-    autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
+    const g = (window as any).google;
+    autocompleteRef.current = new g.maps.places.Autocomplete(inputRef.current, {
       types: ["(cities)"],
       componentRestrictions: { country: ["us", "ca"] },
     });

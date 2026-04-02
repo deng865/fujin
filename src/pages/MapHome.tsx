@@ -48,9 +48,8 @@ function MapContent({
       }
     });
     return () => {
-      if (typeof google !== "undefined") {
-        google.maps.event.removeListener(listener);
-      }
+      const g = (window as any).google;
+      if (g) g.maps.event.removeListener(listener);
     };
   }, [map, onBoundsChanged]);
 
