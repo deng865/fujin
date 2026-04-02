@@ -188,6 +188,8 @@ export default function MapHome() {
         <PostBottomSheet
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
+          isFavorite={selectedPost ? isFavorite(selectedPost.id) : false}
+          onToggleFavorite={handleToggleFavorite}
         />
 
         {/* Bottom navigation */}
