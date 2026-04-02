@@ -28,6 +28,7 @@ const App = () => (
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/create-post" element={<CreatePost />} />
           <Route path="/post/:id" element={<PostDetail />} />
+          <Route path="/favorites" element={<Favorites />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/chat/:id" element={<ChatRoom />} />
