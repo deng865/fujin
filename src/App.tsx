@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import MapHome from "./pages/MapHome";
 import Auth from "./pages/Auth";
+import CreatePost from "./pages/CreatePost";
+import PostDetail from "./pages/PostDetail";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -18,6 +21,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<MapHome />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/create-post" element={<CreatePost />} />
+          <Route path="/post/:id" element={<PostDetail />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
