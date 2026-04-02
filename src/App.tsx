@@ -3,16 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
 import MapHome from "./pages/MapHome";
-import RequestRide from "./pages/RequestRide";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
-import CreateRide from "./pages/CreateRide";
-import CreateCarpool from "./pages/CreateCarpool";
-import SearchRides from "./pages/SearchRides";
-import RideChat from "./pages/RideChat";
-import Community from "./pages/Community";
 
 const queryClient = new QueryClient();
 
@@ -24,15 +17,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<MapHome />} />
-          <Route path="/home" element={<Index />} />
-          <Route path="/request-ride" element={<RequestRide />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/rides/realtime" element={<CreateRide />} />
-          <Route path="/rides/carpool" element={<CreateCarpool />} />
-          <Route path="/search" element={<SearchRides />} />
-          <Route path="/ride-chat/:rideId" element={<RideChat />} />
-          <Route path="/community" element={<Community />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
