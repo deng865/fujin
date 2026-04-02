@@ -37,8 +37,6 @@ function openNavigation(lat: number, lng: number) {
 export default function PostBottomSheet({ post, onClose }: PostBottomSheetProps) {
   const navigate = useNavigate();
 
-  if (!post) return null;
-
   return (
     <Drawer open={!!post} onOpenChange={(open) => !open && onClose()}>
       <DrawerContent className="max-h-[85vh]">
