@@ -53,6 +53,13 @@ export default function PostDetail() {
   const [loading, setLoading] = useState(true);
   const [showContact, setShowContact] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
+  const { isFavorite, toggleFavorite, userId: favUserId } = useFavorites();
+
+  const handleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!favUserId) { navigate("/auth"); return; }
+    if (post) await toggleFavorite(post.id);
+  };
 
   useEffect(() => {
     if (!id) return;
