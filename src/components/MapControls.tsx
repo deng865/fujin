@@ -18,10 +18,9 @@ export default function MapControls({ onLocateMe, onMapTypeChange, currentMapTyp
   const [showLayers, setShowLayers] = useState(false);
 
   return (
-    <div className="absolute bottom-8 right-4 z-10 flex flex-col gap-2 items-end">
-      {/* Layer picker */}
+    <div className="absolute bottom-24 right-4 z-10 flex flex-col gap-2 items-end">
       {showLayers && (
-        <div className="bg-background/85 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/40 p-1.5 flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="bg-background/80 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/30 p-1.5 flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
           {mapTypes.map((t) => {
             const Icon = t.icon;
             return (
@@ -43,18 +42,16 @@ export default function MapControls({ onLocateMe, onMapTypeChange, currentMapTyp
         </div>
       )}
 
-      {/* Layers button */}
       <button
         onClick={() => setShowLayers(!showLayers)}
-        className="bg-background/85 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/40 p-3 hover:bg-accent transition-all active:scale-95"
+        className="bg-background/80 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/30 p-3 hover:bg-accent transition-all active:scale-95"
       >
         <Layers className="h-5 w-5 text-foreground" />
       </button>
 
-      {/* My location button */}
       <button
         onClick={onLocateMe}
-        className="bg-background/85 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/40 p-3 hover:bg-accent transition-all active:scale-95"
+        className="bg-background/80 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/30 p-3 hover:bg-accent transition-all active:scale-95"
       >
         <Crosshair className="h-5 w-5 text-foreground" />
       </button>
