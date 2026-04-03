@@ -371,9 +371,21 @@ function CategoriesPanel() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {categories.map((cat) => (
+            {categories.map((cat, index) => (
               <tr key={cat.id} className="hover:bg-muted/30">
-                <td className="px-4 py-3 text-muted-foreground">{cat.sort_order}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground w-6 text-center">{cat.sort_order}</span>
+                    <div className="flex flex-col">
+                      <Button size="icon" variant="ghost" className="h-5 w-5" disabled={index === 0} onClick={() => handleMoveUp(index)}>
+                        <ChevronUp className="h-3 w-3" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-5 w-5" disabled={index === categories.length - 1} onClick={() => handleMoveDown(index)}>
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </td>
                 <td className="px-4 py-3 font-mono text-xs">{cat.name}</td>
                 <td className="px-4 py-3 font-medium">{cat.label}</td>
                 <td className="px-4 py-3">
