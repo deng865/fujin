@@ -196,7 +196,7 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
 
   return (
     <Drawer open={!!post} onOpenChange={(open) => !open && onClose()}>
-      <DrawerContent className="max-h-[90vh] rounded-t-3xl focus:outline-none">
+      <DrawerContent hideHandle className="max-h-[90vh] rounded-t-3xl focus:outline-none">
         {/* Drag handle */}
         <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-muted-foreground/20" />
 
