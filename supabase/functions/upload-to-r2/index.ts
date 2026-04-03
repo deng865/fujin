@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // AWS Signature V4 helpers
@@ -38,6 +38,14 @@ serve(async (req) => {
     const R2_ENDPOINT = Deno.env.get('R2_ENDPOINT')!; // e.g. https://<account_id>.r2.cloudflarestorage.com
     const R2_BUCKET_NAME = Deno.env.get('R2_BUCKET_NAME')!;
     const R2_PUBLIC_URL = Deno.env.get('R2_PUBLIC_URL')!; // e.g. https://pub-xxx.r2.dev
+
+    // Ensure content-type exists for formData parsing
+    const contentType = req.headers.get('content-type') || '';
+    if (!contentType.includes('multipart/form-data')) {
+      return new Response(JSON.stringify({ error: 'Content-Type must be multipart/form-data' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Parse multipart form data
     const formData = await req.formData();
