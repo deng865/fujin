@@ -1,8 +1,8 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { DollarSign, Phone, MessageCircle, Camera, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { DollarSign, Phone, MessageCircle } from "lucide-react";
+import MediaUpload from "./MediaUpload";
 
 interface FormData {
   title: string;
@@ -31,44 +31,8 @@ interface DynamicFormProps {
 }
 
 export default function DynamicForm({ category, data, onChange }: DynamicFormProps) {
-  const handleImageAdd = () => {
-    const url = prompt("输入图片链接 / Enter image URL");
-    if (url?.trim()) {
-      onChange({ imageUrls: [...data.imageUrls, url.trim()] });
-    }
-  };
-
-  const removeImage = (index: number) => {
-    onChange({ imageUrls: data.imageUrls.filter((_, i) => i !== index) });
-  };
-
   return (
     <div className="space-y-5">
-      {/* Image Upload Area */}
-      <div className="space-y-2">
-        <Label className="text-sm font-semibold text-muted-foreground">图片 / Photos</Label>
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {data.imageUrls.map((url, i) => (
-            <div key={i} className="relative shrink-0">
-              <img src={url} alt="" className="h-20 w-20 object-cover rounded-xl border-2 border-border/50" />
-              <button
-                onClick={() => removeImage(i)}
-                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-          <button
-            onClick={handleImageAdd}
-            className="h-20 w-20 shrink-0 rounded-xl border-2 border-dashed border-border/60 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors"
-          >
-            <Camera className="h-5 w-5" />
-            <span className="text-[10px]">添加</span>
-          </button>
-        </div>
-      </div>
-
       {/* Title */}
       <div className="space-y-1.5">
         <Label className="text-sm font-semibold text-muted-foreground">标题 / Title *</Label>
@@ -225,6 +189,12 @@ export default function DynamicForm({ category, data, onChange }: DynamicFormPro
       {!["housing", "driver", "jobs"].includes(category) && category && (
         <PriceField value={data.price} onChange={(v) => onChange({ price: v })} />
       )}
+
+      {/* Media Upload - below price fields */}
+      <MediaUpload
+        mediaUrls={data.imageUrls}
+        onChange={(urls) => onChange({ imageUrls: urls })}
+      />
 
       {/* Contact info - always shown */}
       <div className="grid grid-cols-2 gap-3">
