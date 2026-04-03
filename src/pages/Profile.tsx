@@ -206,6 +206,16 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+        {/* Hidden admin entry */}
+        {isAdmin && (
+          <button
+            onClick={() => navigate("/admin")}
+            className="w-full flex items-center justify-center gap-1.5 py-3 text-xs text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+          >
+            <Shield className="h-3 w-3" />
+            管理后台
+          </button>
+        )}
       </div>
     </div>
   );
