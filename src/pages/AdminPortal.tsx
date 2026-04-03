@@ -18,7 +18,7 @@ type AdminTab = "dashboard" | "moderation" | "users" | "categories" | "reports";
 
 // ─── Dashboard Stats ───
 function DashboardPanel() {
-  const [stats, setStats] = useState({ todayPosts: 0, activeUsers: 0, totalPosts: 0, totalConversations: 0 });
+  const [stats, setStats] = useState({ todayPosts: 0, activeUsers: 0, totalPosts: 0, pendingReports: 0 });
 
   useEffect(() => {
     const load = async () => {
