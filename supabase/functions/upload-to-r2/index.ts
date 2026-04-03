@@ -39,6 +39,14 @@ serve(async (req) => {
     const R2_BUCKET_NAME = Deno.env.get('R2_BUCKET_NAME')!;
     const R2_PUBLIC_URL = Deno.env.get('R2_PUBLIC_URL')!; // e.g. https://pub-xxx.r2.dev
 
+    // Ensure content-type exists for formData parsing
+    const contentType = req.headers.get('content-type') || '';
+    if (!contentType.includes('multipart/form-data')) {
+      return new Response(JSON.stringify({ error: 'Content-Type must be multipart/form-data' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Parse multipart form data
     const formData = await req.formData();
     const file = formData.get('file') as File;
