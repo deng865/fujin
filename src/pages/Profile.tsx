@@ -26,6 +26,7 @@ interface Profile {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const { isAdmin } = useAdmin();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<UserPost[]>([]);
