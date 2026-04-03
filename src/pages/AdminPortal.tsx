@@ -76,51 +76,165 @@ function DashboardPanel() {
 function ModerationPanel() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detailPost, setDetailPost] = useState<any | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved">("all");
 
   const fetchPosts = async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("posts")
-      .select("id, title, category, image_urls, created_at, user_id, is_visible")
+      .select("id, title, description, category, image_urls, price, latitude, longitude, created_at, user_id, is_visible")
       .order("created_at", { ascending: false })
       .limit(50);
-    setPosts(data || []);
+
+    if (statusFilter === "pending") query = query.eq("is_visible", false);
+    if (statusFilter === "approved") query = query.eq("is_visible", true);
+
+    const { data } = await query;
+
+    // Enrich with publisher name
+    if (data) {
+      const enriched = await Promise.all(
+        data.map(async (p: any) => {
+          const { data: profile } = await supabase
+            .from("public_profiles")
+            .select("name, avatar_url")
+            .eq("id", p.user_id)
+            .single();
+          return { ...p, publisher_name: profile?.name || "未知用户", publisher_avatar: profile?.avatar_url };
+        })
+      );
+      setPosts(enriched);
+    } else {
+      setPosts([]);
+    }
     setLoading(false);
   };
 
-  useEffect(() => { fetchPosts(); }, []);
+  useEffect(() => { fetchPosts(); }, [statusFilter]);
 
   const handleApprove = async (id: string) => {
     await supabase.from("posts").update({ is_visible: true }).eq("id", id);
-    toast({ title: "已通过审核" });
+    toast({ title: "已批准", description: "帖子已公开，其他用户可以看到" });
+    if (detailPost?.id === id) setDetailPost(null);
     fetchPosts();
   };
 
   const handleReject = async (id: string) => {
-    await supabase.from("posts").delete().eq("id", id);
-    toast({ title: "已拒绝并删除" });
+    await supabase.from("posts").update({ is_visible: false }).eq("id", id);
+    toast({ title: "已拒绝", description: "帖子已隐藏" });
+    if (detailPost?.id === id) setDetailPost(null);
     fetchPosts();
   };
 
-  const handleToggleVisibility = async (id: string, current: boolean) => {
-    await supabase.from("posts").update({ is_visible: !current }).eq("id", id);
-    toast({ title: current ? "已隐藏" : "已显示" });
+  const handleDelete = async (id: string) => {
+    await supabase.from("posts").delete().eq("id", id);
+    toast({ title: "已删除帖子" });
+    if (detailPost?.id === id) setDetailPost(null);
     fetchPosts();
   };
 
   if (loading) return <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mt-10" />;
 
+  // Detail view
+  if (detailPost) {
+    return (
+      <div>
+        <Button variant="ghost" size="sm" className="mb-4" onClick={() => setDetailPost(null)}>
+          ← 返回列表
+        </Button>
+        <div className="border border-border rounded-xl p-6 max-w-2xl">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
+              {detailPost.publisher_avatar ? (
+                <img src={detailPost.publisher_avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+              ) : (
+                <span className="text-sm font-medium text-muted-foreground">{(detailPost.publisher_name || "U").charAt(0)}</span>
+              )}
+            </div>
+            <div>
+              <p className="font-medium">{detailPost.publisher_name}</p>
+              <p className="text-xs text-muted-foreground">发布于 {new Date(detailPost.created_at).toLocaleString("zh-CN")}</p>
+            </div>
+            <span className={`ml-auto inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${detailPost.is_visible ? "bg-emerald-50 text-emerald-700" : "bg-yellow-50 text-yellow-700"}`}>
+              {detailPost.is_visible ? "已批准" : "待审核"}
+            </span>
+          </div>
+
+          <h3 className="text-lg font-bold mb-2">{detailPost.title}</h3>
+          <div className="flex flex-wrap gap-2 mb-3 text-xs text-muted-foreground">
+            <span className="bg-muted px-2 py-0.5 rounded">分类: {detailPost.category}</span>
+            {detailPost.price != null && <span className="bg-muted px-2 py-0.5 rounded">价格: ${detailPost.price}</span>}
+            <span className="bg-muted px-2 py-0.5 rounded">坐标: {detailPost.latitude?.toFixed(4)}, {detailPost.longitude?.toFixed(4)}</span>
+          </div>
+
+          {detailPost.description && (
+            <p className="text-sm text-foreground/80 mb-4 whitespace-pre-wrap">{detailPost.description}</p>
+          )}
+
+          {detailPost.image_urls?.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {detailPost.image_urls.map((url: string, i: number) => (
+                <img key={i} src={url} alt="" className="rounded-lg object-cover w-full aspect-square" />
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-4 border-t border-border">
+            {!detailPost.is_visible && (
+              <Button size="sm" onClick={() => handleApprove(detailPost.id)}>
+                <Check className="h-4 w-4 mr-1" /> 批准
+              </Button>
+            )}
+            {detailPost.is_visible && (
+              <Button size="sm" variant="outline" onClick={() => handleReject(detailPost.id)}>
+                <X className="h-4 w-4 mr-1" /> 拒绝（隐藏）
+              </Button>
+            )}
+            <Button size="sm" variant="destructive" onClick={() => handleDelete(detailPost.id)}>
+              <Trash2 className="h-4 w-4 mr-1" /> 删除
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6">内容审核</h2>
+      <h2 className="text-xl font-bold mb-4">内容审核</h2>
+
+      {/* Filter tabs */}
+      <div className="flex gap-2 mb-4">
+        {[
+          { value: "all" as const, label: "全部" },
+          { value: "pending" as const, label: "待审核" },
+          { value: "approved" as const, label: "已批准" },
+        ].map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setStatusFilter(f.value)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              statusFilter === f.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {posts.length === 0 ? (
-        <p className="text-muted-foreground text-sm">暂无帖子</p>
+        <div className="text-center py-12 text-muted-foreground">
+          <FileText className="h-10 w-10 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">暂无帖子</p>
+        </div>
       ) : (
         <div className="border border-border rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 text-left">
                 <th className="px-4 py-3 font-medium">帖子</th>
+                <th className="px-4 py-3 font-medium">发布者</th>
                 <th className="px-4 py-3 font-medium">分类</th>
                 <th className="px-4 py-3 font-medium">状态</th>
                 <th className="px-4 py-3 font-medium">时间</th>
@@ -138,10 +252,22 @@ function ModerationPanel() {
                       <span className="font-medium truncate max-w-[200px]">{p.title}</span>
                     </div>
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                        {p.publisher_avatar ? (
+                          <img src={p.publisher_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />
+                        ) : (
+                          <span className="text-[10px] font-medium text-muted-foreground">{(p.publisher_name || "U").charAt(0)}</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">{p.publisher_name}</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">{p.category}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${p.is_visible ? "bg-emerald-50 text-emerald-700" : "bg-yellow-50 text-yellow-700"}`}>
-                      {p.is_visible ? "可见" : "隐藏"}
+                      {p.is_visible ? "已批准" : "待审核"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
@@ -149,10 +275,20 @@ function ModerationPanel() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => handleToggleVisibility(p.id, p.is_visible)}>
-                        {p.is_visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <Button size="sm" variant="ghost" onClick={() => setDetailPost(p)} title="详情">
+                        <Eye className="h-4 w-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleReject(p.id)}>
+                      {!p.is_visible && (
+                        <Button size="sm" variant="ghost" className="text-emerald-600" onClick={() => handleApprove(p.id)} title="批准">
+                          <Check className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {p.is_visible && (
+                        <Button size="sm" variant="ghost" className="text-yellow-600" onClick={() => handleReject(p.id)} title="拒绝">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(p.id)} title="删除">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
