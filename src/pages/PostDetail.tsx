@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send } from "lucide-react";
+import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
