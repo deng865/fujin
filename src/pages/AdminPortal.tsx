@@ -595,6 +595,7 @@ export default function AdminPortal() {
             {activeTab === "moderation" && <ModerationPanel />}
             {activeTab === "users" && <UsersPanel />}
             {activeTab === "categories" && <CategoriesPanel />}
+            {activeTab === "reports" && <ReportsPanel />}
           </main>
         </div>
       </div>
