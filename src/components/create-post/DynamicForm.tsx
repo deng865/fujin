@@ -190,6 +190,12 @@ export default function DynamicForm({ category, data, onChange }: DynamicFormPro
         <PriceField value={data.price} onChange={(v) => onChange({ price: v })} />
       )}
 
+      {/* Media Upload - below price fields */}
+      <MediaUpload
+        mediaUrls={data.imageUrls}
+        onChange={(urls) => onChange({ imageUrls: urls })}
+      />
+
       {/* Contact info - always shown */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
