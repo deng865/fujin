@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import {
   BarChart3, FileText, Users, Settings, Shield, Eye, EyeOff,
   Check, X, Search, Ban, ArrowUpDown, Plus, Trash2, GripVertical, Flag, AlertTriangle,
+  ChevronUp, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
