@@ -12,6 +12,7 @@ import Favorites from "./pages/Favorites";
 import Profile from "./pages/Profile";
 import Messages from "./pages/Messages";
 import ChatRoom from "./pages/ChatRoom";
+import AdminPortal from "./pages/AdminPortal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/profile" element={<Profile />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/chat/:id" element={<ChatRoom />} />
+          <Route path="/admin-portal" element={<AdminPortal />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
