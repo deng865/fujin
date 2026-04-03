@@ -14,7 +14,7 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-type AdminTab = "dashboard" | "moderation" | "users" | "categories";
+type AdminTab = "dashboard" | "moderation" | "users" | "categories" | "reports";
 
 // ─── Dashboard Stats ───
 function DashboardPanel() {
