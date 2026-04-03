@@ -282,6 +282,80 @@ export default function PostDetail() {
               )}
             </div>
           )}
+
+          {/* Report Button */}
+          <div className="pt-2 border-t border-border/50">
+            {!showReport ? (
+              <button
+                onClick={() => {
+                  if (!favUserId) { navigate("/auth"); return; }
+                  setShowReport(true);
+                }}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <Flag className="h-3.5 w-3.5" />
+                举报此帖子
+              </button>
+            ) : (
+              <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                <p className="text-sm font-medium">举报原因</p>
+                <div className="flex flex-wrap gap-2">
+                  {["虚假信息", "诈骗/欺诈", "骚扰/辱骂", "违法内容", "重复发帖", "其他"].map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setReportReason(r)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        reportReason === r ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  placeholder="补充说明（可选）"
+                  maxLength={500}
+                  className="w-full bg-muted rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30 resize-none h-20"
+                />
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setShowReport(false); setReportReason(""); setReportDetails(""); }}>
+                    取消
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={!reportReason || reporting}
+                    onClick={async () => {
+                      if (!post || !favUserId) return;
+                      setReporting(true);
+                      const { error } = await supabase.from("reports").insert({
+                        reporter_id: favUserId,
+                        post_id: post.id,
+                        reason: reportReason,
+                        details: reportDetails.trim() || null,
+                      });
+                      if (error?.code === "23505") {
+                        toast({ title: "您已举报过此帖子" });
+                      } else if (error) {
+                        toast({ title: "举报失败", description: "请稍后重试", variant: "destructive" });
+                      } else {
+                        toast({ title: "举报已提交", description: "我们会尽快审核处理" });
+                      }
+                      setShowReport(false);
+                      setReportReason("");
+                      setReportDetails("");
+                      setReporting(false);
+                    }}
+                  >
+                    <Flag className="h-3.5 w-3.5 mr-1" />
+                    提交举报
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
