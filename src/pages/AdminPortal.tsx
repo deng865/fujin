@@ -293,8 +293,15 @@ function CategoriesPanel() {
 
   const handleAdd = async () => {
     if (!newName.trim() || !newLabel.trim()) return;
+    const name = newName.trim().toLowerCase();
+    // Check if name already exists
+    const { data: existing } = await supabase.from("categories").select("id").eq("name", name).maybeSingle();
+    if (existing) {
+      toast({ title: "添加失败", description: `分类标识 "${name}" 已存在，请使用其他名称`, variant: "destructive" });
+      return;
+    }
     const { error } = await supabase.from("categories").insert({
-      name: newName.trim().toLowerCase(),
+      name,
       label: newLabel.trim(),
       icon: "MapPin",
       sort_order: categories.length + 1,
