@@ -62,6 +62,7 @@ export default function ControlBar({
               <Slider
                 value={[searchRadius]}
                 onValueChange={([v]) => onSearchRadiusChange(v)}
+                onValueCommit={() => setShowDistance(false)}
                 min={1}
                 max={100}
                 step={1}
