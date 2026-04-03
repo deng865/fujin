@@ -13,6 +13,7 @@ import Profile from "./pages/Profile";
 import Messages from "./pages/Messages";
 import ChatRoom from "./pages/ChatRoom";
 import AdminPortal from "./pages/AdminPortal";
+import Discovery from "./pages/Discovery";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<MapHome />} />
+          <Route path="/discovery" element={<Discovery />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/create-post" element={<CreatePost />} />

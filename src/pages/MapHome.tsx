@@ -127,6 +127,7 @@ export default function MapHome() {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    if (tab === "discover") navigate("/discovery");
     if (tab === "profile") navigate(user ? "/profile" : "/auth");
     if (tab === "messages") navigate(user ? "/messages" : "/auth");
     if (tab === "favorites") navigate(user ? "/favorites" : "/auth");
