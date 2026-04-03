@@ -53,6 +53,10 @@ export default function PostDetail() {
   const [loading, setLoading] = useState(true);
   const [showContact, setShowContact] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reporting, setReporting] = useState(false);
   const { isFavorite, toggleFavorite, userId: favUserId } = useFavorites();
 
   const handleFavorite = async (e: React.MouseEvent) => {
