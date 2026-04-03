@@ -10,6 +10,25 @@ interface MediaUploadProps {
   onChange: (urls: string[]) => void;
 }
 
+async function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxWidth) { h = (maxWidth / w) * h; w = maxWidth; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => resolve(new File([blob!], file.name, { type: "image/jpeg" })),
+        "image/jpeg", quality
+      );
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export default function MediaUpload({ mediaUrls, onChange }: MediaUploadProps) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -20,8 +39,8 @@ export default function MediaUpload({ mediaUrls, onChange }: MediaUploadProps) {
 
     setUploading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("请先登录");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("请先登录");
 
       const newUrls: string[] = [];
 
@@ -31,23 +50,32 @@ export default function MediaUpload({ mediaUrls, onChange }: MediaUploadProps) {
           continue;
         }
 
-        const ext = file.name.split(".").pop();
-        const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        // Compress images before upload
+        const processedFile = await compressImage(file);
 
-        const { error } = await supabase.storage
-          .from("post-media")
-          .upload(path, file);
+        const formData = new FormData();
+        formData.append("file", processedFile);
 
-        if (error) {
-          toast.error(`上传失败: ${file.name}`);
+        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+        const res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/upload-to-r2`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: formData,
+          }
+        );
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "上传失败" }));
+          toast.error(err.error || `上传失败: ${file.name}`);
           continue;
         }
 
-        const { data: urlData } = supabase.storage
-          .from("post-media")
-          .getPublicUrl(path);
-
-        newUrls.push(urlData.publicUrl);
+        const { url } = await res.json();
+        newUrls.push(url);
       }
 
       if (newUrls.length > 0) {
@@ -65,7 +93,7 @@ export default function MediaUpload({ mediaUrls, onChange }: MediaUploadProps) {
     onChange(mediaUrls.filter((_, i) => i !== index));
   };
 
-  const isVideo = (url: string) => /\.(mp4|mov)(\?|$)/i.test(url);
+  const isVideo = (url: string) => /\.(mp4|mov|webm)(\?|$)/i.test(url);
 
   return (
     <div className="space-y-2">
