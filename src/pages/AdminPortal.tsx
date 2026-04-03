@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import {
   BarChart3, FileText, Users, Settings, Shield, Eye, EyeOff,
   Check, X, Search, Ban, ArrowUpDown, Plus, Trash2, GripVertical, Flag, AlertTriangle,
+  ChevronUp, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -294,7 +295,6 @@ function CategoriesPanel() {
   const handleAdd = async () => {
     if (!newName.trim() || !newLabel.trim()) return;
     const name = newName.trim().toLowerCase();
-    // Check if name already exists
     const { data: existing } = await supabase.from("categories").select("id").eq("name", name).maybeSingle();
     if (existing) {
       toast({ title: "添加失败", description: `分类标识 "${name}" 已存在，请使用其他名称`, variant: "destructive" });
@@ -314,6 +314,28 @@ function CategoriesPanel() {
       setNewLabel("");
       fetchCategories();
     }
+  };
+
+  const handleMoveUp = async (index: number) => {
+    if (index === 0) return;
+    const current = categories[index];
+    const above = categories[index - 1];
+    await Promise.all([
+      supabase.from("categories").update({ sort_order: above.sort_order }).eq("id", current.id),
+      supabase.from("categories").update({ sort_order: current.sort_order }).eq("id", above.id),
+    ]);
+    fetchCategories();
+  };
+
+  const handleMoveDown = async (index: number) => {
+    if (index === categories.length - 1) return;
+    const current = categories[index];
+    const below = categories[index + 1];
+    await Promise.all([
+      supabase.from("categories").update({ sort_order: below.sort_order }).eq("id", current.id),
+      supabase.from("categories").update({ sort_order: current.sort_order }).eq("id", below.id),
+    ]);
+    fetchCategories();
   };
 
   const handleDelete = async (id: string) => {
@@ -349,9 +371,21 @@ function CategoriesPanel() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {categories.map((cat) => (
+            {categories.map((cat, index) => (
               <tr key={cat.id} className="hover:bg-muted/30">
-                <td className="px-4 py-3 text-muted-foreground">{cat.sort_order}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground w-6 text-center">{cat.sort_order}</span>
+                    <div className="flex flex-col">
+                      <Button size="icon" variant="ghost" className="h-5 w-5" disabled={index === 0} onClick={() => handleMoveUp(index)}>
+                        <ChevronUp className="h-3 w-3" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-5 w-5" disabled={index === categories.length - 1} onClick={() => handleMoveDown(index)}>
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </td>
                 <td className="px-4 py-3 font-mono text-xs">{cat.name}</td>
                 <td className="px-4 py-3 font-medium">{cat.label}</td>
                 <td className="px-4 py-3">
