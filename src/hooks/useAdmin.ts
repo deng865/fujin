@@ -12,7 +12,7 @@ export function useAdmin() {
       if (!user) { setLoading(false); return; }
       setUserId(user.id);
 
-      const ADMIN_EMAILS = ["lmfine720@outlook.com", "lmfine721@outlook.com"];
+      const ADMIN_EMAILS = ["lmfine720@outlook.com"];
       if (ADMIN_EMAILS.includes(user.email || "")) {
         setIsAdmin(true);
         setLoading(false);
