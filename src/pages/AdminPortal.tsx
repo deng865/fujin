@@ -25,18 +25,18 @@ function DashboardPanel() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const [postsToday, totalPosts, totalUsers, totalConvs] = await Promise.all([
+      const [postsToday, totalPosts, totalUsers, pendingReports] = await Promise.all([
         supabase.from("posts").select("id", { count: "exact", head: true }).gte("created_at", today.toISOString()),
         supabase.from("posts").select("id", { count: "exact", head: true }),
         supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("conversations").select("id", { count: "exact", head: true }),
+        supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
       ]);
 
       setStats({
         todayPosts: postsToday.count || 0,
         activeUsers: totalUsers.count || 0,
         totalPosts: totalPosts.count || 0,
-        totalConversations: totalConvs.count || 0,
+        pendingReports: pendingReports.count || 0,
       });
     };
     load();
