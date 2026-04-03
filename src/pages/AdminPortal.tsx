@@ -46,7 +46,7 @@ function DashboardPanel() {
     { label: "今日新增帖", value: stats.todayPosts, icon: FileText, color: "text-blue-600 bg-blue-50" },
     { label: "注册用户数", value: stats.activeUsers, icon: Users, color: "text-emerald-600 bg-emerald-50" },
     { label: "总帖子数", value: stats.totalPosts, icon: BarChart3, color: "text-orange-600 bg-orange-50" },
-    { label: "总咨询量", value: stats.totalConversations, icon: Shield, color: "text-purple-600 bg-purple-50" },
+    { label: "待处理举报", value: stats.pendingReports, icon: Flag, color: "text-purple-600 bg-purple-50" },
   ];
 
   return (
