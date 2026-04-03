@@ -190,6 +190,8 @@ export default function MapHome() {
           onClose={() => setSelectedPost(null)}
           isFavorite={selectedPost ? isFavorite(selectedPost.id) : false}
           onToggleFavorite={handleToggleFavorite}
+          userLat={center.lat}
+          userLng={center.lng}
         />
 
         {/* Bottom navigation */}
