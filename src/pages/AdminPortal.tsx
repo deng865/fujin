@@ -295,7 +295,6 @@ function CategoriesPanel() {
   const handleAdd = async () => {
     if (!newName.trim() || !newLabel.trim()) return;
     const name = newName.trim().toLowerCase();
-    // Check if name already exists
     const { data: existing } = await supabase.from("categories").select("id").eq("name", name).maybeSingle();
     if (existing) {
       toast({ title: "添加失败", description: `分类标识 "${name}" 已存在，请使用其他名称`, variant: "destructive" });
@@ -315,6 +314,28 @@ function CategoriesPanel() {
       setNewLabel("");
       fetchCategories();
     }
+  };
+
+  const handleMoveUp = async (index: number) => {
+    if (index === 0) return;
+    const current = categories[index];
+    const above = categories[index - 1];
+    await Promise.all([
+      supabase.from("categories").update({ sort_order: above.sort_order }).eq("id", current.id),
+      supabase.from("categories").update({ sort_order: current.sort_order }).eq("id", above.id),
+    ]);
+    fetchCategories();
+  };
+
+  const handleMoveDown = async (index: number) => {
+    if (index === categories.length - 1) return;
+    const current = categories[index];
+    const below = categories[index + 1];
+    await Promise.all([
+      supabase.from("categories").update({ sort_order: below.sort_order }).eq("id", current.id),
+      supabase.from("categories").update({ sort_order: current.sort_order }).eq("id", below.id),
+    ]);
+    fetchCategories();
   };
 
   const handleDelete = async (id: string) => {
