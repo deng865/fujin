@@ -12,6 +12,7 @@ import Favorites from "./pages/Favorites";
 import Profile from "./pages/Profile";
 import Messages from "./pages/Messages";
 import ChatRoom from "./pages/ChatRoom";
+import AdminPortal from "./pages/AdminPortal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
