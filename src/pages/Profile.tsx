@@ -81,6 +81,55 @@ export default function ProfilePage() {
       setProfile({ ...profile!, name, phone: phone || null, wechat_id: wechatId || null });
       setEditing(false);
     }
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("头像不能超过5MB"); return; }
+    setUploadingAvatar(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("请先登录");
+
+      // Compress
+      const compressed = await new Promise<File>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const size = 400;
+          const canvas = document.createElement("canvas");
+          canvas.width = size; canvas.height = size;
+          const ctx = canvas.getContext("2d")!;
+          const min = Math.min(img.width, img.height);
+          const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
+          ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+          canvas.toBlob(
+            (blob) => resolve(new File([blob!], `avatar-${user.id}.jpg`, { type: "image/jpeg" })),
+            "image/jpeg", 0.85
+          );
+        };
+        img.src = URL.createObjectURL(file);
+      });
+
+      const formData = new FormData();
+      formData.append("file", compressed);
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/upload-to-r2`,
+        { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, body: formData }
+      );
+      if (!res.ok) throw new Error("上传失败");
+      const { url } = await res.json();
+
+      await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
+      setProfile((p) => p ? { ...p, avatar_url: url } : p);
+      toast.success("头像已更新");
+    } catch (err: any) {
+      toast.error(err.message || "上传失败");
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
   };
 
   const handleDeletePost = async (postId: string) => {
