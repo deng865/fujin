@@ -81,6 +81,7 @@ export default function ProfilePage() {
       setProfile({ ...profile!, name, phone: phone || null, wechat_id: wechatId || null });
       setEditing(false);
     }
+  };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,7 +92,6 @@ export default function ProfilePage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("请先登录");
 
-      // Compress
       const compressed = await new Promise<File>((resolve) => {
         const img = new Image();
         img.onload = () => {
@@ -129,7 +129,6 @@ export default function ProfilePage() {
       setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
-  };
   };
 
   const handleDeletePost = async (postId: string) => {
