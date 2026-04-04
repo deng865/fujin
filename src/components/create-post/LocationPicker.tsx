@@ -3,7 +3,7 @@ import { MapPin, Navigation, Shield, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import MapGL, { Marker, MapRef } from "react-map-gl";
+import MapGL, { Marker, MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 

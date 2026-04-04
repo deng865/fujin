@@ -1,4 +1,4 @@
-import { Marker } from "react-map-gl";
+import { Marker } from "react-map-gl/mapbox";
 import { Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, MapPin, Scale, Heart } from "lucide-react";
 
 const categoryIcons: Record<string, any> = {
