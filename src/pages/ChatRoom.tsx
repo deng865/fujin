@@ -44,7 +44,10 @@ export default function ChatRoom() {
   const [inCall, setInCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState<{ callerName: string; callerId: string } | null>(null);
   const [myName, setMyName] = useState("");
+  const [myPhone, setMyPhone] = useState<string | null>(null);
+  const [myWechat, setMyWechat] = useState<string | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [showContactMenu, setShowContactMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
