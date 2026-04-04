@@ -20,10 +20,10 @@ interface PostDetailData {
   image_urls: string[] | null;
   created_at: string;
   user_id: string;
+  contact_phone: string | null;
+  contact_wechat: string | null;
   profiles?: {
     name: string;
-    phone: string | null;
-    wechat_id: string | null;
     avatar_url: string | null;
   } | null;
 }
