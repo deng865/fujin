@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus } from "lucide-react";
+import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/validation";
@@ -44,7 +44,10 @@ export default function ChatRoom() {
   const [inCall, setInCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState<{ callerName: string; callerId: string } | null>(null);
   const [myName, setMyName] = useState("");
+  const [myPhone, setMyPhone] = useState<string | null>(null);
+  const [myWechat, setMyWechat] = useState<string | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [showContactMenu, setShowContactMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -61,13 +64,15 @@ export default function ChatRoom() {
       if (!user) { navigate("/auth"); return; }
       setUserId(user.id);
 
-      // Get own profile name for calls
+      // Get own profile name, phone, wechat for calls & contact sharing
       const { data: myProfile } = await supabase
         .from("profiles")
-        .select("name")
+        .select("name, phone, wechat_id")
         .eq("id", user.id)
         .single();
       setMyName(myProfile?.name || user.email || user.id);
+      setMyPhone(myProfile?.phone || null);
+      setMyWechat(myProfile?.wechat_id || null);
 
       // Get conversation
       const { data: conv } = await supabase
@@ -364,6 +369,26 @@ export default function ChatRoom() {
     }
   };
 
+  const handleSendContact = async (type: "phone" | "wechat") => {
+    if (!userId || !conversationId || sending) return;
+    const value = type === "phone" ? myPhone : myWechat;
+    if (!value) return;
+    const label = type === "phone" ? "手机号" : "微信号";
+    const content = JSON.stringify({ type: "contact", contactType: type, value, label: `${label}: ${value}` });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content,
+    });
+    if (!error) {
+      await supabase
+        .from("conversations")
+        .update({ last_message: `📱 ${label}`, updated_at: new Date().toISOString() })
+        .eq("id", conversationId);
+    }
+    setShowContactMenu(false);
+  };
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
@@ -481,17 +506,33 @@ export default function ChatRoom() {
                       <MediaMessage content={msg.content} isMe={isMe} />
                     ) : parseVoiceMessage(msg.content) ? (
                       <VoiceMessage content={msg.content} isMe={isMe} />
-                    ) : (
-                      <div
-                        className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
-                          isMe
-                            ? "bg-primary text-primary-foreground rounded-br-md"
-                            : "bg-muted text-foreground rounded-bl-md"
-                        }`}
-                      >
-                        {msg.content}
-                      </div>
-                    )}
+                    ) : (() => {
+                      try {
+                        const parsed = JSON.parse(msg.content);
+                        if (parsed?.type === "contact") {
+                          return (
+                            <div className={`px-3 py-2 rounded-2xl text-sm ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
+                              <div className="flex items-center gap-1.5">
+                                <UserCircle className="h-4 w-4 shrink-0" />
+                                <span className="font-medium">{parsed.contactType === "phone" ? "手机号" : "微信号"}</span>
+                              </div>
+                              <p className="mt-1 font-mono text-xs select-all">{parsed.value}</p>
+                            </div>
+                          );
+                        }
+                      } catch {}
+                      return (
+                        <div
+                          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                            isMe
+                              ? "bg-primary text-primary-foreground rounded-br-md"
+                              : "bg-muted text-foreground rounded-bl-md"
+                          }`}
+                        >
+                          {msg.content}
+                        </div>
+                      );
+                    })()}
                     <p className={`text-[10px] text-muted-foreground mt-0.5 ${isMe ? "text-right" : "text-left"}`}>
                       {formatTime(msg.created_at)}
                     </p>
@@ -531,6 +572,37 @@ export default function ChatRoom() {
               <MapPin className="h-5 w-5" />
             )}
           </button>
+          {(myPhone || myWechat) && (
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowContactMenu(!showContactMenu)}
+                className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors"
+                title="发送联系方式"
+              >
+                <MessageSquareShare className="h-5 w-5" />
+              </button>
+              {showContactMenu && (
+                <div className="absolute bottom-12 left-0 bg-background border border-border rounded-xl shadow-lg py-1 min-w-[140px] z-20">
+                  {myPhone && (
+                    <button
+                      onClick={() => handleSendContact("phone")}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2"
+                    >
+                      📱 发送手机号
+                    </button>
+                  )}
+                  {myWechat && (
+                    <button
+                      onClick={() => handleSendContact("wechat")}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2"
+                    >
+                      💬 发送微信号
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <input
             ref={mediaInputRef}
             type="file"
