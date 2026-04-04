@@ -371,6 +371,16 @@ export default function ChatRoom() {
           onClose={() => setInCall(false)}
         />
       )}
+      {incomingCall && !inCall && (
+        <IncomingCall
+          callerName={incomingCall.callerName}
+          onAccept={() => {
+            setIncomingCall(null);
+            setInCall(true);
+          }}
+          onDecline={() => setIncomingCall(null)}
+        />
+      )}
       {/* Header */}
       <div className="shrink-0 bg-background/90 backdrop-blur-xl border-b border-border/50 z-10">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
