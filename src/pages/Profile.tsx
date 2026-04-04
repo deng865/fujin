@@ -177,12 +177,32 @@ export default function ProfilePage() {
         {/* Profile Card */}
         <div className="border border-border rounded-2xl p-5">
           <div className="flex items-center gap-4 mb-4">
-            <div className="h-14 w-14 rounded-full bg-accent flex items-center justify-center">
-              {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="" className="h-14 w-14 rounded-full object-cover" />
-              ) : (
-                <User className="h-7 w-7 text-muted-foreground" />
-              )}
+            <div className="relative group">
+              <div className="h-14 w-14 rounded-full bg-accent flex items-center justify-center overflow-hidden">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="h-14 w-14 rounded-full object-cover" />
+                ) : (
+                  <User className="h-7 w-7 text-muted-foreground" />
+                )}
+              </div>
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                {uploadingAvatar ? (
+                  <Loader2 className="h-5 w-5 text-white animate-spin" />
+                ) : (
+                  <Camera className="h-5 w-5 text-white" />
+                )}
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
             </div>
             <div className="flex-1">
               <p className="font-semibold text-lg">{profile?.name}</p>
