@@ -9,7 +9,7 @@ interface VoiceCallProps {
   userId: string;
   userName: string;
   otherUserName: string;
-  onClose: () => void;
+  onClose: (duration?: number) => void;
 }
 
 export default function VoiceCall({
