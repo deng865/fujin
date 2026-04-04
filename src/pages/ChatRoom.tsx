@@ -447,7 +447,7 @@ export default function ChatRoom() {
             className="hidden"
           />
           <VoiceRecorder conversationId={conversationId!} userId={userId!} disabled={sending || uploadingMedia} />
-            ref={inputRef}
+          <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
