@@ -401,6 +401,18 @@ export default function ChatRoom() {
       <div className="shrink-0 border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-2 px-4 py-2 max-w-lg mx-auto">
           <button
+            onClick={() => mediaInputRef.current?.click()}
+            disabled={uploadingMedia}
+            className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0"
+            title="发送图片/视频"
+          >
+            {uploadingMedia ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <ImagePlus className="h-5 w-5" />
+            )}
+          </button>
+          <button
             onClick={handleSendLocation}
             disabled={sendingLocation}
             className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0"
@@ -412,6 +424,14 @@ export default function ChatRoom() {
               <MapPin className="h-5 w-5" />
             )}
           </button>
+          <input
+            ref={mediaInputRef}
+            type="file"
+            accept="image/*,video/mp4,video/quicktime"
+            multiple
+            onChange={handleMediaUpload}
+            className="hidden"
+          />
           <input
             ref={inputRef}
             value={input}
