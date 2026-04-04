@@ -156,6 +156,22 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId]);
 
+  // Save a call record as a message
+  const saveCallRecord = useCallback(async (status: "missed" | "declined" | "completed" | "cancelled", callerId: string, duration?: number) => {
+    if (!conversationId || !userId) return;
+    const callContent = JSON.stringify({ type: "call", status, callerId, duration });
+    await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: callerId,
+      content: callContent,
+    });
+    const labelMap = { missed: "📞 未接来电", declined: "📞 未接来电", completed: "📞 语音通话", cancelled: "📞 已取消通话" };
+    await supabase
+      .from("conversations")
+      .update({ last_message: labelMap[status], updated_at: new Date().toISOString() })
+      .eq("id", conversationId);
+  }, [conversationId, userId]);
+
   // Listen for incoming call invites
   useEffect(() => {
     if (!conversationId || !userId) return;
@@ -164,7 +180,7 @@ export default function ChatRoom() {
     callChannel
       .on("broadcast", { event: "call-invite" }, ({ payload }) => {
         if (payload.from !== userId && !inCall) {
-          setIncomingCall({ callerName: payload.callerName || otherUser?.name || "用户" });
+          setIncomingCall({ callerName: payload.callerName || otherUser?.name || "用户", callerId: payload.from });
         }
       })
       .on("broadcast", { event: "hangup" }, ({ payload }) => {
