@@ -35,6 +35,8 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState("");
   const [wechatId, setWechatId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
