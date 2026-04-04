@@ -612,14 +612,21 @@ export default function ChatRoom() {
       <div className="shrink-0 border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-1.5 px-3 py-2 max-w-lg mx-auto">
           <VoiceRecorder conversationId={conversationId!} userId={userId!} disabled={sending || uploadingMedia} />
-          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="输入消息..." maxLength={2000} className="flex-1 min-w-0 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
+          <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} onFocus={() => { setShowEmojiPicker(false); setShowContactMenu(false); }} placeholder="输入消息..." maxLength={2000} className="flex-1 min-w-0 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
+          <button
+            onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowContactMenu(false); }}
+            className={`p-2 hover:bg-accent rounded-full transition-colors shrink-0 ${showEmojiPicker ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            title="表情"
+          >
+            <Smile className="h-5 w-5" />
+          </button>
           {input.trim() ? (
             <Button size="icon" onClick={handleSend} disabled={!input.trim() || sending} className="rounded-full h-10 w-10 shrink-0">
               <Send className="h-4 w-4" />
             </Button>
           ) : (
             <button
-              onClick={() => setShowContactMenu(!showContactMenu)}
+              onClick={() => { setShowContactMenu(!showContactMenu); setShowEmojiPicker(false); }}
               className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-foreground transition-colors shrink-0"
               title="更多"
             >
@@ -627,6 +634,10 @@ export default function ChatRoom() {
             </button>
           )}
         </div>
+        {/* Emoji picker panel */}
+        {showEmojiPicker && (
+          <EmojiPicker onSelect={(emoji) => setInput(prev => prev + emoji)} />
+        )}
         {/* Expandable action panel (WeChat style "+" menu) */}
         {showContactMenu && (
           <div className="max-w-lg mx-auto px-4 pb-3 pt-1">
