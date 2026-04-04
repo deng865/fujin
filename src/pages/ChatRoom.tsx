@@ -7,6 +7,7 @@ import { chatMessageSchema } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/validation";
 import { filterMessage } from "@/lib/sensitiveWords";
 import { toast } from "@/hooks/use-toast";
+import LocationMessage, { parseLocationMessage } from "@/components/chat/LocationMessage";
 
 interface Message {
   id: string;
