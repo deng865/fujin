@@ -12,6 +12,7 @@ import MediaMessage, { parseMediaMessage } from "@/components/chat/MediaMessage"
 import VoiceMessage, { parseVoiceMessage } from "@/components/chat/VoiceMessage";
 import VoiceRecorder from "@/components/chat/VoiceRecorder";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import VoiceCall from "@/components/chat/VoiceCall";
 
 interface Message {
   id: string;
@@ -38,6 +39,8 @@ export default function ChatRoom() {
   const [sending, setSending] = useState(false);
   const [sendingLocation, setSendingLocation] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [inCall, setInCall] = useState(false);
+  const [myName, setMyName] = useState("");
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +57,14 @@ export default function ChatRoom() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/auth"); return; }
       setUserId(user.id);
+
+      // Get own profile name for calls
+      const { data: myProfile } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", user.id)
+        .single();
+      setMyName(myProfile?.name || user.email || user.id);
 
       // Get conversation
       const { data: conv } = await supabase
@@ -326,6 +337,15 @@ export default function ChatRoom() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
+      {inCall && userId && conversationId && (
+        <VoiceCall
+          conversationId={conversationId}
+          userId={userId}
+          userName={myName}
+          otherUserName={otherUser?.name || "用户"}
+          onClose={() => setInCall(false)}
+        />
+      )}
       {/* Header */}
       <div className="shrink-0 bg-background/90 backdrop-blur-xl border-b border-border/50 z-10">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
@@ -346,11 +366,13 @@ export default function ChatRoom() {
               <span className="font-semibold text-sm">{otherUser?.name || "用户"}</span>
             </div>
           </div>
-          {otherUser?.phone && (
-            <a href={`tel:${otherUser.phone}`} className="p-2 hover:bg-accent rounded-xl text-primary">
-              <Phone className="h-5 w-5" />
-            </a>
-          )}
+          <button
+            onClick={() => setInCall(true)}
+            className="p-2 hover:bg-accent rounded-xl text-primary"
+            title="语音通话"
+          >
+            <Phone className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
