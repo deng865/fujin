@@ -176,7 +176,7 @@ const Auth = () => {
   // Show success message after signup if email confirmation is needed
   if (signUpSuccess) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="flex min-h-[100dvh] items-start justify-center bg-background px-4 py-10 overflow-y-auto">
         <div className="w-full max-w-sm space-y-6 text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
             <Mail className="w-8 h-8 text-primary" />
@@ -197,7 +197,7 @@ const Auth = () => {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-[100dvh] items-start justify-center bg-background px-4 py-10 overflow-y-auto">
       <LocationPermissionDialog open={showLocationDialog} onSelect={handleLocationPermission} />
 
       <div className="w-full max-w-sm space-y-8">
