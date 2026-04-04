@@ -363,7 +363,6 @@ export default function ChatRoom() {
         )}
         {messages.map((msg, i) => {
           const isMe = msg.sender_id === userId;
-          // Show date separator
           const showDate = i === 0 || new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString();
           return (
             <div key={msg.id}>
@@ -372,12 +371,24 @@ export default function ChatRoom() {
                   {new Date(msg.created_at).toLocaleDateString("zh-CN", { month: "long", day: "numeric" })}
                 </div>
               )}
-              <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[75%] ${isMe ? "order-1" : "order-1"}`}>
+              <div className={`flex ${isMe ? "justify-end" : "justify-start"} gap-2`}>
+                {!isMe && (
+                  <Avatar className="h-7 w-7 shrink-0 mt-1">
+                    {otherUser?.avatar_url ? (
+                      <AvatarImage src={otherUser.avatar_url} alt={otherUser?.name || ""} />
+                    ) : null}
+                    <AvatarFallback className="text-[10px]">
+                      {(otherUser?.name || "U").charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <div className="max-w-[75%]">
                   {parseLocationMessage(msg.content) ? (
                     <LocationMessage content={msg.content} isMe={isMe} />
                   ) : parseMediaMessage(msg.content) ? (
                     <MediaMessage content={msg.content} isMe={isMe} />
+                  ) : parseVoiceMessage(msg.content) ? (
+                    <VoiceMessage content={msg.content} isMe={isMe} />
                   ) : (
                     <div
                       className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
