@@ -130,6 +130,7 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PostProfile | null>(null);
   const [startingChat, setStartingChat] = useState(false);
+  const [showNavChoice, setShowNavChoice] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
