@@ -293,15 +293,19 @@ export default function ChatRoom() {
               )}
               <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[75%] ${isMe ? "order-1" : "order-1"}`}>
-                  <div
-                    className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
-                      isMe
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-muted text-foreground rounded-bl-md"
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
+                  {parseLocationMessage(msg.content) ? (
+                    <LocationMessage content={msg.content} isMe={isMe} />
+                  ) : (
+                    <div
+                      className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                        isMe
+                          ? "bg-primary text-primary-foreground rounded-br-md"
+                          : "bg-muted text-foreground rounded-bl-md"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  )}
                   <p className={`text-[10px] text-muted-foreground mt-0.5 ${isMe ? "text-right" : "text-left"}`}>
                     {formatTime(msg.created_at)}
                   </p>
