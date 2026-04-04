@@ -78,7 +78,7 @@ export default function PostDetail() {
       if (data) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("name, phone, wechat_id, avatar_url")
+          .select("name, avatar_url")
           .eq("id", data.user_id)
           .single();
 
