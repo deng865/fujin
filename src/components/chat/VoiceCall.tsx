@@ -196,8 +196,9 @@ export default function VoiceCall({
       payload: { from: userId },
     });
     setStatus("ended");
+    const finalDuration = duration;
     cleanup();
-    setTimeout(onClose, 500);
+    setTimeout(() => onClose(finalDuration), 500);
   };
 
   const toggleMute = () => {
