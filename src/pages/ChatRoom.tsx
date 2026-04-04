@@ -178,6 +178,7 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId, inCall, otherUser?.name]);
 
+  const handleSend = async () => {
     if (!input.trim() || !userId || !conversationId || sending) return;
 
     const trimmed = input.trim();
