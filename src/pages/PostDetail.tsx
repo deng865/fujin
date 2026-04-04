@@ -289,22 +289,22 @@ export default function PostDetail() {
 
           {showContact && (
             <div className="border border-border rounded-2xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2">
-              {post.profiles?.phone && (
+              {post.contact_phone && (
                 <div className="flex items-center gap-3">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <a href={`tel:${post.profiles.phone}`} className="text-sm text-primary underline">
-                    {post.profiles.phone}
+                  <a href={`tel:${post.contact_phone}`} className="text-sm text-primary underline">
+                    {post.contact_phone}
                   </a>
                 </div>
               )}
-              {(post.profiles as any)?.wechat_id && (
+              {post.contact_wechat && (
                 <div className="flex items-center gap-3">
                   <MessageCircle className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">微信: {(post.profiles as any).wechat_id}</span>
+                  <span className="text-sm">微信: {post.contact_wechat}</span>
                 </div>
               )}
-              {!post.profiles?.phone && !(post.profiles as any)?.wechat_id && (
-                <p className="text-sm text-muted-foreground">暂无联系方式 / No contact info available</p>
+              {!post.contact_phone && !post.contact_wechat && (
+                <p className="text-sm text-muted-foreground">发布者未留联系方式 / No contact info provided</p>
               )}
             </div>
           )}

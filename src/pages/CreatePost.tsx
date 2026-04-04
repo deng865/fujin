@@ -85,6 +85,8 @@ export default function CreatePost() {
         latitude: finalLat,
         longitude: finalLng,
         image_urls: formData.imageUrls.length > 0 ? formData.imageUrls : null,
+        contact_phone: formData.phone.trim() || null,
+        contact_wechat: formData.wechatId.trim() || null,
       });
 
       if (error) throw error;
