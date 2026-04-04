@@ -150,8 +150,15 @@ export default function VoiceCall({
               toast({ title: "通话已结束", description: "对方已挂断" });
             }
           })
-          .subscribe(async (status) => {
-            if (status === "SUBSCRIBED") {
+          .subscribe(async (subStatus) => {
+            if (subStatus === "SUBSCRIBED") {
+              // Notify the other user about incoming call
+              channel.send({
+                type: "broadcast",
+                event: "call-invite",
+                payload: { from: userId, callerName: userName },
+              });
+
               // Create and send offer
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
