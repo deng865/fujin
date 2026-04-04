@@ -58,6 +58,14 @@ export default function ChatRoom() {
       if (!user) { navigate("/auth"); return; }
       setUserId(user.id);
 
+      // Get own profile name for calls
+      const { data: myProfile } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", user.id)
+        .single();
+      setMyName(myProfile?.name || user.email || user.id);
+
       // Get conversation
       const { data: conv } = await supabase
         .from("conversations")
