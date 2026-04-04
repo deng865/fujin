@@ -146,7 +146,12 @@ export default function Messages() {
                       {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true, locale: zhCN })}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                  <p className={`text-xs truncate mt-0.5 ${
+                    (conv.last_message?.includes("未接来电") ? "text-destructive" : "text-muted-foreground")
+                  }`}>
+                    {conv.last_message?.includes("未接来电") && (
+                      <PhoneMissed className="h-3 w-3 inline mr-1 -mt-0.5" />
+                    )}
                     {conv.last_message || "开始聊天吧"}
                   </p>
                 </div>
