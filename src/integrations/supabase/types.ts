@@ -537,6 +537,8 @@ export type Database = {
       posts: {
         Row: {
           category: string
+          contact_phone: string | null
+          contact_wechat: string | null
           created_at: string
           description: string | null
           id: string
@@ -551,6 +553,8 @@ export type Database = {
         }
         Insert: {
           category?: string
+          contact_phone?: string | null
+          contact_wechat?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -565,6 +569,8 @@ export type Database = {
         }
         Update: {
           category?: string
+          contact_phone?: string | null
+          contact_wechat?: string | null
           created_at?: string
           description?: string | null
           id?: string

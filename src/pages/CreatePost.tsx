@@ -58,8 +58,6 @@ export default function CreatePost() {
       // Build description with extra fields
       let desc = formData.description;
       const extras: string[] = [];
-      if (formData.phone) extras.push(`📞 ${formData.phone}`);
-      if (formData.wechatId) extras.push(`💬 微信: ${formData.wechatId}`);
       if (category === "housing") {
         if (formData.bedrooms) extras.push(`🏠 ${formData.bedrooms}${formData.bathrooms ? `/${formData.bathrooms}` : ""}`);
         if (formData.priceUnit === "week") extras.push("💰 周租");
@@ -85,6 +83,8 @@ export default function CreatePost() {
         latitude: finalLat,
         longitude: finalLng,
         image_urls: formData.imageUrls.length > 0 ? formData.imageUrls : null,
+        contact_phone: formData.phone.trim() || null,
+        contact_wechat: formData.wechatId.trim() || null,
       });
 
       if (error) throw error;
