@@ -373,6 +373,8 @@ export default function ChatRoom() {
                 <div className={`max-w-[75%] ${isMe ? "order-1" : "order-1"}`}>
                   {parseLocationMessage(msg.content) ? (
                     <LocationMessage content={msg.content} isMe={isMe} />
+                  ) : parseMediaMessage(msg.content) ? (
+                    <MediaMessage content={msg.content} isMe={isMe} />
                   ) : (
                     <div
                       className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
