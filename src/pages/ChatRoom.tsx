@@ -51,6 +51,7 @@ export default function ChatRoom() {
   const [myWechat, setMyWechat] = useState<string | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [showContactMenu, setShowContactMenu] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
