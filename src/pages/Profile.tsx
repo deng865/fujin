@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, LogOut, Trash2, Edit, User, Shield } from "lucide-react";
+import { ArrowLeft, MapPin, LogOut, Trash2, Edit, User, Shield, Camera, Loader2 } from "lucide-react";
 import { useAdmin } from "@/hooks/useAdmin";
 
 interface UserPost {
