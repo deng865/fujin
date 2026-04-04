@@ -337,6 +337,15 @@ export default function ChatRoom() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
+      {inCall && userId && conversationId && (
+        <VoiceCall
+          conversationId={conversationId}
+          userId={userId}
+          userName={myName}
+          otherUserName={otherUser?.name || "用户"}
+          onClose={() => setInCall(false)}
+        />
+      )}
       {/* Header */}
       <div className="shrink-0 bg-background/90 backdrop-blur-xl border-b border-border/50 z-10">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
