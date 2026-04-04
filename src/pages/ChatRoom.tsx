@@ -446,7 +446,7 @@ export default function ChatRoom() {
             onChange={handleMediaUpload}
             className="hidden"
           />
-          <input
+          <VoiceRecorder conversationId={conversationId!} userId={userId!} disabled={sending || uploadingMedia} />
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
