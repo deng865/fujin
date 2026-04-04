@@ -9,7 +9,7 @@ interface VoiceCallProps {
   userId: string;
   userName: string;
   otherUserName: string;
-  onClose: () => void;
+  onClose: (duration?: number) => void;
 }
 
 export default function VoiceCall({
@@ -196,8 +196,9 @@ export default function VoiceCall({
       payload: { from: userId },
     });
     setStatus("ended");
+    const finalDuration = duration;
     cleanup();
-    setTimeout(onClose, 500);
+    setTimeout(() => onClose(finalDuration), 500);
   };
 
   const toggleMute = () => {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, MessageCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle, PhoneMissed } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
@@ -146,7 +146,12 @@ export default function Messages() {
                       {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true, locale: zhCN })}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                  <p className={`text-xs truncate mt-0.5 ${
+                    (conv.last_message?.includes("未接来电") ? "text-destructive" : "text-muted-foreground")
+                  }`}>
+                    {conv.last_message?.includes("未接来电") && (
+                      <PhoneMissed className="h-3 w-3 inline mr-1 -mt-0.5" />
+                    )}
                     {conv.last_message || "开始聊天吧"}
                   </p>
                 </div>

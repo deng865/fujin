@@ -14,6 +14,7 @@ import VoiceRecorder from "@/components/chat/VoiceRecorder";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import VoiceCall from "@/components/chat/VoiceCall";
 import IncomingCall from "@/components/chat/IncomingCall";
+import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 
 interface Message {
   id: string;
@@ -41,7 +42,7 @@ export default function ChatRoom() {
   const [sendingLocation, setSendingLocation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [inCall, setInCall] = useState(false);
-  const [incomingCall, setIncomingCall] = useState<{ callerName: string } | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{ callerName: string; callerId: string } | null>(null);
   const [myName, setMyName] = useState("");
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -155,6 +156,22 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId]);
 
+  // Save a call record as a message
+  const saveCallRecord = useCallback(async (status: "missed" | "declined" | "completed" | "cancelled", callerId: string, duration?: number) => {
+    if (!conversationId || !userId) return;
+    const callContent = JSON.stringify({ type: "call", status, callerId, duration });
+    await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: callerId,
+      content: callContent,
+    });
+    const labelMap = { missed: "📞 未接来电", declined: "📞 未接来电", completed: "📞 语音通话", cancelled: "📞 已取消通话" };
+    await supabase
+      .from("conversations")
+      .update({ last_message: labelMap[status], updated_at: new Date().toISOString() })
+      .eq("id", conversationId);
+  }, [conversationId, userId]);
+
   // Listen for incoming call invites
   useEffect(() => {
     if (!conversationId || !userId) return;
@@ -163,7 +180,7 @@ export default function ChatRoom() {
     callChannel
       .on("broadcast", { event: "call-invite" }, ({ payload }) => {
         if (payload.from !== userId && !inCall) {
-          setIncomingCall({ callerName: payload.callerName || otherUser?.name || "用户" });
+          setIncomingCall({ callerName: payload.callerName || otherUser?.name || "用户", callerId: payload.from });
         }
       })
       .on("broadcast", { event: "hangup" }, ({ payload }) => {
@@ -368,7 +385,12 @@ export default function ChatRoom() {
           userId={userId}
           userName={myName}
           otherUserName={otherUser?.name || "用户"}
-          onClose={() => setInCall(false)}
+          onClose={(callDuration?: number) => {
+            setInCall(false);
+            if (callDuration !== undefined && callDuration > 0) {
+              saveCallRecord("completed", userId, callDuration);
+            }
+          }}
         />
       )}
       {incomingCall && !inCall && (
@@ -378,7 +400,10 @@ export default function ChatRoom() {
             setIncomingCall(null);
             setInCall(true);
           }}
-          onDecline={() => setIncomingCall(null)}
+          onDecline={() => {
+            saveCallRecord("missed", incomingCall.callerId);
+            setIncomingCall(null);
+          }}
         />
       )}
       {/* Header */}
@@ -421,6 +446,8 @@ export default function ChatRoom() {
         {messages.map((msg, i) => {
           const isMe = msg.sender_id === userId;
           const showDate = i === 0 || new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString();
+          const callData = parseCallMessage(msg.content);
+
           return (
             <div key={msg.id}>
               {showDate && (
@@ -428,40 +455,49 @@ export default function ChatRoom() {
                   {new Date(msg.created_at).toLocaleDateString("zh-CN", { month: "long", day: "numeric" })}
                 </div>
               )}
-              <div className={`flex ${isMe ? "justify-end" : "justify-start"} gap-2`}>
-                {!isMe && (
-                  <Avatar className="h-7 w-7 shrink-0 mt-1">
-                    {otherUser?.avatar_url ? (
-                      <AvatarImage src={otherUser.avatar_url} alt={otherUser?.name || ""} />
-                    ) : null}
-                    <AvatarFallback className="text-[10px]">
-                      {(otherUser?.name || "U").charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                <div className="max-w-[75%]">
-                  {parseLocationMessage(msg.content) ? (
-                    <LocationMessage content={msg.content} isMe={isMe} />
-                  ) : parseMediaMessage(msg.content) ? (
-                    <MediaMessage content={msg.content} isMe={isMe} />
-                  ) : parseVoiceMessage(msg.content) ? (
-                    <VoiceMessage content={msg.content} isMe={isMe} />
-                  ) : (
-                    <div
-                      className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
-                        isMe
-                          ? "bg-primary text-primary-foreground rounded-br-md"
-                          : "bg-muted text-foreground rounded-bl-md"
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
-                  )}
-                  <p className={`text-[10px] text-muted-foreground mt-0.5 ${isMe ? "text-right" : "text-left"}`}>
+              {callData ? (
+                <>
+                  <CallMessage content={msg.content} isMe={isMe} isCaller={callData.callerId === userId} />
+                  <p className="text-center text-[10px] text-muted-foreground mt-0.5">
                     {formatTime(msg.created_at)}
                   </p>
+                </>
+              ) : (
+                <div className={`flex ${isMe ? "justify-end" : "justify-start"} gap-2`}>
+                  {!isMe && (
+                    <Avatar className="h-7 w-7 shrink-0 mt-1">
+                      {otherUser?.avatar_url ? (
+                        <AvatarImage src={otherUser.avatar_url} alt={otherUser?.name || ""} />
+                      ) : null}
+                      <AvatarFallback className="text-[10px]">
+                        {(otherUser?.name || "U").charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="max-w-[75%]">
+                    {parseLocationMessage(msg.content) ? (
+                      <LocationMessage content={msg.content} isMe={isMe} />
+                    ) : parseMediaMessage(msg.content) ? (
+                      <MediaMessage content={msg.content} isMe={isMe} />
+                    ) : parseVoiceMessage(msg.content) ? (
+                      <VoiceMessage content={msg.content} isMe={isMe} />
+                    ) : (
+                      <div
+                        className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                          isMe
+                            ? "bg-primary text-primary-foreground rounded-br-md"
+                            : "bg-muted text-foreground rounded-bl-md"
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
+                    )}
+                    <p className={`text-[10px] text-muted-foreground mt-0.5 ${isMe ? "text-right" : "text-left"}`}>
+                      {formatTime(msg.created_at)}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           );
         })}
