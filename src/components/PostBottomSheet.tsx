@@ -267,8 +267,9 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
                         📍 Google Maps
                       </button>
                     </div>
-                  )
-              </div>
+                    </div>
+                  )}
+                </div>
 
               {/* Description */}
               {post.description && (
