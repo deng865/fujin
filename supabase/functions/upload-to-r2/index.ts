@@ -33,11 +33,14 @@ serve(async (req) => {
   }
 
   try {
-    const R2_ACCESS_KEY_ID = Deno.env.get('R2_ACCESS_KEY_ID')!;
-    const R2_SECRET_ACCESS_KEY = Deno.env.get('R2_SECRET_ACCESS_KEY')!;
-    const R2_ENDPOINT = Deno.env.get('R2_ENDPOINT')!; // e.g. https://<account_id>.r2.cloudflarestorage.com
-    const R2_BUCKET_NAME = Deno.env.get('R2_BUCKET_NAME')!;
-    const R2_PUBLIC_URL = Deno.env.get('R2_PUBLIC_URL')!; // e.g. https://pub-xxx.r2.dev
+    const R2_ACCESS_KEY_ID = (Deno.env.get('R2_ACCESS_KEY_ID') || '').trim();
+    const R2_SECRET_ACCESS_KEY = (Deno.env.get('R2_SECRET_ACCESS_KEY') || '').trim();
+    // Strip trailing slashes and any accidental bucket suffix from endpoint
+    const R2_ENDPOINT = (Deno.env.get('R2_ENDPOINT') || '').trim().replace(/\/+$/, '');
+    const R2_BUCKET_NAME = (Deno.env.get('R2_BUCKET_NAME') || '').trim();
+    const R2_PUBLIC_URL = (Deno.env.get('R2_PUBLIC_URL') || '').trim();
+
+    console.log(`R2 config: endpoint=${R2_ENDPOINT}, bucket=${R2_BUCKET_NAME}, keyId=${R2_ACCESS_KEY_ID.slice(0, 4)}...`);
 
     // Ensure content-type exists for formData parsing
     const contentType = req.headers.get('content-type') || '';
