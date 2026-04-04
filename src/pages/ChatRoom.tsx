@@ -178,6 +178,51 @@ export default function ChatRoom() {
     inputRef.current?.focus();
   };
 
+  const handleSendLocation = async () => {
+    if (!userId || !conversationId || sendingLocation) return;
+    setSendingLocation(true);
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+      );
+      const { latitude, longitude } = pos.coords;
+
+      // Reverse geocode for address
+      let address = "共享位置";
+      try {
+        const token = import.meta.env.VITE_MAPBOX_TOKEN;
+        if (token) {
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${token}&language=zh`);
+          const geo = await res.json();
+          if (geo.features?.[0]?.place_name) {
+            address = geo.features[0].place_name;
+          }
+        }
+      } catch {}
+
+      const locationContent = JSON.stringify({ type: "location", lat: latitude, lng: longitude, address });
+
+      const { error } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: locationContent,
+      });
+
+      if (error) {
+        toast({ title: "发送失败", description: "请稍后重试", variant: "destructive" });
+      } else {
+        await supabase
+          .from("conversations")
+          .update({ last_message: "📍 位置信息", updated_at: new Date().toISOString() })
+          .eq("id", conversationId);
+      }
+    } catch (err: any) {
+      toast({ title: "获取位置失败", description: "请确保已开启定位权限", variant: "destructive" });
+    } finally {
+      setSendingLocation(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
