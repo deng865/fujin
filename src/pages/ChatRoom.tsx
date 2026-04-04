@@ -9,6 +9,9 @@ import { filterMessage } from "@/lib/sensitiveWords";
 import { toast } from "@/hooks/use-toast";
 import LocationMessage, { parseLocationMessage } from "@/components/chat/LocationMessage";
 import MediaMessage, { parseMediaMessage } from "@/components/chat/MediaMessage";
+import VoiceMessage, { parseVoiceMessage } from "@/components/chat/VoiceMessage";
+import VoiceRecorder from "@/components/chat/VoiceRecorder";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface Message {
   id: string;
