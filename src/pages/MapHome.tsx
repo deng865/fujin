@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { APIProvider, Map, useMap } from "@vis.gl/react-google-maps";
-import { GOOGLE_MAPS_API_KEY } from "@/lib/googleMaps";
+import MapGL, { MapRef } from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
 import ControlBar from "@/components/ControlBar";
@@ -36,50 +37,15 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function MapContent({
-  selectedCategory,
-  posts,
-  center,
-  searchRadius,
-  onBoundsChanged,
-  onSelectPost,
-  favoriteIds,
-}: {
-  selectedCategory: string | null;
-  posts: Post[];
-  center: { lat: number; lng: number };
-  searchRadius: number;
-  onBoundsChanged: (bounds: { north: number; south: number; east: number; west: number }) => void;
-  onSelectPost: (post: Post) => void;
-  favoriteIds: Set<string>;
-}) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!map) return;
-    const listener = map.addListener("idle", () => {
-      const bounds = map.getBounds();
-      if (bounds) {
-        const ne = bounds.getNorthEast();
-        const sw = bounds.getSouthWest();
-        onBoundsChanged({ north: ne.lat(), south: sw.lat(), east: ne.lng(), west: sw.lng() });
-      }
-    });
-    return () => {
-      (window as any).google?.maps?.event?.removeListener(listener);
-    };
-  }, [map, onBoundsChanged]);
-
-  const filtered = posts.filter((p) => {
-    if (selectedCategory && p.category !== selectedCategory) return false;
-    return haversine(center.lat, center.lng, p.latitude, p.longitude) <= searchRadius;
-  });
-
-  return <PostMarkers posts={filtered} onSelectPost={onSelectPost} favoriteIds={favoriteIds} />;
-}
+const MAP_STYLES: Record<string, string> = {
+  roadmap: "mapbox://styles/mapbox/streets-v12",
+  satellite: "mapbox://styles/mapbox/satellite-streets-v12",
+  terrain: "mapbox://styles/mapbox/outdoors-v12",
+};
 
 export default function MapHome() {
   const navigate = useNavigate();
+  const mapRef = useRef<MapRef>(null);
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -95,30 +61,56 @@ export default function MapHome() {
     const perm = localStorage.getItem("locationPermission");
     if (perm !== "never") {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setCenter(loc);
+          mapRef.current?.flyTo({ center: [loc.lng, loc.lat], duration: 1000 });
+        },
         () => {}
       );
     }
   }, []);
 
-  const handleBoundsChanged = useCallback(async (bounds: { north: number; south: number; east: number; west: number }) => {
+  const fetchPosts = useCallback(async () => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+    const bounds = map.getBounds();
+    if (!bounds) return;
     const { data } = await supabase
       .from("posts")
       .select("id, title, description, category, price, latitude, longitude, image_urls, created_at")
-      .gte("latitude", bounds.south)
-      .lte("latitude", bounds.north)
-      .gte("longitude", bounds.west)
-      .lte("longitude", bounds.east)
+      .gte("latitude", bounds.getSouth())
+      .lte("latitude", bounds.getNorth())
+      .gte("longitude", bounds.getWest())
+      .lte("longitude", bounds.getEast())
       .eq("is_visible", true)
       .limit(200);
     if (data) setPosts(data);
   }, []);
 
+  const handleMoveEnd = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (map) {
+      const c = map.getCenter();
+      setCenter({ lat: c.lat, lng: c.lng });
+    }
+    fetchPosts();
+  }, [fetchPosts]);
+
   const handleLocateMe = () => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setCenter(loc);
+        mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: 12, duration: 1000 });
+      },
       () => {}
     );
+  };
+
+  const handlePlaceSelect = (loc: { lat: number; lng: number; name: string }) => {
+    setCenter(loc);
+    mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: 12, duration: 1000 });
   };
 
   const handlePostClick = () => {
@@ -140,68 +132,60 @@ export default function MapHome() {
     else if (result === false) toast({ title: "已取消收藏" });
   };
 
+  const filtered = posts.filter((p) => {
+    if (selectedCategory && p.category !== selectedCategory) return false;
+    return haversine(center.lat, center.lng, p.latitude, p.longitude) <= searchRadius;
+  });
+
   return (
-    <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={["places"]}>
-      <div className="relative h-screen w-screen overflow-hidden">
-        <Map
-          defaultCenter={center}
-          center={center}
-          defaultZoom={12}
-          mapId="community-map"
-          mapTypeId={mapType}
-          gestureHandling="greedy"
-          disableDefaultUI
-          zoomControl={false}
-          className="h-full w-full"
-        >
-            <MapContent
-              selectedCategory={selectedCategory}
-              posts={posts}
-              center={center}
-              searchRadius={searchRadius}
-              onBoundsChanged={handleBoundsChanged}
-              onSelectPost={setSelectedPost}
-              favoriteIds={favoriteIds}
-            />
-        </Map>
+    <div className="relative h-screen w-screen overflow-hidden">
+      <MapGL
+        ref={mapRef}
+        initialViewState={{
+          latitude: center.lat,
+          longitude: center.lng,
+          zoom: 12,
+        }}
+        mapboxAccessToken={MAPBOX_TOKEN}
+        mapStyle={MAP_STYLES[mapType]}
+        style={{ width: "100%", height: "100%" }}
+        onLoad={fetchPosts}
+        onMoveEnd={handleMoveEnd}
+      >
+        <PostMarkers posts={filtered} onSelectPost={setSelectedPost} favoriteIds={favoriteIds} />
+      </MapGL>
 
-        {/* Floating search bar */}
-        <ControlBar
-          searchRadius={searchRadius}
-          onSearchRadiusChange={setSearchRadius}
-          onPlaceSelect={(loc) => setCenter(loc)}
-        />
+      <ControlBar
+        searchRadius={searchRadius}
+        onSearchRadiusChange={setSearchRadius}
+        onPlaceSelect={handlePlaceSelect}
+      />
 
-        {/* Category horizontal scroll */}
-        <CategoryScroll
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-        />
+      <CategoryScroll
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+      />
 
-        {/* Map controls - right side */}
-        <MapControls
-          onLocateMe={handleLocateMe}
-          onMapTypeChange={setMapType}
-          currentMapType={mapType}
-        />
+      <MapControls
+        onLocateMe={handleLocateMe}
+        onMapTypeChange={setMapType}
+        currentMapType={mapType}
+      />
 
-        {/* Bottom sheet for selected post */}
-        <PostBottomSheet
-          post={selectedPost}
-          onClose={() => setSelectedPost(null)}
-          isFavorite={selectedPost ? isFavorite(selectedPost.id) : false}
-          onToggleFavorite={handleToggleFavorite}
-          userLat={center.lat}
-          userLng={center.lng}
-        />
+      <PostBottomSheet
+        post={selectedPost}
+        onClose={() => setSelectedPost(null)}
+        isFavorite={selectedPost ? isFavorite(selectedPost.id) : false}
+        onToggleFavorite={handleToggleFavorite}
+        userLat={center.lat}
+        userLng={center.lng}
+      />
 
-        {/* Bottom navigation */}
-        <BottomNav
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          onPostClick={handlePostClick}
-        />
-      </div>
-    </APIProvider>
+      <BottomNav
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        onPostClick={handlePostClick}
+      />
+    </div>
   );
 }

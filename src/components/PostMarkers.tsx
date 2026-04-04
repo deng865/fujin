@@ -1,4 +1,4 @@
-import { AdvancedMarker } from "@vis.gl/react-google-maps";
+import { Marker } from "react-map-gl";
 import { Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, MapPin, Scale, Heart } from "lucide-react";
 
 const categoryIcons: Record<string, any> = {
@@ -38,13 +38,18 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds }: PostMa
         const color = categoryColors[post.category] || "bg-muted";
         const isFav = favoriteIds?.has(post.id);
         return (
-          <AdvancedMarker
+          <Marker
             key={post.id}
-            position={{ lat: post.latitude, lng: post.longitude }}
-            onClick={() => onSelectPost(post)}
+            latitude={post.latitude}
+            longitude={post.longitude}
+            anchor="center"
+            onClick={(e) => {
+              e.originalEvent.stopPropagation();
+              onSelectPost(post);
+            }}
           >
-            <div className="relative">
-              <div className={`${color} text-white rounded-full p-2 shadow-lg cursor-pointer hover:scale-110 transition-transform`}>
+            <div className="relative cursor-pointer">
+              <div className={`${color} text-white rounded-full p-2 shadow-lg hover:scale-110 transition-transform`}>
                 <Icon className="h-4 w-4" />
               </div>
               {isFav && (
@@ -53,7 +58,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds }: PostMa
                 </div>
               )}
             </div>
-          </AdvancedMarker>
+          </Marker>
         );
       })}
     </>
