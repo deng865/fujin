@@ -621,9 +621,9 @@ export default function ChatRoom() {
             <Smile className="h-5 w-5" />
           </button>
           {input.trim() ? (
-            <Button size="icon" onClick={handleSend} disabled={!input.trim() || sending} className="rounded-full h-10 w-10 shrink-0">
-              <Send className="h-4 w-4" />
-            </Button>
+            <button onClick={handleSend} disabled={!input.trim() || sending} className="h-10 w-10 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-50">
+              <Send className="h-5 w-5" />
+            </button>
           ) : (
             <button
               onClick={() => { setShowContactMenu(!showContactMenu); setShowEmojiPicker(false); }}
