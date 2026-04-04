@@ -506,17 +506,33 @@ export default function ChatRoom() {
                       <MediaMessage content={msg.content} isMe={isMe} />
                     ) : parseVoiceMessage(msg.content) ? (
                       <VoiceMessage content={msg.content} isMe={isMe} />
-                    ) : (
-                      <div
-                        className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
-                          isMe
-                            ? "bg-primary text-primary-foreground rounded-br-md"
-                            : "bg-muted text-foreground rounded-bl-md"
-                        }`}
-                      >
-                        {msg.content}
-                      </div>
-                    )}
+                    ) : (() => {
+                      try {
+                        const parsed = JSON.parse(msg.content);
+                        if (parsed?.type === "contact") {
+                          return (
+                            <div className={`px-3 py-2 rounded-2xl text-sm ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
+                              <div className="flex items-center gap-1.5">
+                                <UserCircle className="h-4 w-4 shrink-0" />
+                                <span className="font-medium">{parsed.contactType === "phone" ? "手机号" : "微信号"}</span>
+                              </div>
+                              <p className="mt-1 font-mono text-xs select-all">{parsed.value}</p>
+                            </div>
+                          );
+                        }
+                      } catch {}
+                      return (
+                        <div
+                          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                            isMe
+                              ? "bg-primary text-primary-foreground rounded-br-md"
+                              : "bg-muted text-foreground rounded-bl-md"
+                          }`}
+                        >
+                          {msg.content}
+                        </div>
+                      );
+                    })()}
                     <p className={`text-[10px] text-muted-foreground mt-0.5 ${isMe ? "text-right" : "text-left"}`}>
                       {formatTime(msg.created_at)}
                     </p>
