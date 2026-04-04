@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Phone, Send, MapPin, Loader2 } from "lucide-react";
+import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/validation";
 import { filterMessage } from "@/lib/sensitiveWords";
 import { toast } from "@/hooks/use-toast";
 import LocationMessage, { parseLocationMessage } from "@/components/chat/LocationMessage";
+import MediaMessage, { parseMediaMessage } from "@/components/chat/MediaMessage";
 
 interface Message {
   id: string;
@@ -34,8 +35,10 @@ export default function ChatRoom() {
   const [sending, setSending] = useState(false);
   const [sendingLocation, setSendingLocation] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -223,6 +226,81 @@ export default function ChatRoom() {
     }
   };
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !userId || !conversationId) return;
+    setUploadingMedia(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("请先登录");
+
+      const urls: string[] = [];
+      for (const file of Array.from(files)) {
+        if (file.size > 50 * 1024 * 1024) {
+          toast({ title: "文件过大", description: `${file.name} 超过50MB限制`, variant: "destructive" });
+          continue;
+        }
+
+        // Compress images
+        let processedFile = file;
+        if (file.type.startsWith("image/")) {
+          processedFile = await new Promise<File>((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              let w = img.width, h = img.height;
+              const maxW = 1200;
+              if (w > maxW) { h = (maxW / w) * h; w = maxW; }
+              const canvas = document.createElement("canvas");
+              canvas.width = w; canvas.height = h;
+              canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+              canvas.toBlob(
+                (blob) => resolve(new File([blob!], file.name, { type: "image/jpeg" })),
+                "image/jpeg", 0.8
+              );
+            };
+            img.src = URL.createObjectURL(file);
+          });
+        }
+
+        const formData = new FormData();
+        formData.append("file", processedFile);
+        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+        const res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/upload-to-r2`,
+          { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, body: formData }
+        );
+        if (!res.ok) {
+          toast({ title: "上传失败", description: file.name, variant: "destructive" });
+          continue;
+        }
+        const { url } = await res.json();
+        urls.push(url);
+      }
+
+      if (urls.length > 0) {
+        const mediaContent = JSON.stringify({ type: "media", urls });
+        const { error } = await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: userId,
+          content: mediaContent,
+        });
+        if (error) {
+          toast({ title: "发送失败", description: "请稍后重试", variant: "destructive" });
+        } else {
+          await supabase
+            .from("conversations")
+            .update({ last_message: "📷 图片/视频", updated_at: new Date().toISOString() })
+            .eq("id", conversationId);
+        }
+      }
+    } catch (err: any) {
+      toast({ title: "上传失败", description: err.message || "请稍后重试", variant: "destructive" });
+    } finally {
+      setUploadingMedia(false);
+      if (mediaInputRef.current) mediaInputRef.current.value = "";
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -295,6 +373,8 @@ export default function ChatRoom() {
                 <div className={`max-w-[75%] ${isMe ? "order-1" : "order-1"}`}>
                   {parseLocationMessage(msg.content) ? (
                     <LocationMessage content={msg.content} isMe={isMe} />
+                  ) : parseMediaMessage(msg.content) ? (
+                    <MediaMessage content={msg.content} isMe={isMe} />
                   ) : (
                     <div
                       className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
@@ -321,6 +401,18 @@ export default function ChatRoom() {
       <div className="shrink-0 border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-2 px-4 py-2 max-w-lg mx-auto">
           <button
+            onClick={() => mediaInputRef.current?.click()}
+            disabled={uploadingMedia}
+            className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0"
+            title="发送图片/视频"
+          >
+            {uploadingMedia ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <ImagePlus className="h-5 w-5" />
+            )}
+          </button>
+          <button
             onClick={handleSendLocation}
             disabled={sendingLocation}
             className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0"
@@ -332,6 +424,14 @@ export default function ChatRoom() {
               <MapPin className="h-5 w-5" />
             )}
           </button>
+          <input
+            ref={mediaInputRef}
+            type="file"
+            accept="image/*,video/mp4,video/quicktime"
+            multiple
+            onChange={handleMediaUpload}
+            className="hidden"
+          />
           <input
             ref={inputRef}
             value={input}
