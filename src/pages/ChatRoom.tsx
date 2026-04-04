@@ -320,6 +320,18 @@ export default function ChatRoom() {
       {/* Input bar */}
       <div className="shrink-0 border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-2 px-4 py-2 max-w-lg mx-auto">
+          <button
+            onClick={handleSendLocation}
+            disabled={sendingLocation}
+            className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0"
+            title="发送位置"
+          >
+            {sendingLocation ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <MapPin className="h-5 w-5" />
+            )}
+          </button>
           <input
             ref={inputRef}
             value={input}
