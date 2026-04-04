@@ -369,6 +369,26 @@ export default function ChatRoom() {
     }
   };
 
+  const handleSendContact = async (type: "phone" | "wechat") => {
+    if (!userId || !conversationId || sending) return;
+    const value = type === "phone" ? myPhone : myWechat;
+    if (!value) return;
+    const label = type === "phone" ? "手机号" : "微信号";
+    const content = JSON.stringify({ type: "contact", contactType: type, value, label: `${label}: ${value}` });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content,
+    });
+    if (!error) {
+      await supabase
+        .from("conversations")
+        .update({ last_message: `📱 ${label}`, updated_at: new Date().toISOString() })
+        .eq("id", conversationId);
+    }
+    setShowContactMenu(false);
+  };
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
