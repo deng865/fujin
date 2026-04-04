@@ -14,6 +14,7 @@ import VoiceRecorder from "@/components/chat/VoiceRecorder";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import VoiceCall from "@/components/chat/VoiceCall";
 import IncomingCall from "@/components/chat/IncomingCall";
+import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 
 interface Message {
   id: string;
