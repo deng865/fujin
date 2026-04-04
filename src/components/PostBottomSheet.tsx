@@ -269,6 +269,7 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
                     </div>
                   )}
                 </div>
+              </div>
 
               {/* Description */}
               {post.description && (
