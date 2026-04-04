@@ -572,6 +572,37 @@ export default function ChatRoom() {
               <MapPin className="h-5 w-5" />
             )}
           </button>
+          {(myPhone || myWechat) && (
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowContactMenu(!showContactMenu)}
+                className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors"
+                title="发送联系方式"
+              >
+                <MessageSquareShare className="h-5 w-5" />
+              </button>
+              {showContactMenu && (
+                <div className="absolute bottom-12 left-0 bg-background border border-border rounded-xl shadow-lg py-1 min-w-[140px] z-20">
+                  {myPhone && (
+                    <button
+                      onClick={() => handleSendContact("phone")}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2"
+                    >
+                      📱 发送手机号
+                    </button>
+                  )}
+                  {myWechat && (
+                    <button
+                      onClick={() => handleSendContact("wechat")}
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2"
+                    >
+                      💬 发送微信号
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <input
             ref={mediaInputRef}
             type="file"
