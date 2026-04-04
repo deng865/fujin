@@ -41,6 +41,7 @@ export default function ChatRoom() {
   const [sendingLocation, setSendingLocation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [inCall, setInCall] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ callerName: string } | null>(null);
   const [myName, setMyName] = useState("");
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
