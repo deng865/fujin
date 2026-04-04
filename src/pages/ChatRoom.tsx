@@ -483,9 +483,6 @@ export default function ChatRoom() {
               <span className="font-semibold text-sm">{otherUser?.name || "用户"}</span>
             </div>
           </div>
-          <button onClick={() => setInCall(true)} className="p-2 hover:bg-accent rounded-xl text-primary" title="语音通话">
-            <Phone className="h-5 w-5" />
-          </button>
         </div>
       </div>
 
