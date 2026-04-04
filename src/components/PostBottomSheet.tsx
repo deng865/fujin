@@ -67,9 +67,8 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function openNavigation(lat: number, lng: number) {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS) {
+function openNavigation(lat: number, lng: number, app: "apple" | "google") {
+  if (app === "apple") {
     window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, "_blank");
   } else {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, "_blank");
@@ -131,6 +130,7 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PostProfile | null>(null);
   const [startingChat, setStartingChat] = useState(false);
+  const [showNavChoice, setShowNavChoice] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -244,13 +244,31 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => openNavigation(post.latitude, post.longitude)}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground rounded-xl active:scale-95 transition-transform"
-                >
-                  <Navigation className="h-3.5 w-3.5" />
-                  导航
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowNavChoice((v) => !v)}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground rounded-xl active:scale-95 transition-transform"
+                  >
+                    <Navigation className="h-3.5 w-3.5" />
+                    导航
+                  </button>
+                  {showNavChoice && (
+                    <div className="absolute right-0 bottom-full mb-2 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                      <button
+                        onClick={() => { openNavigation(post.latitude, post.longitude, "apple"); setShowNavChoice(false); }}
+                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+                      >
+                        🍎 Apple Maps
+                      </button>
+                      <button
+                        onClick={() => { openNavigation(post.latitude, post.longitude, "google"); setShowNavChoice(false); }}
+                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+                      >
+                        📍 Google Maps
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Description */}
