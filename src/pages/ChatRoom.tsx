@@ -226,6 +226,81 @@ export default function ChatRoom() {
     }
   };
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !userId || !conversationId) return;
+    setUploadingMedia(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("请先登录");
+
+      const urls: string[] = [];
+      for (const file of Array.from(files)) {
+        if (file.size > 50 * 1024 * 1024) {
+          toast({ title: "文件过大", description: `${file.name} 超过50MB限制`, variant: "destructive" });
+          continue;
+        }
+
+        // Compress images
+        let processedFile = file;
+        if (file.type.startsWith("image/")) {
+          processedFile = await new Promise<File>((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              let w = img.width, h = img.height;
+              const maxW = 1200;
+              if (w > maxW) { h = (maxW / w) * h; w = maxW; }
+              const canvas = document.createElement("canvas");
+              canvas.width = w; canvas.height = h;
+              canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+              canvas.toBlob(
+                (blob) => resolve(new File([blob!], file.name, { type: "image/jpeg" })),
+                "image/jpeg", 0.8
+              );
+            };
+            img.src = URL.createObjectURL(file);
+          });
+        }
+
+        const formData = new FormData();
+        formData.append("file", processedFile);
+        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+        const res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/upload-to-r2`,
+          { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, body: formData }
+        );
+        if (!res.ok) {
+          toast({ title: "上传失败", description: file.name, variant: "destructive" });
+          continue;
+        }
+        const { url } = await res.json();
+        urls.push(url);
+      }
+
+      if (urls.length > 0) {
+        const mediaContent = JSON.stringify({ type: "media", urls });
+        const { error } = await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: userId,
+          content: mediaContent,
+        });
+        if (error) {
+          toast({ title: "发送失败", description: "请稍后重试", variant: "destructive" });
+        } else {
+          await supabase
+            .from("conversations")
+            .update({ last_message: "📷 图片/视频", updated_at: new Date().toISOString() })
+            .eq("id", conversationId);
+        }
+      }
+    } catch (err: any) {
+      toast({ title: "上传失败", description: err.message || "请稍后重试", variant: "destructive" });
+    } finally {
+      setUploadingMedia(false);
+      if (mediaInputRef.current) mediaInputRef.current.value = "";
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
