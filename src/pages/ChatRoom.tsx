@@ -64,13 +64,15 @@ export default function ChatRoom() {
       if (!user) { navigate("/auth"); return; }
       setUserId(user.id);
 
-      // Get own profile name for calls
+      // Get own profile name, phone, wechat for calls & contact sharing
       const { data: myProfile } = await supabase
         .from("profiles")
-        .select("name")
+        .select("name, phone, wechat_id")
         .eq("id", user.id)
         .single();
       setMyName(myProfile?.name || user.email || user.id);
+      setMyPhone(myProfile?.phone || null);
+      setMyWechat(myProfile?.wechat_id || null);
 
       // Get conversation
       const { data: conv } = await supabase
