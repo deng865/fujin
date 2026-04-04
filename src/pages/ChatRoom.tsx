@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare } from "lucide-react";
+import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/validation";
@@ -23,6 +23,7 @@ interface Message {
   content: string;
   created_at: string;
   read_at: string | null;
+  is_recalled?: boolean;
 }
 
 interface OtherUser {
@@ -38,6 +39,7 @@ export default function ChatRoom() {
   const [input, setInput] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
+  const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [sendingLocation, setSendingLocation] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -48,6 +50,8 @@ export default function ChatRoom() {
   const [myWechat, setMyWechat] = useState<string | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [showContactMenu, setShowContactMenu] = useState(false);
+  const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -64,17 +68,16 @@ export default function ChatRoom() {
       if (!user) { navigate("/auth"); return; }
       setUserId(user.id);
 
-      // Get own profile name, phone, wechat for calls & contact sharing
       const { data: myProfile } = await supabase
         .from("profiles")
-        .select("name, phone, wechat_id")
+        .select("name, phone, wechat_id, avatar_url")
         .eq("id", user.id)
         .single();
       setMyName(myProfile?.name || user.email || user.id);
       setMyPhone(myProfile?.phone || null);
       setMyWechat(myProfile?.wechat_id || null);
+      setMyAvatarUrl(myProfile?.avatar_url || null);
 
-      // Get conversation
       const { data: conv } = await supabase
         .from("conversations")
         .select("*")
@@ -85,21 +88,18 @@ export default function ChatRoom() {
 
       const otherId = conv.participant_1 === user.id ? conv.participant_2 : conv.participant_1;
 
-      // Get other user's profile (own profile for phone, public_profiles for others)
       const { data: profile } = await supabase
         .from("public_profiles")
         .select("name, avatar_url")
         .eq("id", otherId)
         .single();
 
-      // We can't see other user's phone directly due to RLS, but we may have it from the conversation context
       setOtherUser({
         name: profile?.name || "用户",
         avatar_url: profile?.avatar_url || null,
-        phone: null, // Can't access other user's phone due to RLS - this is correct
+        phone: null,
       });
 
-      // Fetch messages
       const { data: msgs } = await supabase
         .from("messages")
         .select("*")
@@ -109,11 +109,10 @@ export default function ChatRoom() {
       setMessages(msgs || []);
       setLoading(false);
 
-      // Mark unread messages as read
       if (msgs && msgs.length > 0) {
         const unreadIds = msgs
-          .filter((m) => m.sender_id !== user.id && !m.read_at)
-          .map((m) => m.id);
+          .filter((m: any) => m.sender_id !== user.id && !m.read_at)
+          .map((m: any) => m.id);
         if (unreadIds.length > 0) {
           await supabase
             .from("messages")
@@ -125,12 +124,11 @@ export default function ChatRoom() {
     load();
   }, [conversationId, navigate]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Realtime subscription
+  // Realtime subscription - INSERT and UPDATE (for recall)
   useEffect(() => {
     if (!conversationId || !userId) return;
 
@@ -145,13 +143,20 @@ export default function ChatRoom() {
             if (prev.some((m) => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
-          // Auto-mark as read if it's from the other user
           if (newMsg.sender_id !== userId) {
             await supabase
               .from("messages")
               .update({ read_at: new Date().toISOString() })
               .eq("id", newMsg.id);
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
+        (payload) => {
+          const updated = payload.new as Message;
+          setMessages((prev) => prev.map((m) => m.id === updated.id ? { ...m, is_recalled: updated.is_recalled } : m));
         }
       )
       .subscribe();
@@ -161,7 +166,6 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId]);
 
-  // Save a call record as a message
   const saveCallRecord = useCallback(async (status: "missed" | "declined" | "completed" | "cancelled", callerId: string, duration?: number) => {
     if (!conversationId || !userId) return;
     const callContent = JSON.stringify({ type: "call", status, callerId, duration });
@@ -177,7 +181,6 @@ export default function ChatRoom() {
       .eq("id", conversationId);
   }, [conversationId, userId]);
 
-  // Listen for incoming call invites
   useEffect(() => {
     if (!conversationId || !userId) return;
 
@@ -200,38 +203,107 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId, inCall, otherUser?.name]);
 
+  // Recall message
+  const handleRecall = async (msg: Message) => {
+    setLongPressMsg(null);
+    try {
+      // Check if media message - delete R2 files
+      const mediaData = parseMediaMessage(msg.content);
+      if (mediaData && mediaData.urls.length > 0) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+          fetch(`https://${projectId}.supabase.co/functions/v1/delete-r2-file`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ urls: mediaData.urls }),
+          }).catch(console.error);
+        }
+      }
+
+      // Also check voice messages
+      const voiceData = parseVoiceMessage(msg.content);
+      if (voiceData) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+          fetch(`https://${projectId}.supabase.co/functions/v1/delete-r2-file`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ urls: [voiceData.url] }),
+          }).catch(console.error);
+        }
+      }
+
+      const { error } = await supabase
+        .from("messages")
+        .update({ is_recalled: true } as any)
+        .eq("id", msg.id);
+
+      if (error) {
+        toast({ title: "撤回失败", description: "请稍后重试", variant: "destructive" });
+      } else {
+        // Update locally immediately
+        setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, is_recalled: true } : m));
+        await supabase
+          .from("conversations")
+          .update({ last_message: "消息已撤回", updated_at: new Date().toISOString() })
+          .eq("id", conversationId!);
+      }
+    } catch {
+      toast({ title: "撤回失败", variant: "destructive" });
+    }
+  };
+
+  const canRecall = (msg: Message) => {
+    if (msg.sender_id !== userId || msg.is_recalled) return false;
+    const elapsed = Date.now() - new Date(msg.created_at).getTime();
+    return elapsed < 2 * 60 * 1000; // 2 minutes
+  };
+
+  // Long press handlers
+  const handleTouchStart = (msgId: string) => {
+    longPressTimer.current = setTimeout(() => {
+      setLongPressMsg(msgId);
+    }, 600);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || !userId || !conversationId || sending) return;
-
     const trimmed = input.trim();
-
-    // Validate
     const validation = chatMessageSchema.safeParse({ message: trimmed });
     if (!validation.success) {
       toast({ title: "发送失败", description: validation.error.issues[0].message, variant: "destructive" });
       return;
     }
-
-    // Sensitive word filter
     const filtered = filterMessage(trimmed);
     if (!filtered.safe) {
       toast({ title: "发送失败", description: filtered.message, variant: "destructive" });
       return;
     }
-
     setSending(true);
     const sanitized = sanitizeHtml(trimmed);
-
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
       sender_id: userId,
       content: sanitized,
     });
-
     if (error) {
       toast({ title: "发送失败", description: "请稍后重试", variant: "destructive" });
     } else {
-      // Update conversation last_message
       await supabase
         .from("conversations")
         .update({ last_message: sanitized, updated_at: new Date().toISOString() })
@@ -250,37 +322,25 @@ export default function ChatRoom() {
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
       );
       const { latitude, longitude } = pos.coords;
-
-      // Reverse geocode for address
       let address = "共享位置";
       try {
         const token = import.meta.env.VITE_MAPBOX_TOKEN;
         if (token) {
           const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${token}&language=zh`);
           const geo = await res.json();
-          if (geo.features?.[0]?.place_name) {
-            address = geo.features[0].place_name;
-          }
+          if (geo.features?.[0]?.place_name) address = geo.features[0].place_name;
         }
       } catch {}
-
       const locationContent = JSON.stringify({ type: "location", lat: latitude, lng: longitude, address });
-
       const { error } = await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: userId,
-        content: locationContent,
+        conversation_id: conversationId, sender_id: userId, content: locationContent,
       });
-
       if (error) {
         toast({ title: "发送失败", description: "请稍后重试", variant: "destructive" });
       } else {
-        await supabase
-          .from("conversations")
-          .update({ last_message: "📍 位置信息", updated_at: new Date().toISOString() })
-          .eq("id", conversationId);
+        await supabase.from("conversations").update({ last_message: "📍 位置信息", updated_at: new Date().toISOString() }).eq("id", conversationId);
       }
-    } catch (err: any) {
+    } catch {
       toast({ title: "获取位置失败", description: "请确保已开启定位权限", variant: "destructive" });
     } finally {
       setSendingLocation(false);
@@ -294,15 +354,12 @@ export default function ChatRoom() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("请先登录");
-
       const urls: string[] = [];
       for (const file of Array.from(files)) {
         if (file.size > 50 * 1024 * 1024) {
           toast({ title: "文件过大", description: `${file.name} 超过50MB限制`, variant: "destructive" });
           continue;
         }
-
-        // Compress images
         let processedFile = file;
         if (file.type.startsWith("image/")) {
           processedFile = await new Promise<File>((resolve) => {
@@ -322,7 +379,6 @@ export default function ChatRoom() {
             img.src = URL.createObjectURL(file);
           });
         }
-
         const formData = new FormData();
         formData.append("file", processedFile);
         const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -330,28 +386,19 @@ export default function ChatRoom() {
           `https://${projectId}.supabase.co/functions/v1/upload-to-r2`,
           { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, body: formData }
         );
-        if (!res.ok) {
-          toast({ title: "上传失败", description: file.name, variant: "destructive" });
-          continue;
-        }
+        if (!res.ok) { toast({ title: "上传失败", description: file.name, variant: "destructive" }); continue; }
         const { url } = await res.json();
         urls.push(url);
       }
-
       if (urls.length > 0) {
         const mediaContent = JSON.stringify({ type: "media", urls });
         const { error } = await supabase.from("messages").insert({
-          conversation_id: conversationId,
-          sender_id: userId,
-          content: mediaContent,
+          conversation_id: conversationId, sender_id: userId, content: mediaContent,
         });
         if (error) {
           toast({ title: "发送失败", description: "请稍后重试", variant: "destructive" });
         } else {
-          await supabase
-            .from("conversations")
-            .update({ last_message: "📷 图片/视频", updated_at: new Date().toISOString() })
-            .eq("id", conversationId);
+          await supabase.from("conversations").update({ last_message: "📷 图片/视频", updated_at: new Date().toISOString() }).eq("id", conversationId);
         }
       }
     } catch (err: any) {
@@ -363,10 +410,7 @@ export default function ChatRoom() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const handleSendContact = async (type: "phone" | "wechat") => {
@@ -375,16 +419,9 @@ export default function ChatRoom() {
     if (!value) return;
     const label = type === "phone" ? "手机号" : "微信号";
     const content = JSON.stringify({ type: "contact", contactType: type, value, label: `${label}: ${value}` });
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: userId,
-      content,
-    });
+    const { error } = await supabase.from("messages").insert({ conversation_id: conversationId, sender_id: userId, content });
     if (!error) {
-      await supabase
-        .from("conversations")
-        .update({ last_message: `📱 ${label}`, updated_at: new Date().toISOString() })
-        .eq("id", conversationId);
+      await supabase.from("conversations").update({ last_message: `📱 ${label}`, updated_at: new Date().toISOString() }).eq("id", conversationId);
     }
     setShowContactMenu(false);
   };
@@ -421,16 +458,11 @@ export default function ChatRoom() {
       {incomingCall && !inCall && (
         <IncomingCall
           callerName={incomingCall.callerName}
-          onAccept={() => {
-            setIncomingCall(null);
-            setInCall(true);
-          }}
-          onDecline={() => {
-            saveCallRecord("missed", incomingCall.callerId);
-            setIncomingCall(null);
-          }}
+          onAccept={() => { setIncomingCall(null); setInCall(true); }}
+          onDecline={() => { saveCallRecord("missed", incomingCall.callerId); setIncomingCall(null); }}
         />
       )}
+
       {/* Header */}
       <div className="shrink-0 bg-background/90 backdrop-blur-xl border-b border-border/50 z-10">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
@@ -451,27 +483,42 @@ export default function ChatRoom() {
               <span className="font-semibold text-sm">{otherUser?.name || "用户"}</span>
             </div>
           </div>
-          <button
-            onClick={() => setInCall(true)}
-            className="p-2 hover:bg-accent rounded-xl text-primary"
-            title="语音通话"
-          >
+          <button onClick={() => setInCall(true)} className="p-2 hover:bg-accent rounded-xl text-primary" title="语音通话">
             <Phone className="h-5 w-5" />
           </button>
         </div>
       </div>
 
+      {/* Dismiss long-press menu on backdrop click */}
+      {longPressMsg && (
+        <div className="fixed inset-0 z-30" onClick={() => setLongPressMsg(null)} />
+      )}
+
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 max-w-lg mx-auto w-full">
         {messages.length === 0 && (
-          <div className="text-center text-muted-foreground text-xs py-8">
-            开始聊天吧 👋
-          </div>
+          <div className="text-center text-muted-foreground text-xs py-8">开始聊天吧 👋</div>
         )}
         {messages.map((msg, i) => {
           const isMe = msg.sender_id === userId;
           const showDate = i === 0 || new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString();
           const callData = parseCallMessage(msg.content);
+
+          // Recalled message
+          if (msg.is_recalled) {
+            return (
+              <div key={msg.id}>
+                {showDate && (
+                  <div className="text-center text-[11px] text-muted-foreground py-2">
+                    {new Date(msg.created_at).toLocaleDateString("zh-CN", { month: "long", day: "numeric" })}
+                  </div>
+                )}
+                <div className="text-center text-[12px] text-muted-foreground py-1 italic">
+                  {isMe ? "你" : (otherUser?.name || "对方")}撤回了一条消息
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div key={msg.id}>
@@ -483,23 +530,40 @@ export default function ChatRoom() {
               {callData ? (
                 <>
                   <CallMessage content={msg.content} isMe={isMe} isCaller={callData.callerId === userId} />
-                  <p className="text-center text-[10px] text-muted-foreground mt-0.5">
-                    {formatTime(msg.created_at)}
-                  </p>
+                  <p className="text-center text-[10px] text-muted-foreground mt-0.5">{formatTime(msg.created_at)}</p>
                 </>
               ) : (
                 <div className={`flex ${isMe ? "justify-end" : "justify-start"} gap-2`}>
                   {!isMe && (
                     <Avatar className="h-7 w-7 shrink-0 mt-1">
-                      {otherUser?.avatar_url ? (
-                        <AvatarImage src={otherUser.avatar_url} alt={otherUser?.name || ""} />
-                      ) : null}
-                      <AvatarFallback className="text-[10px]">
-                        {(otherUser?.name || "U").charAt(0).toUpperCase()}
-                      </AvatarFallback>
+                      {otherUser?.avatar_url ? <AvatarImage src={otherUser.avatar_url} alt={otherUser?.name || ""} /> : null}
+                      <AvatarFallback className="text-[10px]">{(otherUser?.name || "U").charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                   )}
-                  <div className="max-w-[75%]">
+                  <div
+                    className="max-w-[75%] relative"
+                    onTouchStart={() => isMe && canRecall(msg) && handleTouchStart(msg.id)}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchEnd}
+                    onContextMenu={(e) => {
+                      if (isMe && canRecall(msg)) {
+                        e.preventDefault();
+                        setLongPressMsg(msg.id);
+                      }
+                    }}
+                  >
+                    {/* Long press recall menu */}
+                    {longPressMsg === msg.id && canRecall(msg) && (
+                      <div className={`absolute ${isMe ? "right-0" : "left-0"} -top-10 z-40 bg-popover border border-border rounded-lg shadow-lg py-1 px-1 animate-in fade-in zoom-in-95`}>
+                        <button
+                          onClick={() => handleRecall(msg)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-accent rounded-md text-destructive whitespace-nowrap"
+                        >
+                          <Undo2 className="h-3.5 w-3.5" />
+                          撤回
+                        </button>
+                      </div>
+                    )}
                     {parseLocationMessage(msg.content) ? (
                       <LocationMessage content={msg.content} isMe={isMe} />
                     ) : parseMediaMessage(msg.content) ? (
@@ -522,13 +586,7 @@ export default function ChatRoom() {
                         }
                       } catch {}
                       return (
-                        <div
-                          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
-                            isMe
-                              ? "bg-primary text-primary-foreground rounded-br-md"
-                              : "bg-muted text-foreground rounded-bl-md"
-                          }`}
-                        >
+                        <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
                           {msg.content}
                         </div>
                       );
@@ -537,6 +595,12 @@ export default function ChatRoom() {
                       {formatTime(msg.created_at)}
                     </p>
                   </div>
+                  {isMe && (
+                    <Avatar className="h-7 w-7 shrink-0 mt-1">
+                      {myAvatarUrl ? <AvatarImage src={myAvatarUrl} alt={myName} /> : null}
+                      <AvatarFallback className="text-[10px]">{(myName || "M").charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  )}
                 </div>
               )}
             </div>
@@ -548,54 +612,26 @@ export default function ChatRoom() {
       {/* Input bar */}
       <div className="shrink-0 border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-2 px-4 py-2 max-w-lg mx-auto">
-          <button
-            onClick={() => mediaInputRef.current?.click()}
-            disabled={uploadingMedia}
-            className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0"
-            title="发送图片/视频"
-          >
-            {uploadingMedia ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <ImagePlus className="h-5 w-5" />
-            )}
+          <button onClick={() => mediaInputRef.current?.click()} disabled={uploadingMedia} className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0" title="发送图片/视频">
+            {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
           </button>
-          <button
-            onClick={handleSendLocation}
-            disabled={sendingLocation}
-            className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0"
-            title="发送位置"
-          >
-            {sendingLocation ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <MapPin className="h-5 w-5" />
-            )}
+          <button onClick={handleSendLocation} disabled={sendingLocation} className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0" title="发送位置">
+            {sendingLocation ? <Loader2 className="h-5 w-5 animate-spin" /> : <MapPin className="h-5 w-5" />}
           </button>
           {(myPhone || myWechat) && (
             <div className="relative shrink-0">
-              <button
-                onClick={() => setShowContactMenu(!showContactMenu)}
-                className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors"
-                title="发送联系方式"
-              >
+              <button onClick={() => setShowContactMenu(!showContactMenu)} className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors" title="发送联系方式">
                 <MessageSquareShare className="h-5 w-5" />
               </button>
               {showContactMenu && (
                 <div className="absolute bottom-12 left-0 bg-background border border-border rounded-xl shadow-lg py-1 min-w-[140px] z-20">
                   {myPhone && (
-                    <button
-                      onClick={() => handleSendContact("phone")}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2"
-                    >
+                    <button onClick={() => handleSendContact("phone")} className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2">
                       📱 发送手机号
                     </button>
                   )}
                   {myWechat && (
-                    <button
-                      onClick={() => handleSendContact("wechat")}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2"
-                    >
+                    <button onClick={() => handleSendContact("wechat")} className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2">
                       💬 发送微信号
                     </button>
                   )}
@@ -603,29 +639,10 @@ export default function ChatRoom() {
               )}
             </div>
           )}
-          <input
-            ref={mediaInputRef}
-            type="file"
-            accept="image/*,video/mp4,video/quicktime"
-            multiple
-            onChange={handleMediaUpload}
-            className="hidden"
-          />
+          <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
           <VoiceRecorder conversationId={conversationId!} userId={userId!} disabled={sending || uploadingMedia} />
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="输入消息..."
-            maxLength={2000}
-            className="flex-1 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground"
-          />
-          <Button
-            size="icon"
-            onClick={handleSend}
-            disabled={!input.trim() || sending}
-            className="rounded-full h-10 w-10 shrink-0"
-          >
+          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="输入消息..." maxLength={2000} className="flex-1 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
+          <Button size="icon" onClick={handleSend} disabled={!input.trim() || sending} className="rounded-full h-10 w-10 shrink-0">
             <Send className="h-4 w-4" />
           </Button>
         </div>
