@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag } from "lucide-react";
+import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
@@ -54,6 +54,7 @@ export default function PostDetail() {
   const [showContact, setShowContact] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showNavChoice, setShowNavChoice] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [reporting, setReporting] = useState(false);
@@ -213,6 +214,31 @@ export default function PostDetail() {
               <MapPin className="h-3.5 w-3.5" />
               {post.latitude.toFixed(2)}, {post.longitude.toFixed(2)}
             </span>
+            <div className="relative ml-auto">
+              <button
+                onClick={() => setShowNavChoice((v) => !v)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-xl active:scale-95 transition-transform"
+              >
+                <Navigation className="h-3.5 w-3.5" />
+                导航
+              </button>
+              {showNavChoice && (
+                <div className="absolute right-0 bottom-full mb-2 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <button
+                    onClick={() => { window.open(`maps://maps.apple.com/?daddr=${post.latitude},${post.longitude}&dirflg=d`, "_blank"); setShowNavChoice(false); }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+                  >
+                    🍎 Apple Maps
+                  </button>
+                  <button
+                    onClick={() => { window.open(`https://www.google.com/maps/dir/?api=1&destination=${post.latitude},${post.longitude}`, "_blank"); setShowNavChoice(false); }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+                  >
+                    📍 Google Maps
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Description */}
