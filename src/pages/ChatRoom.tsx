@@ -13,6 +13,7 @@ import VoiceMessage, { parseVoiceMessage } from "@/components/chat/VoiceMessage"
 import VoiceRecorder from "@/components/chat/VoiceRecorder";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import VoiceCall from "@/components/chat/VoiceCall";
+import IncomingCall from "@/components/chat/IncomingCall";
 
 interface Message {
   id: string;
@@ -40,6 +41,7 @@ export default function ChatRoom() {
   const [sendingLocation, setSendingLocation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [inCall, setInCall] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ callerName: string } | null>(null);
   const [myName, setMyName] = useState("");
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -152,6 +154,29 @@ export default function ChatRoom() {
       supabase.removeChannel(channel);
     };
   }, [conversationId, userId]);
+
+  // Listen for incoming call invites
+  useEffect(() => {
+    if (!conversationId || !userId) return;
+
+    const callChannel = supabase.channel(`call-${conversationId}`);
+    callChannel
+      .on("broadcast", { event: "call-invite" }, ({ payload }) => {
+        if (payload.from !== userId && !inCall) {
+          setIncomingCall({ callerName: payload.callerName || otherUser?.name || "用户" });
+        }
+      })
+      .on("broadcast", { event: "hangup" }, ({ payload }) => {
+        if (payload.from !== userId) {
+          setIncomingCall(null);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(callChannel);
+    };
+  }, [conversationId, userId, inCall, otherUser?.name]);
 
   const handleSend = async () => {
     if (!input.trim() || !userId || !conversationId || sending) return;
@@ -344,6 +369,16 @@ export default function ChatRoom() {
           userName={myName}
           otherUserName={otherUser?.name || "用户"}
           onClose={() => setInCall(false)}
+        />
+      )}
+      {incomingCall && !inCall && (
+        <IncomingCall
+          callerName={incomingCall.callerName}
+          onAccept={() => {
+            setIncomingCall(null);
+            setInCall(true);
+          }}
+          onDecline={() => setIncomingCall(null)}
         />
       )}
       {/* Header */}
