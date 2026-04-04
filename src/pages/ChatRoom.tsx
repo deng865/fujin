@@ -661,19 +661,19 @@ export default function ChatRoom() {
                 <span className="text-[11px] text-muted-foreground">语音通话</span>
               </button>
               {myPhone && (
-                <button onClick={() => handleSendContact("phone")} className="flex flex-col items-center gap-1.5">
+                <button onClick={() => { handleSendContact("phone"); setShowContactMenu(false); }} className="flex flex-col items-center gap-1.5">
                   <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
                     <UserCircle className="h-6 w-6 text-muted-foreground" />
                   </div>
-                  <span className="text-[11px] text-muted-foreground">手机号</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight text-center">手机号发送</span>
                 </button>
               )}
               {myWechat && (
-                <button onClick={() => handleSendContact("wechat")} className="flex flex-col items-center gap-1.5">
+                <button onClick={() => { handleSendContact("wechat"); setShowContactMenu(false); }} className="flex flex-col items-center gap-1.5">
                   <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
                     <MessageSquareShare className="h-6 w-6 text-muted-foreground" />
                   </div>
-                  <span className="text-[11px] text-muted-foreground">微信号</span>
+                  <span className="text-[11px] text-muted-foreground leading-tight text-center">微信号发送</span>
                 </button>
               )}
             </div>
