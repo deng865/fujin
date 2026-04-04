@@ -32,6 +32,7 @@ export default function ChatRoom() {
   const [userId, setUserId] = useState<string | null>(null);
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [sending, setSending] = useState(false);
+  const [sendingLocation, setSendingLocation] = useState(false);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
