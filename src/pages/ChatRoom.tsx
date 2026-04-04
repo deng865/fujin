@@ -155,7 +155,29 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId]);
 
-  const handleSend = async () => {
+  // Listen for incoming call invites
+  useEffect(() => {
+    if (!conversationId || !userId) return;
+
+    const callChannel = supabase.channel(`call-${conversationId}`);
+    callChannel
+      .on("broadcast", { event: "call-invite" }, ({ payload }) => {
+        if (payload.from !== userId && !inCall) {
+          setIncomingCall({ callerName: payload.callerName || otherUser?.name || "用户" });
+        }
+      })
+      .on("broadcast", { event: "hangup" }, ({ payload }) => {
+        if (payload.from !== userId) {
+          setIncomingCall(null);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(callChannel);
+    };
+  }, [conversationId, userId, inCall, otherUser?.name]);
+
     if (!input.trim() || !userId || !conversationId || sending) return;
 
     const trimmed = input.trim();
