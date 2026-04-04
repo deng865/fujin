@@ -611,41 +611,65 @@ export default function ChatRoom() {
 
       {/* Input bar */}
       <div className="shrink-0 border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
-        <div className="flex items-center gap-2 px-4 py-2 max-w-lg mx-auto">
-          <button onClick={() => mediaInputRef.current?.click()} disabled={uploadingMedia} className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0" title="发送图片/视频">
-            {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-          </button>
-          <button onClick={handleSendLocation} disabled={sendingLocation} className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0" title="发送位置">
-            {sendingLocation ? <Loader2 className="h-5 w-5 animate-spin" /> : <MapPin className="h-5 w-5" />}
-          </button>
-          {(myPhone || myWechat) && (
-            <div className="relative shrink-0">
-              <button onClick={() => setShowContactMenu(!showContactMenu)} className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors" title="发送联系方式">
-                <MessageSquareShare className="h-5 w-5" />
-              </button>
-              {showContactMenu && (
-                <div className="absolute bottom-12 left-0 bg-background border border-border rounded-xl shadow-lg py-1 min-w-[140px] z-20">
-                  {myPhone && (
-                    <button onClick={() => handleSendContact("phone")} className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2">
-                      📱 发送手机号
-                    </button>
-                  )}
-                  {myWechat && (
-                    <button onClick={() => handleSendContact("wechat")} className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2">
-                      💬 发送微信号
-                    </button>
-                  )}
+        <div className="flex items-center gap-1.5 px-3 py-2 max-w-lg mx-auto">
+          <VoiceRecorder conversationId={conversationId!} userId={userId!} disabled={sending || uploadingMedia} />
+          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="输入消息..." maxLength={2000} className="flex-1 min-w-0 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
+          {input.trim() ? (
+            <Button size="icon" onClick={handleSend} disabled={!input.trim() || sending} className="rounded-full h-10 w-10 shrink-0">
+              <Send className="h-4 w-4" />
+            </Button>
+          ) : (
+            <button
+              onClick={() => setShowContactMenu(!showContactMenu)}
+              className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              title="更多"
+            >
+              <PlusCircle className="h-6 w-6" />
+            </button>
+          )}
+        </div>
+        {/* Expandable action panel (WeChat style "+" menu) */}
+        {showContactMenu && (
+          <div className="max-w-lg mx-auto px-4 pb-3 pt-1">
+            <div className="grid grid-cols-4 gap-4">
+              <button onClick={() => { mediaInputRef.current?.click(); setShowContactMenu(false); }} disabled={uploadingMedia} className="flex flex-col items-center gap-1.5">
+                <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
+                  {uploadingMedia ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <ImagePlus className="h-6 w-6 text-muted-foreground" />}
                 </div>
+                <span className="text-[11px] text-muted-foreground">照片</span>
+              </button>
+              <button onClick={() => { handleSendLocation(); setShowContactMenu(false); }} disabled={sendingLocation} className="flex flex-col items-center gap-1.5">
+                <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
+                  {sendingLocation ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <MapPin className="h-6 w-6 text-muted-foreground" />}
+                </div>
+                <span className="text-[11px] text-muted-foreground">位置</span>
+              </button>
+              <button onClick={() => setInCall(true)} className="flex flex-col items-center gap-1.5">
+                <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
+                  <Phone className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <span className="text-[11px] text-muted-foreground">语音通话</span>
+              </button>
+              {myPhone && (
+                <button onClick={() => handleSendContact("phone")} className="flex flex-col items-center gap-1.5">
+                  <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
+                    <UserCircle className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">手机号</span>
+                </button>
+              )}
+              {myWechat && (
+                <button onClick={() => handleSendContact("wechat")} className="flex flex-col items-center gap-1.5">
+                  <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
+                    <MessageSquareShare className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">微信号</span>
+                </button>
               )}
             </div>
-          )}
-          <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
-          <VoiceRecorder conversationId={conversationId!} userId={userId!} disabled={sending || uploadingMedia} />
-          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="输入消息..." maxLength={2000} className="flex-1 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
-          <Button size="icon" onClick={handleSend} disabled={!input.trim() || sending} className="rounded-full h-10 w-10 shrink-0">
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
+          </div>
+        )}
+        <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
       </div>
     </div>
   );
