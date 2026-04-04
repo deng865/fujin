@@ -385,7 +385,12 @@ export default function ChatRoom() {
           userId={userId}
           userName={myName}
           otherUserName={otherUser?.name || "用户"}
-          onClose={() => setInCall(false)}
+          onClose={(callDuration?: number) => {
+            setInCall(false);
+            if (callDuration !== undefined && callDuration > 0) {
+              saveCallRecord("completed", userId, callDuration);
+            }
+          }}
         />
       )}
       {incomingCall && !inCall && (
@@ -395,7 +400,10 @@ export default function ChatRoom() {
             setIncomingCall(null);
             setInCall(true);
           }}
-          onDecline={() => setIncomingCall(null)}
+          onDecline={() => {
+            saveCallRecord("missed", incomingCall.callerId);
+            setIncomingCall(null);
+          }}
         />
       )}
       {/* Header */}
