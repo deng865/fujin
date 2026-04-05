@@ -685,38 +685,7 @@ function CategoriesPanel() {
   );
 }
 
-
-
-    if (index === categories.length - 1) return;
-    const current = categories[index];
-    const below = categories[index + 1];
-    await Promise.all([
-      supabase.from("categories").update({ sort_order: below.sort_order }).eq("id", current.id),
-      supabase.from("categories").update({ sort_order: current.sort_order }).eq("id", below.id),
-    ]);
-    fetchCategories();
-  };
-
-  const handleDelete = async (id: string) => {
-    await supabase.from("categories").delete().eq("id", id);
-    toast({ title: "已删除分类" });
-    fetchCategories();
-  };
-
-  if (loading) return <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mt-10" />;
-
-  return (
-    <div>
-      <h2 className="text-xl font-bold mb-6">分类配置</h2>
-
-      {/* Add new */}
-      <div className="flex gap-2 mb-6 max-w-lg">
-        <Input placeholder="英文标识 (如: beauty)" value={newName} onChange={(e) => setNewName(e.target.value)} className="flex-1" />
-        <Input placeholder="显示名称 (如: 💇 美容)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} className="flex-1" />
-        <Button onClick={handleAdd} disabled={!newName.trim() || !newLabel.trim()}>
-          <Plus className="h-4 w-4 mr-1" /> 添加
-        </Button>
-      </div>
+// ─── Reports Management ───
 
       <div className="border border-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
