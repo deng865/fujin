@@ -333,6 +333,41 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
     );
   }
 
+  // Handle trip_complete type
+  const completeData = parseTripCompleteMessage(content);
+  if (completeData) {
+    return (
+      <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+        <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+          <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5 text-emerald-600 dark:text-emerald-400">
+            <Check className="h-3.5 w-3.5" />
+            ✅ 订单已完成
+          </div>
+          <div className="space-y-1 text-xs opacity-60">
+            <div className="flex items-start gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              </div>
+              <span className="break-words">{completeData.from}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              </div>
+              <span className="break-words">{completeData.to}</span>
+            </div>
+          </div>
+          {completeData.price && (
+            <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
+              <DollarSign className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">费用: ${completeData.price}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Handle trip_cancel type
   const cancelData = parseTripCancelMessage(content);
   if (cancelData) {
