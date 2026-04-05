@@ -6,9 +6,21 @@ import { toast } from "@/hooks/use-toast";
 import {
   BarChart3, FileText, Users, Settings, Shield, Eye, EyeOff,
   Check, X, Search, Ban, ArrowUpDown, Plus, Trash2, GripVertical, Flag, AlertTriangle,
-  ChevronUp, ChevronDown,
+  ChevronUp, ChevronDown, Pencil, FolderPlus,
+  Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, Scale,
+  MapPin, Wrench, ShoppingBag, Heart, Music, Camera, Star, Coffee, Scissors,
+  Stethoscope, Building, Dumbbell, Baby, Dog, Laptop, Paintbrush, Hammer,
+  BookOpen, Headphones, Truck, Wallet, Globe, Flower2, Sparkles, Pizza,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const AVAILABLE_ICONS: Record<string, LucideIcon> = {
+  Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, Scale,
+  MapPin, Wrench, ShoppingBag, Heart, Music, Camera, Star, Coffee, Scissors,
+  Stethoscope, Building, Dumbbell, Baby, Dog, Laptop, Paintbrush, Hammer,
+  BookOpen, Headphones, Truck, Wallet, Globe, Flower2, Sparkles, Pizza,
+};
 import { Input } from "@/components/ui/input";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
