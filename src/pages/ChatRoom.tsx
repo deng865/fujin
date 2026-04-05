@@ -16,6 +16,7 @@ import VoiceCall from "@/components/chat/VoiceCall";
 import IncomingCall from "@/components/chat/IncomingCall";
 import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 import EmojiPicker from "@/components/chat/EmojiPicker";
+import TripSharePanel from "@/components/chat/TripSharePanel";
 
 interface Message {
   id: string;
