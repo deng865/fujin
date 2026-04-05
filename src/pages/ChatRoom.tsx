@@ -564,6 +564,18 @@ export default function ChatRoom() {
     return accepts.some((acceptMsg) => !isCancelledForAccept(acceptMsg.content));
   }, [messages, isCancelledForAccept]);
 
+  // Get active trip details for banner
+  const activeTripInfo = useCallback(() => {
+    const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
+    for (const acceptMsg of accepts) {
+      if (!isCancelledForAccept(acceptMsg.content)) {
+        const data = parseTripAcceptMessage(acceptMsg.content);
+        if (data) return { from: data.from, to: data.to, price: data.price };
+      }
+    }
+    return null;
+  }, [messages, isCancelledForAccept]);
+
   const handleRateTrip = async (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => {
     if (!userId || !conversationId) return;
     // Get the other user's ID
