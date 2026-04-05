@@ -692,7 +692,7 @@ export default function ChatRoom() {
   const activeTripInfo = useCallback(() => {
     const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
     for (const acceptMsg of accepts) {
-      if (!isCancelledForAccept(acceptMsg.content)) {
+      if (!isCancelledForAccept(acceptMsg.content) && !isCompletedForAccept(acceptMsg.content)) {
         const data = parseTripAcceptMessage(acceptMsg.content);
         if (data) return { from: data.from, to: data.to, price: data.price };
       }
