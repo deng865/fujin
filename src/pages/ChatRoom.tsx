@@ -688,6 +688,10 @@ export default function ChatRoom() {
         {showEmojiPicker && (
           <EmojiPicker onSelect={(emoji) => setInput(prev => prev + emoji)} />
         )}
+        {/* Trip share panel */}
+        {showTripPanel && (
+          <TripSharePanel onSend={handleSendTrip} sending={sendingTrip} />
+        )}
         {/* Expandable action panel (WeChat style "+" menu) */}
         {showContactMenu && (
           <div className="max-w-lg mx-auto px-4 pb-3 pt-1">
