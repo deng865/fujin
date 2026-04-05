@@ -108,18 +108,13 @@ export default function ChatRoom() {
         phone: null,
       });
 
-      // Check if this is a passenger-driver conversation
-      const otherType = profile?.user_type;
-      const { data: myProfileType } = await supabase
-        .from("profiles")
-        .select("user_type")
-        .eq("id", user.id)
-        .single();
-      const myType = myProfileType?.user_type;
-      if (
-        (myType === "passenger" && otherType === "driver") ||
-        (myType === "driver" && otherType === "passenger")
-      ) {
+      // Check if the other user has driver-category posts (conversation initiated from driver listing)
+      const { count: driverPostCount } = await supabase
+        .from("posts")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", otherId)
+        .eq("category", "driver");
+      if (driverPostCount && driverPostCount > 0) {
         setIsRideChat(true);
       }
 
