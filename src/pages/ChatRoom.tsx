@@ -29,7 +29,7 @@ import IncomingCall from "@/components/chat/IncomingCall";
 import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 import EmojiPicker from "@/components/chat/EmojiPicker";
 import TripSharePanel from "@/components/chat/TripSharePanel";
-import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage, parseTripAcceptNotify } from "@/components/chat/TripMessage";
+import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage, parseTripAcceptNotify, parseTripCompleteMessage } from "@/components/chat/TripMessage";
 import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
 
