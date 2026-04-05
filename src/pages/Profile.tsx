@@ -242,6 +242,27 @@ export default function ProfilePage() {
                 <Label className="text-xs">微信 / WeChat</Label>
                 <Input value={wechatId} onChange={(e) => setWechatId(e.target.value)} className="rounded-xl" />
               </div>
+              {/* Vehicle info section */}
+              <div className="pt-3 border-t border-border">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Car className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">车辆信息 / Vehicle Info（司机选填）</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">车型 / Vehicle Model</Label>
+                    <Input value={vehicleModel} onChange={(e) => setVehicleModel(e.target.value)} placeholder="如: Toyota Camry" className="rounded-xl" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">车色 / Color</Label>
+                    <Input value={vehicleColor} onChange={(e) => setVehicleColor(e.target.value)} placeholder="如: 白色" className="rounded-xl" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">车牌 / License Plate</Label>
+                    <Input value={licensePlate} onChange={(e) => setLicensePlate(e.target.value)} placeholder="如: ABC-1234" className="rounded-xl" />
+                  </div>
+                </div>
+              </div>
               <Button onClick={handleSaveProfile} className="w-full rounded-xl">
                 保存 / Save
               </Button>
