@@ -685,62 +685,8 @@ function CategoriesPanel() {
   );
 }
 
-// ─── Reports Management ───
 
-      <div className="border border-border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-muted/50 text-left">
-              <th className="px-4 py-3 font-medium">排序</th>
-              <th className="px-4 py-3 font-medium">标识</th>
-              <th className="px-4 py-3 font-medium">显示名称</th>
-              <th className="px-4 py-3 font-medium">状态</th>
-              <th className="px-4 py-3 font-medium text-right">操作</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {categories.map((cat, index) => (
-              <tr key={cat.id} className="hover:bg-muted/30">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    <span className="text-muted-foreground w-6 text-center">{cat.sort_order}</span>
-                    <div className="flex flex-col">
-                      <Button size="icon" variant="ghost" className="h-5 w-5" disabled={index === 0} onClick={() => handleMoveUp(index)}>
-                        <ChevronUp className="h-3 w-3" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-5 w-5" disabled={index === categories.length - 1} onClick={() => handleMoveDown(index)}>
-                        <ChevronDown className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3 font-mono text-xs">{cat.name}</td>
-                <td className="px-4 py-3 font-medium">{cat.label}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cat.is_visible ? "bg-emerald-50 text-emerald-700" : "bg-yellow-50 text-yellow-700"}`}>
-                    {cat.is_visible ? "可见" : "隐藏"}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => handleToggleVisibility(cat.id, cat.is_visible)}>
-                      {cat.is_visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(cat.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
 
-// ─── Reports Management ───
 function ReportsPanel() {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
