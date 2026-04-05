@@ -17,7 +17,7 @@ import IncomingCall from "@/components/chat/IncomingCall";
 import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 import EmojiPicker from "@/components/chat/EmojiPicker";
 import TripSharePanel from "@/components/chat/TripSharePanel";
-import TripMessage, { parseTripMessage } from "@/components/chat/TripMessage";
+import TripMessage, { parseTripMessage, parseTripAcceptMessage } from "@/components/chat/TripMessage";
 
 interface Message {
   id: string;
@@ -470,6 +470,22 @@ export default function ChatRoom() {
     }
   };
 
+  const handleAcceptTrip = async (trip: { from: string; to: string; price?: string }) => {
+    if (!userId || !conversationId) return;
+    const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content: acceptContent,
+    });
+    if (!error) {
+      await supabase.from("conversations").update({
+        last_message: "✅ 已接受行程",
+        updated_at: new Date().toISOString(),
+      }).eq("id", conversationId);
+    }
+  };
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
@@ -611,8 +627,8 @@ export default function ChatRoom() {
                       <MediaMessage content={msg.content} isMe={isMe} />
                     ) : parseVoiceMessage(msg.content) ? (
                       <VoiceMessage content={msg.content} isMe={isMe} />
-                    ) : parseTripMessage(msg.content) ? (
-                      <TripMessage content={msg.content} isMe={isMe} />
+                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content)) ? (
+                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
