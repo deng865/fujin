@@ -153,7 +153,99 @@ export function parseTripAcceptNotify(content: string): TripAcceptNotifyData | n
   return null;
 }
 
-interface TripMessageProps {
+function AcceptTripCard({ acceptData, isMe, isCancelled, onCancel, onRate, hasRated }: {
+  acceptData: { from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } };
+  isMe: boolean;
+  isCancelled?: boolean;
+  onCancel?: (trip: { from: string; to: string; price?: string }) => void;
+  onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
+  hasRated?: boolean;
+}) {
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+
+  return (
+    <div className={`rounded-2xl overflow-hidden w-[260px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+      <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+        <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
+          <Check className="h-3.5 w-3.5" />
+          {isCancelled ? "行程已结束" : "已接受行程"}
+        </div>
+        <div className="space-y-1 text-xs">
+          <div className="flex items-start gap-2">
+            <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            </div>
+            <span className="break-words">{acceptData.from}</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            </div>
+            <span className="break-words">{acceptData.to}</span>
+          </div>
+        </div>
+        {/* Mini map for accept card */}
+        {acceptData.fromCoords && acceptData.toCoords && (
+          <TripMiniMap fromCoords={acceptData.fromCoords} toCoords={acceptData.toCoords} onRouteLoaded={setRouteInfo} />
+        )}
+        {/* Distance & ETA */}
+        {acceptData.fromCoords && acceptData.toCoords && (
+          <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
+            <Route className="h-3.5 w-3.5 shrink-0" />
+            {routeInfo ? (
+              <span className="font-medium">
+                {routeInfo.distanceKm.toFixed(1)} km ({routeInfo.distanceMi.toFixed(1)} mi) · 约 {routeInfo.durationMin} 分钟
+              </span>
+            ) : (
+              <span className="flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> 计算路线...
+              </span>
+            )}
+          </div>
+        )}
+        {acceptData.price && (
+          <div className={`flex items-center gap-1.5 text-xs mt-1 ${!(acceptData.fromCoords && acceptData.toCoords) ? "mt-2 pt-2 border-t" : ""} ${!(acceptData.fromCoords && acceptData.toCoords) && (isMe ? "border-primary-foreground/20" : "border-border/50")}`}>
+            <DollarSign className="h-3.5 w-3.5 shrink-0" />
+            <span className="font-medium">成交价: ${acceptData.price}</span>
+          </div>
+        )}
+        {/* Action buttons */}
+        {!isCancelled && onCancel && (
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+              className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              结束预约
+            </button>
+            <button
+              onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+              className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
+            >
+              <Check className="h-3.5 w-3.5" />
+              订单已完成
+            </button>
+          </div>
+        )}
+        {/* Auto-show rating when cancelled and not yet rated */}
+        {isCancelled && onRate && !hasRated && (
+          <TripRatingInput onSubmit={(rating, comment) => {
+            onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price }, rating, comment);
+          }} />
+        )}
+        {hasRated && (
+          <div className={`flex items-center justify-center gap-1 text-xs mt-2 pt-2 border-t opacity-60 ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
+            <Check className="h-3 w-3" />
+            已评价
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
   content: string;
   isMe: boolean;
   onAccept?: (trip: { from: string; to: string; price?: string }) => void;
