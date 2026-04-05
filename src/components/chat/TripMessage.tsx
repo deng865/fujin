@@ -1,6 +1,30 @@
 import { useState } from "react";
 import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle } from "lucide-react";
 import { TripRatingInput } from "./TripRating";
+import { MAPBOX_TOKEN } from "@/lib/mapbox";
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function TripMiniMap({ fromCoords, toCoords }: { fromCoords: { lat: number; lng: number }; toCoords: { lat: number; lng: number } }) {
+  const path = encodeURIComponent(`polyline(${fromCoords.lng},${fromCoords.lat},${toCoords.lng},${toCoords.lat})`);
+  const pinFrom = `pin-s-a+22c55e(${fromCoords.lng},${fromCoords.lat})`;
+  const pinTo = `pin-s-b+ef4444(${toCoords.lng},${toCoords.lat})`;
+  const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${pinFrom},${pinTo},path-2+3b82f6-0.6(${path})/auto/240x120@2x?padding=30&access_token=${MAPBOX_TOKEN}`;
+  return (
+    <img
+      src={url}
+      alt="行程路线"
+      className="w-full h-[120px] object-cover rounded-lg mt-2"
+      loading="lazy"
+    />
+  );
+}
 
 interface TripData {
   type: "trip";
