@@ -53,6 +53,9 @@ export default function ChatRoom() {
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [showContactMenu, setShowContactMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showTripPanel, setShowTripPanel] = useState(false);
+  const [sendingTrip, setSendingTrip] = useState(false);
+  const [isRideChat, setIsRideChat] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
