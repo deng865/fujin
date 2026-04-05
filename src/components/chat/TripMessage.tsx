@@ -7,6 +7,7 @@ interface TripData {
   from: string;
   to: string;
   fromCoords?: { lat: number; lng: number };
+  toCoords?: { lat: number; lng: number };
   price?: string;
 }
 
