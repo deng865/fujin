@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, LogOut, Trash2, Edit, User, Shield, Camera, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, LogOut, Trash2, Edit, User, Shield, Camera, Loader2, Car } from "lucide-react";
 import { useAdmin } from "@/hooks/useAdmin";
 
 interface UserPost {
@@ -22,6 +22,10 @@ interface Profile {
   phone: string | null;
   wechat_id: string | null;
   avatar_url: string | null;
+  vehicle_model: string | null;
+  vehicle_color: string | null;
+  license_plate: string | null;
+  user_type: string | null;
 }
 
 export default function ProfilePage() {
@@ -34,6 +38,9 @@ export default function ProfilePage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [wechatId, setWechatId] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleColor, setVehicleColor] = useState("");
+  const [licensePlate, setLicensePlate] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -46,15 +53,18 @@ export default function ProfilePage() {
 
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("name, phone, wechat_id, avatar_url")
+        .select("name, phone, wechat_id, avatar_url, vehicle_model, vehicle_color, license_plate, user_type")
         .eq("id", user.id)
         .single();
 
       if (profileData) {
-        setProfile(profileData);
+        setProfile(profileData as any);
         setName(profileData.name);
         setPhone(profileData.phone || "");
         setWechatId(profileData.wechat_id || "");
+        setVehicleModel((profileData as any).vehicle_model || "");
+        setVehicleColor((profileData as any).vehicle_color || "");
+        setLicensePlate((profileData as any).license_plate || "");
       }
 
       const { data: postsData } = await supabase
@@ -70,15 +80,21 @@ export default function ProfilePage() {
 
   const handleSaveProfile = async () => {
     if (!user) return;
+    const updateData: any = { name, phone: phone || null, wechat_id: wechatId || null };
+    // Include vehicle fields
+    updateData.vehicle_model = vehicleModel || null;
+    updateData.vehicle_color = vehicleColor || null;
+    updateData.license_plate = licensePlate || null;
+    
     const { error } = await supabase
       .from("profiles")
-      .update({ name, phone: phone || null, wechat_id: wechatId || null })
+      .update(updateData)
       .eq("id", user.id);
 
     if (error) toast.error("更新失败");
     else {
       toast.success("资料已更新 / Profile updated");
-      setProfile({ ...profile!, name, phone: phone || null, wechat_id: wechatId || null });
+      setProfile({ ...profile!, name, phone: phone || null, wechat_id: wechatId || null, vehicle_model: vehicleModel || null, vehicle_color: vehicleColor || null, license_plate: licensePlate || null });
       setEditing(false);
     }
   };
@@ -225,6 +241,27 @@ export default function ProfilePage() {
               <div className="space-y-1">
                 <Label className="text-xs">微信 / WeChat</Label>
                 <Input value={wechatId} onChange={(e) => setWechatId(e.target.value)} className="rounded-xl" />
+              </div>
+              {/* Vehicle info section */}
+              <div className="pt-3 border-t border-border">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Car className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">车辆信息 / Vehicle Info（司机选填）</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">车型 / Vehicle Model</Label>
+                    <Input value={vehicleModel} onChange={(e) => setVehicleModel(e.target.value)} placeholder="如: Toyota Camry" className="rounded-xl" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">车色 / Color</Label>
+                    <Input value={vehicleColor} onChange={(e) => setVehicleColor(e.target.value)} placeholder="如: 白色" className="rounded-xl" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">车牌 / License Plate</Label>
+                    <Input value={licensePlate} onChange={(e) => setLicensePlate(e.target.value)} placeholder="如: ABC-1234" className="rounded-xl" />
+                  </div>
+                </div>
               </div>
               <Button onClick={handleSaveProfile} className="w-full rounded-xl">
                 保存 / Save

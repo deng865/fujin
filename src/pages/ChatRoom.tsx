@@ -12,6 +12,7 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle } from "lucide-react";
+import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/validation";
@@ -28,8 +29,9 @@ import IncomingCall from "@/components/chat/IncomingCall";
 import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 import EmojiPicker from "@/components/chat/EmojiPicker";
 import TripSharePanel from "@/components/chat/TripSharePanel";
-import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage } from "@/components/chat/TripMessage";
+import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage, parseTripAcceptNotify } from "@/components/chat/TripMessage";
 import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
+import DriverTracking from "@/components/chat/DriverTracking";
 
 interface Message {
   id: string;
@@ -69,6 +71,8 @@ export default function ChatRoom() {
   const [showTripPanel, setShowTripPanel] = useState(false);
   const [sendingTrip, setSendingTrip] = useState(false);
   const [isRideChat, setIsRideChat] = useState(false);
+  const [otherUserId, setOtherUserId] = useState<string | null>(null);
+  const [isDriver, setIsDriver] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -106,6 +110,7 @@ export default function ChatRoom() {
       if (!conv) { navigate("/messages"); return; }
 
       const otherId = conv.participant_1 === user.id ? conv.participant_2 : conv.participant_1;
+      setOtherUserId(otherId);
 
       const { data: profile } = await supabase
         .from("public_profiles")
@@ -127,6 +132,16 @@ export default function ChatRoom() {
         .eq("category", "driver");
       if (driverPostCount && driverPostCount > 0) {
         setIsRideChat(true);
+      }
+
+      // Check if current user is a driver
+      const { count: myDriverPostCount } = await supabase
+        .from("posts")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("category", "driver");
+      if (myDriverPostCount && myDriverPostCount > 0) {
+        setIsDriver(true);
       }
 
       const { data: msgs } = await supabase
@@ -295,7 +310,7 @@ export default function ChatRoom() {
     // Trip-related messages cannot be recalled
     try {
       const parsed = JSON.parse(msg.content);
-      if (parsed?.type && ["trip", "trip_accept", "trip_counter", "trip_cancel", "trip_rating"].includes(parsed.type)) return false;
+      if (parsed?.type && ["trip", "trip_accept", "trip_counter", "trip_cancel", "trip_rating", "trip_accept_notify"].includes(parsed.type)) return false;
     } catch {}
     const elapsed = Date.now() - new Date(msg.created_at).getTime();
     return elapsed < 2 * 60 * 1000; // 2 minutes
@@ -482,7 +497,7 @@ export default function ChatRoom() {
     }
   };
 
-  const handleAcceptTrip = async (trip: { from: string; to: string; price?: string }) => {
+  const handleAcceptTrip = async (trip: { from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } }) => {
     if (!userId || !conversationId) return;
     // Check if this user already has an active trip (driver lock)
     const lockedConvId = await checkActiveTripLock(userId);
@@ -501,6 +516,59 @@ export default function ChatRoom() {
         last_message: "✅ 已接受行程",
         updated_at: new Date().toISOString(),
       }).eq("id", conversationId);
+
+      // Send trip_accept_notify with driver info
+      try {
+        const { data: driverProfile } = await supabase
+          .from("profiles")
+          .select("name, avatar_url, average_rating, vehicle_model, vehicle_color, license_plate")
+          .eq("id", userId)
+          .single();
+
+        // Get driver's current location and calculate distance/ETA to pickup
+        let distanceMi = 0;
+        let etaMin = 0;
+        if (trip.fromCoords) {
+          try {
+            const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+              navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+            );
+            const driverLat = pos.coords.latitude;
+            const driverLng = pos.coords.longitude;
+            const res = await fetch(
+              `https://api.mapbox.com/directions/v5/mapbox/driving/${driverLng},${driverLat};${trip.fromCoords.lng},${trip.fromCoords.lat}?access_token=${MAPBOX_TOKEN}&overview=false`
+            );
+            const data = await res.json();
+            if (data.routes?.[0]) {
+              distanceMi = (data.routes[0].distance / 1000) * 0.621371;
+              etaMin = Math.round(data.routes[0].duration / 60);
+            }
+          } catch {
+            // Fallback: estimate based on straight-line
+            distanceMi = 5;
+            etaMin = 10;
+          }
+        }
+
+        const notifyContent = JSON.stringify({
+          type: "trip_accept_notify",
+          driverName: driverProfile?.name || "司机",
+          driverAvatar: driverProfile?.avatar_url || null,
+          driverRating: driverProfile?.average_rating || null,
+          vehicleModel: (driverProfile as any)?.vehicle_model || null,
+          vehicleColor: (driverProfile as any)?.vehicle_color || null,
+          licensePlate: (driverProfile as any)?.license_plate || null,
+          distanceMi,
+          etaMin,
+        });
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: userId,
+          content: notifyContent,
+        });
+      } catch (e) {
+        console.error("Failed to send accept notify", e);
+      }
     }
   };
 
@@ -731,6 +799,27 @@ export default function ChatRoom() {
         );
       })()}
 
+      {/* Driver real-time tracking map */}
+      {(() => {
+        if (!hasActiveTrip() || !userId || !conversationId) return null;
+        // Find the passenger's pickup coords from the original trip message
+        const tripMsg = messages.find((m) => {
+          const td = parseTripMessage(m.content);
+          return td && td.fromCoords;
+        });
+        if (!tripMsg) return null;
+        const td = parseTripMessage(tripMsg.content);
+        if (!td?.fromCoords) return null;
+        return (
+          <DriverTracking
+            conversationId={conversationId}
+            userId={userId}
+            isDriver={isDriver}
+            passengerLocation={td.fromCoords}
+          />
+        );
+      })()}
+
       {longPressMsg && (
         <div className="fixed inset-0 z-30" onClick={() => setLongPressMsg(null)} />
       )}
@@ -813,6 +902,8 @@ export default function ChatRoom() {
                       <VoiceMessage content={msg.content} isMe={isMe} />
                     ) : parseTripRatingMessage(msg.content) ? (
                       <TripRatingDisplay content={msg.content} isMe={isMe} />
+                    ) : parseTripAcceptNotify(msg.content) ? (
+                      <TripMessage content={msg.content} isMe={isMe} />
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content)) ? (
                       <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} />
                     ) : (() => {

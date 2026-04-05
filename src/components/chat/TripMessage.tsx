@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
-import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle, Loader2 } from "lucide-react";
+import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle, Loader2, Car } from "lucide-react";
 import { TripRatingInput } from "./TripRating";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import Map, { Marker, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface RouteInfo {
   coordinates: [number, number][];
@@ -132,6 +133,26 @@ export function parseTripCancelMessage(content: string): { type: "trip_cancel"; 
   return null;
 }
 
+export interface TripAcceptNotifyData {
+  type: "trip_accept_notify";
+  driverName: string;
+  driverAvatar: string | null;
+  driverRating: number | null;
+  vehicleModel: string | null;
+  vehicleColor: string | null;
+  licensePlate: string | null;
+  distanceMi: number;
+  etaMin: number;
+}
+
+export function parseTripAcceptNotify(content: string): TripAcceptNotifyData | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed?.type === "trip_accept_notify") return parsed as TripAcceptNotifyData;
+  } catch {}
+  return null;
+}
+
 interface TripMessageProps {
   content: string;
   isMe: boolean;
@@ -149,6 +170,60 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
   const [counterPrice, setCounterPrice] = useState("");
   const [showRatingInput, setShowRatingInput] = useState(false);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+
+  // Handle trip_accept_notify type (driver accepted notification)
+  const notifyData = parseTripAcceptNotify(content);
+  if (notifyData) {
+    return (
+      <div className={`rounded-2xl overflow-hidden w-[280px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+        <div className="bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3 border border-emerald-200 dark:border-emerald-800 rounded-2xl">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-3">
+            <Check className="h-4 w-4" />
+            司机已接单
+          </div>
+          <div className="flex items-center gap-3 mb-3">
+            <Avatar className="h-12 w-12 border-2 border-emerald-200 dark:border-emerald-700">
+              {notifyData.driverAvatar ? (
+                <AvatarImage src={notifyData.driverAvatar} alt={notifyData.driverName} />
+              ) : null}
+              <AvatarFallback className="text-sm font-semibold bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">
+                {notifyData.driverName.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-foreground">{notifyData.driverName}</p>
+              {notifyData.driverRating && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                  <span className="text-xs font-medium text-foreground">{notifyData.driverRating.toFixed(1)}</span>
+                </div>
+              )}
+              {notifyData.vehicleModel && (
+                <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+                  <Car className="h-3 w-3" />
+                  <span>
+                    {notifyData.vehicleColor && `${notifyData.vehicleColor} `}
+                    {notifyData.vehicleModel}
+                  </span>
+                </div>
+              )}
+              {notifyData.licensePlate && (
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">{notifyData.licensePlate}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2">
+            <div className="text-xs text-muted-foreground">距离你</div>
+            <div className="text-sm font-semibold text-foreground">{notifyData.distanceMi.toFixed(1)} miles</div>
+          </div>
+          <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2 mt-1">
+            <div className="text-xs text-muted-foreground">预计到达</div>
+            <div className="text-sm font-semibold text-foreground">约 {notifyData.etaMin} 分钟</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Handle trip_cancel type
   const cancelData = parseTripCancelMessage(content);
