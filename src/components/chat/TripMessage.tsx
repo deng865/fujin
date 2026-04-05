@@ -170,7 +170,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
       <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
         <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
           <Check className="h-3.5 w-3.5" />
-          {isCancelled ? "行程已结束" : "已接受行程"}
+          {isCompleted ? "✅ 订单已完成" : isCancelled ? "行程已结束" : "已接受行程"}
         </div>
         <div className="space-y-1 text-xs">
           <div className="flex items-start gap-2">
