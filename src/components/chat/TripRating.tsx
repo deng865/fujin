@@ -22,11 +22,27 @@ export function parseTripRatingMessage(content: string): TripRatingData | null {
 interface TripRatingProps {
   content: string;
   isMe: boolean;
+  currentUserId?: string;
 }
 
-export default function TripRatingDisplay({ content, isMe }: TripRatingProps) {
+export default function TripRatingDisplay({ content, isMe, currentUserId }: TripRatingProps) {
   const data = parseTripRatingMessage(content);
   if (!data) return null;
+
+  // Only show rating details to the person who sent it, not the rated party
+  const isRatedParty = currentUserId === data.ratedUserId;
+  if (isRatedParty) {
+    return (
+      <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+        <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <Star className="h-3.5 w-3.5" />
+            对方已完成评价
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>

@@ -505,7 +505,7 @@ export default function ChatRoom() {
       toast({ title: "你有进行中的行程", description: "请先结束当前预约后再接受新行程" });
       return;
     }
-    const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price });
+    const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price, fromCoords: trip.fromCoords, toCoords: trip.toCoords });
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
       sender_id: userId,
@@ -901,7 +901,7 @@ export default function ChatRoom() {
                     ) : parseVoiceMessage(msg.content) ? (
                       <VoiceMessage content={msg.content} isMe={isMe} />
                     ) : parseTripRatingMessage(msg.content) ? (
-                      <TripRatingDisplay content={msg.content} isMe={isMe} />
+                      <TripRatingDisplay content={msg.content} isMe={isMe} currentUserId={userId || undefined} />
                     ) : parseTripAcceptNotify(msg.content) ? (
                       <TripMessage content={msg.content} isMe={isMe} />
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content)) ? (
@@ -1036,13 +1036,14 @@ export default function ChatRoom() {
     <AlertDialog open={!!pendingCancelTrip} onOpenChange={(open) => { if (!open) setPendingCancelTrip(null); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>确认结束行程</AlertDialogTitle>
-          <AlertDialogDescription>
-            您的行程是否已经结束？如果行程尚未完成就提前结束，可能会影响对方对您的评分。
+          <AlertDialogTitle>⚠️ 确认结束预约</AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <span className="block">如果结束预约，有可能对方给你差评，请谨慎。</span>
+            <span className="block text-destructive font-medium">行程尚未完成就提前结束，将严重影响您的信用评分。</span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogCancel>继续行程</AlertDialogCancel>
           <AlertDialogAction onClick={confirmCancelTrip} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
             确认结束
           </AlertDialogAction>
