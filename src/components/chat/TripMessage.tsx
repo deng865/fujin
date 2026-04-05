@@ -128,27 +128,17 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
               结束预约
             </button>
           )}
-          {/* Rating button - only show when cancelled */}
-          {isCancelled && onRate && !hasRated && !showRatingInput && (
-            <button
-              onClick={() => setShowRatingInput(true)}
-              className={`w-full flex items-center justify-center gap-1 rounded-lg py-1.5 mt-2 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
-            >
-              <Star className="h-3.5 w-3.5" />
-              评价行程
-            </button>
+          {/* Auto-show rating when cancelled and not yet rated */}
+          {isCancelled && onRate && !hasRated && (
+            <TripRatingInput onSubmit={(rating, comment) => {
+              onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price }, rating, comment);
+            }} />
           )}
           {hasRated && (
             <div className={`flex items-center justify-center gap-1 text-xs mt-2 pt-2 border-t opacity-60 ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
               <Check className="h-3 w-3" />
               已评价
             </div>
-          )}
-          {showRatingInput && onRate && (
-            <TripRatingInput onSubmit={(rating, comment) => {
-              onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price }, rating, comment);
-              setShowRatingInput(false);
-            }} />
           )}
         </div>
       </div>
