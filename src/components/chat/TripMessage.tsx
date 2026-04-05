@@ -34,6 +34,14 @@ export function parseTripCounterMessage(content: string): { type: "trip_counter"
   return null;
 }
 
+export function parseTripCancelMessage(content: string): { type: "trip_cancel"; from: string; to: string; cancelledBy: string } | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed?.type === "trip_cancel") return parsed;
+  } catch {}
+  return null;
+}
+
 interface TripMessageProps {
   content: string;
   isMe: boolean;
