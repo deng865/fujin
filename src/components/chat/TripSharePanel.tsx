@@ -1,16 +1,8 @@
-import { useState, useRef, useCallback } from "react";
-import { MapPin, Navigation, Loader2, Send, DollarSign, Map, X, Route } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { MapPin, Navigation, Loader2, Send, DollarSign, Map, X, Route, ExternalLink } from "lucide-react";
 import MapGL, { Marker, MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
-
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 interface TripSharePanelProps {
   onSend: (from: string, to: string, fromCoords?: { lat: number; lng: number }, toCoords?: { lat: number; lng: number }, price?: string) => void;
@@ -20,6 +12,15 @@ interface TripSharePanelProps {
 interface LocationState {
   text: string;
   coords?: { lat: number; lng: number };
+}
+
+function openNavigation(coords: { lat: number; lng: number }, label: string) {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (isIOS) {
+    window.open(`maps://maps.apple.com/?q=${encodeURIComponent(label)}&ll=${coords.lat},${coords.lng}`, "_blank");
+  } else {
+    window.open(`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`, "_blank");
+  }
 }
 
 export default function TripSharePanel({ onSend, sending }: TripSharePanelProps) {
@@ -32,8 +33,43 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
   const [mapField, setMapField] = useState<"from" | "to" | null>(null);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 32.9, lng: -96.8 });
   const [mapPin, setMapPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [drivingDistance, setDrivingDistance] = useState<{ km: number; mi: number; duration: number } | null>(null);
+  const [distanceLoading, setDistanceLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const mapRef = useRef<MapRef>(null);
+
+  // Fetch driving distance when both coords are set
+  useEffect(() => {
+    if (!from.coords || !to.coords) {
+      setDrivingDistance(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchDrivingDistance = async () => {
+      setDistanceLoading(true);
+      try {
+        const res = await fetch(
+          `https://api.mapbox.com/directions/v5/mapbox/driving/${from.coords!.lng},${from.coords!.lat};${to.coords!.lng},${to.coords!.lat}?access_token=${MAPBOX_TOKEN}&overview=false`
+        );
+        const data = await res.json();
+        if (!cancelled && data.routes?.[0]) {
+          const route = data.routes[0];
+          const km = route.distance / 1000;
+          setDrivingDistance({
+            km,
+            mi: km * 0.621371,
+            duration: Math.round(route.duration / 60),
+          });
+        }
+      } catch {
+        if (!cancelled) setDrivingDistance(null);
+      } finally {
+        if (!cancelled) setDistanceLoading(false);
+      }
+    };
+    fetchDrivingDistance();
+    return () => { cancelled = true; };
+  }, [from.coords, to.coords]);
 
   const reverseGeocode = useCallback(async (lat: number, lng: number): Promise<string> => {
     try {
@@ -100,7 +136,6 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
       setMapCenter(current.coords);
       setMapPin(current.coords);
     } else {
-      // Try to use current GPS
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -191,8 +226,11 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
         {/* From field */}
         <div className="relative">
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
+            <div className="flex items-center gap-1 shrink-0">
+              <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+              </div>
+              <span className="text-xs font-medium text-green-600">出发</span>
             </div>
             <input
               value={from.text}
@@ -217,6 +255,15 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
             >
               <Map className="h-4 w-4" />
             </button>
+            {from.coords && (
+              <button
+                onClick={() => openNavigation(from.coords!, from.text)}
+                className="p-2 rounded-lg bg-muted hover:bg-accent text-green-600 shrink-0"
+                title="导航到出发地"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </button>
+            )}
           </div>
           {activeField === "from" && suggestions.length > 0 && (
             <div className="absolute left-7 right-0 top-full mt-1 bg-background border border-border rounded-xl shadow-xl z-20 max-h-40 overflow-y-auto">
@@ -236,8 +283,11 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
         {/* To field */}
         <div className="relative">
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-              <div className="w-2 h-2 rounded-full bg-red-500" />
+            <div className="flex items-center gap-1 shrink-0">
+              <div className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+              </div>
+              <span className="text-xs font-medium text-red-500">终点</span>
             </div>
             <input
               value={to.text}
@@ -262,6 +312,15 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
             >
               <Map className="h-4 w-4" />
             </button>
+            {to.coords && (
+              <button
+                onClick={() => openNavigation(to.coords!, to.text)}
+                className="p-2 rounded-lg bg-muted hover:bg-accent text-red-500 shrink-0"
+                title="导航到终点"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </button>
+            )}
           </div>
           {activeField === "to" && suggestions.length > 0 && (
             <div className="absolute left-7 right-0 top-full mt-1 bg-background border border-border rounded-xl shadow-xl z-20 max-h-40 overflow-y-auto">
@@ -278,16 +337,23 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
           )}
         </div>
 
-        {/* Distance indicator */}
+        {/* Driving distance indicator */}
         {from.coords && to.coords && (
           <div className="flex items-center gap-1.5 px-1">
             <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0">
               <Route className="h-3.5 w-3.5 text-primary" />
             </div>
-            <span className="text-xs font-medium text-primary">
-              两地距离: {haversineKm(from.coords.lat, from.coords.lng, to.coords.lat, to.coords.lng).toFixed(1)} km
-              ({(haversineKm(from.coords.lat, from.coords.lng, to.coords.lat, to.coords.lng) * 0.621371).toFixed(1)} mi)
-            </span>
+            {distanceLoading ? (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> 计算驾车距离...
+              </span>
+            ) : drivingDistance ? (
+              <span className="text-xs font-medium text-primary">
+                驾车距离: {drivingDistance.km.toFixed(1)} km ({drivingDistance.mi.toFixed(1)} mi) · 约 {drivingDistance.duration} 分钟
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">无法获取驾车距离</span>
+            )}
           </div>
         )}
 
