@@ -238,7 +238,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
 
   const openNav = (target: "from" | "to", app: "apple" | "google") => {
     const query = target === "from" ? trip.from : trip.to;
-    const coords = target === "from" ? trip.fromCoords : undefined;
+    const coords = target === "from" ? trip.fromCoords : trip.toCoords;
     if (app === "apple") {
       window.open(coords
         ? `https://maps.apple.com/?daddr=${coords.lat},${coords.lng}&q=${encodeURIComponent(query)}`

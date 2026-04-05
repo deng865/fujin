@@ -450,11 +450,11 @@ export default function ChatRoom() {
     setShowContactMenu(false);
   };
 
-  const handleSendTrip = async (from: string, to: string, fromCoords?: { lat: number; lng: number }, price?: string) => {
+  const handleSendTrip = async (from: string, to: string, fromCoords?: { lat: number; lng: number }, toCoords?: { lat: number; lng: number }, price?: string) => {
     if (!userId || !conversationId) return;
     setSendingTrip(true);
     try {
-      const tripContent = JSON.stringify({ type: "trip", from, to, fromCoords, price });
+      const tripContent = JSON.stringify({ type: "trip", from, to, fromCoords, toCoords, price });
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: userId,
