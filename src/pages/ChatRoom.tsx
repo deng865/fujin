@@ -448,11 +448,11 @@ export default function ChatRoom() {
     setShowContactMenu(false);
   };
 
-  const handleSendTrip = async (from: string, to: string, fromCoords?: { lat: number; lng: number }) => {
+  const handleSendTrip = async (from: string, to: string, fromCoords?: { lat: number; lng: number }, price?: string) => {
     if (!userId || !conversationId) return;
     setSendingTrip(true);
     try {
-      const tripContent = JSON.stringify({ type: "trip", from, to, fromCoords });
+      const tripContent = JSON.stringify({ type: "trip", from, to, fromCoords, price });
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: userId,
