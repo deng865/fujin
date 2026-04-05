@@ -22,6 +22,7 @@ export function parseTripRatingMessage(content: string): TripRatingData | null {
 interface TripRatingProps {
   content: string;
   isMe: boolean;
+  currentUserId?: string;
 }
 
 export default function TripRatingDisplay({ content, isMe }: TripRatingProps) {
