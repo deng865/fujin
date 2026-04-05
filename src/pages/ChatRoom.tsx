@@ -901,7 +901,7 @@ export default function ChatRoom() {
                     ) : parseVoiceMessage(msg.content) ? (
                       <VoiceMessage content={msg.content} isMe={isMe} />
                     ) : parseTripRatingMessage(msg.content) ? (
-                      <TripRatingDisplay content={msg.content} isMe={isMe} />
+                      <TripRatingDisplay content={msg.content} isMe={isMe} currentUserId={userId || undefined} />
                     ) : parseTripAcceptNotify(msg.content) ? (
                       <TripMessage content={msg.content} isMe={isMe} />
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content)) ? (

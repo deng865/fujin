@@ -542,7 +542,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
       {navTarget && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setNavTarget(null)} />
-          <div className={`absolute z-50 ${isMe ? "right-0" : "left-0"} mt-1 bg-background border border-border rounded-xl shadow-lg overflow-hidden min-w-[160px]`}>
+          <div className={`absolute z-50 top-0 ${isMe ? "right-full mr-1" : "left-full ml-1"} bg-background border border-border rounded-xl shadow-lg overflow-hidden min-w-[160px]`}>
             <div className="px-3 py-1.5 text-[11px] text-muted-foreground border-b border-border/50">
               {navTarget === "from" ? "导航到出发地" : "导航到目的地"}
             </div>
