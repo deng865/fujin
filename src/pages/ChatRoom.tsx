@@ -12,6 +12,7 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle } from "lucide-react";
+import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/validation";
