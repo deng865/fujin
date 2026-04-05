@@ -652,8 +652,17 @@ export default function ChatRoom() {
       {/* Input bar */}
       <div className="shrink-0 border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-1.5 px-3 py-2 max-w-lg mx-auto">
+          {isRideChat && (
+            <button
+              onClick={() => { setShowTripPanel(!showTripPanel); setShowContactMenu(false); setShowEmojiPicker(false); }}
+              className={`p-2 rounded-full transition-colors shrink-0 ${showTripPanel ? "text-primary" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}
+              title="行程"
+            >
+              <Route className="h-5 w-5" />
+            </button>
+          )}
           <VoiceRecorder conversationId={conversationId!} userId={userId!} disabled={sending || uploadingMedia} />
-          <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} onFocus={() => { setShowEmojiPicker(false); setShowContactMenu(false); }} placeholder="输入消息..." maxLength={2000} className="flex-1 min-w-0 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
+          <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} onFocus={() => { setShowEmojiPicker(false); setShowContactMenu(false); setShowTripPanel(false); }} placeholder="输入消息..." maxLength={2000} className="flex-1 min-w-0 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
           <button
             onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowContactMenu(false); }}
             className={`p-2 hover:bg-accent rounded-full transition-colors shrink-0 ${showEmojiPicker ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
