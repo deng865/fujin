@@ -1036,13 +1036,14 @@ export default function ChatRoom() {
     <AlertDialog open={!!pendingCancelTrip} onOpenChange={(open) => { if (!open) setPendingCancelTrip(null); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>确认结束行程</AlertDialogTitle>
-          <AlertDialogDescription>
-            您的行程是否已经结束？如果行程尚未完成就提前结束，可能会影响对方对您的评分。
+          <AlertDialogTitle>⚠️ 确认结束预约</AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <span className="block">如果结束预约，有可能对方给你差评，请谨慎。</span>
+            <span className="block text-destructive font-medium">行程尚未完成就提前结束，将严重影响您的信用评分。</span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogCancel>继续行程</AlertDialogCancel>
           <AlertDialogAction onClick={confirmCancelTrip} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
             确认结束
           </AlertDialogAction>
