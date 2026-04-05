@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { MapPin, Navigation, Loader2, Send } from "lucide-react";
+import { MapPin, Navigation, Loader2, Send, DollarSign } from "lucide-react";
 
 interface TripSharePanelProps {
-  onSend: (from: string, to: string, fromCoords?: { lat: number; lng: number }) => void;
+  onSend: (from: string, to: string, fromCoords?: { lat: number; lng: number }, price?: string) => void;
   sending: boolean;
 }
 
 export default function TripSharePanel({ onSend, sending }: TripSharePanelProps) {
   const [fromText, setFromText] = useState("");
   const [toText, setToText] = useState("");
+  const [price, setPrice] = useState("");
   const [locating, setLocating] = useState(false);
   const [fromCoords, setFromCoords] = useState<{ lat: number; lng: number } | undefined>();
 
@@ -30,9 +31,7 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
         }
       } catch {}
       setFromText(address);
-    } catch {
-      // failed
-    } finally {
+    } catch {} finally {
       setLocating(false);
     }
   };
@@ -73,9 +72,22 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
             className="flex-1 min-w-0 bg-muted rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30"
           />
         </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0">
+            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <input
+            value={price}
+            onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ""))}
+            placeholder="期望价格（选填）"
+            inputMode="decimal"
+            className="flex-1 min-w-0 bg-muted rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+          />
+          <span className="text-xs text-muted-foreground shrink-0">USD</span>
+        </div>
       </div>
       <button
-        onClick={() => canSend && onSend(fromText.trim(), toText.trim(), fromCoords)}
+        onClick={() => canSend && onSend(fromText.trim(), toText.trim(), fromCoords, price.trim() || undefined)}
         disabled={!canSend}
         className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
       >
