@@ -148,6 +148,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
   const [showCounterInput, setShowCounterInput] = useState(false);
   const [counterPrice, setCounterPrice] = useState("");
   const [showRatingInput, setShowRatingInput] = useState(false);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
 
   // Handle trip_cancel type
   const cancelData = parseTripCancelMessage(content);
