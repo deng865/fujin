@@ -1,4 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle } from "lucide-react";
@@ -510,8 +520,16 @@ export default function ChatRoom() {
     }
   };
 
-  const handleCancelTrip = async (trip: { from: string; to: string; price?: string }) => {
-    if (!userId || !conversationId) return;
+  const [pendingCancelTrip, setPendingCancelTrip] = useState<{ from: string; to: string; price?: string } | null>(null);
+
+  const handleCancelTrip = (trip: { from: string; to: string; price?: string }) => {
+    setPendingCancelTrip(trip);
+  };
+
+  const confirmCancelTrip = async () => {
+    const trip = pendingCancelTrip;
+    setPendingCancelTrip(null);
+    if (!trip || !userId || !conversationId) return;
     const cancelContent = JSON.stringify({ type: "trip_cancel", from: trip.from, to: trip.to, cancelledBy: userId });
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
@@ -639,6 +657,7 @@ export default function ChatRoom() {
   }
 
   return (
+    <>
     <div className="flex flex-col h-[100dvh] bg-background">
       {inCall && userId && conversationId && (
         <VoiceCall
@@ -922,5 +941,23 @@ export default function ChatRoom() {
         <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
       </div>
     </div>
+
+    <AlertDialog open={!!pendingCancelTrip} onOpenChange={(open) => { if (!open) setPendingCancelTrip(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>确认结束行程</AlertDialogTitle>
+          <AlertDialogDescription>
+            您的行程是否已经结束？如果行程尚未完成就提前结束，可能会影响对方对您的评分。
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmCancelTrip} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            确认结束
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
