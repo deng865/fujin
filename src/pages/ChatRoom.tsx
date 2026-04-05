@@ -486,6 +486,22 @@ export default function ChatRoom() {
     }
   };
 
+  const handleCounterTrip = async (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => {
+    if (!userId || !conversationId) return;
+    const counterContent = JSON.stringify({ type: "trip_counter", from: trip.from, to: trip.to, price: newPrice, originalPrice: trip.originalPrice });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content: counterContent,
+    });
+    if (!error) {
+      await supabase.from("conversations").update({
+        last_message: `💬 还价 $${newPrice}`,
+        updated_at: new Date().toISOString(),
+      }).eq("id", conversationId);
+    }
+  };
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
