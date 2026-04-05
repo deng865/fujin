@@ -825,13 +825,22 @@ export default function ChatRoom() {
                   {trip.price && <span className="text-muted-foreground ml-1">${trip.price}</span>}
                 </div>
               </div>
-              <button
-                onClick={() => handleCancelTrip(trip)}
-                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors"
-              >
-                <XCircle className="h-3.5 w-3.5" />
-                结束预约
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => handleCompleteTrip(trip)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  订单已完成
+                </button>
+                <button
+                  onClick={() => handleCancelTrip(trip)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  结束预约
+                </button>
+              </div>
             </div>
           </div>
         );
