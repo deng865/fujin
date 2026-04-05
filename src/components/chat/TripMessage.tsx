@@ -39,6 +39,8 @@ interface TripMessageProps {
   isMe: boolean;
   onAccept?: (trip: { from: string; to: string; price?: string }) => void;
   onCounter?: (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => void;
+  onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
+  hasRated?: boolean;
 }
 
 export default function TripMessage({ content, isMe, onAccept, onCounter }: TripMessageProps) {
