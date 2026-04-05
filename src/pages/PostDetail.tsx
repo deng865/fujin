@@ -8,6 +8,7 @@ import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
 import { zhCN } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { checkActiveTripLock } from "@/lib/tripLock";
 
 interface PostDetailData {
   id: string;
