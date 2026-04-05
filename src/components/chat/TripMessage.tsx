@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Route, Navigation, DollarSign } from "lucide-react";
+import { Route, Navigation, DollarSign, Check } from "lucide-react";
 
 interface TripData {
   type: "trip";
@@ -17,13 +17,58 @@ export function parseTripMessage(content: string): TripData | null {
   return null;
 }
 
+export function parseTripAcceptMessage(content: string): { type: "trip_accept"; from: string; to: string; price?: string } | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed?.type === "trip_accept") return parsed;
+  } catch {}
+  return null;
+}
+
 interface TripMessageProps {
   content: string;
   isMe: boolean;
+  onAccept?: (trip: TripData) => void;
 }
 
-export default function TripMessage({ content, isMe }: TripMessageProps) {
+export default function TripMessage({ content, isMe, onAccept }: TripMessageProps) {
   const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
+
+  // Handle trip_accept type
+  const acceptData = parseTripAcceptMessage(content);
+  if (acceptData) {
+    return (
+      <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+        <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+          <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
+            <Check className="h-3.5 w-3.5" />
+            已接受行程
+          </div>
+          <div className="space-y-1 text-xs">
+            <div className="flex items-start gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              </div>
+              <span className="break-words">{acceptData.from}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              </div>
+              <span className="break-words">{acceptData.to}</span>
+            </div>
+          </div>
+          {acceptData.price && (
+            <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
+              <DollarSign className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">成交价: ${acceptData.price}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const trip = parseTripMessage(content);
   if (!trip) return null;
 
@@ -88,6 +133,25 @@ export default function TripMessage({ content, isMe }: TripMessageProps) {
               <DollarSign className="h-3.5 w-3.5 shrink-0" />
               <span className="font-medium">期望价格: ${trip.price}</span>
             </div>
+          )}
+          {/* Accept button - only shown to the OTHER person (not the sender) */}
+          {!isMe && trip.price && onAccept && (
+            <button
+              onClick={() => onAccept(trip)}
+              className="w-full mt-2 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors"
+            >
+              <Check className="h-3.5 w-3.5" />
+              接受报价
+            </button>
+          )}
+          {!isMe && !trip.price && onAccept && (
+            <button
+              onClick={() => onAccept(trip)}
+              className="w-full mt-2 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors"
+            >
+              <Check className="h-3.5 w-3.5" />
+              接受行程
+            </button>
           )}
         </div>
       </div>
