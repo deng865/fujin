@@ -643,8 +643,8 @@ export default function ChatRoom() {
                       <MediaMessage content={msg.content} isMe={isMe} />
                     ) : parseVoiceMessage(msg.content) ? (
                       <VoiceMessage content={msg.content} isMe={isMe} />
-                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content)) ? (
-                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} />
+                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content)) ? (
+                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
