@@ -258,7 +258,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
   const acceptData = parseTripAcceptMessage(content);
   if (acceptData) {
     return (
-      <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+      <div className={`rounded-2xl overflow-hidden w-[260px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
         <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
           <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
             <Check className="h-3.5 w-3.5" />
@@ -284,15 +284,28 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
               <span className="font-medium">成交价: ${acceptData.price}</span>
             </div>
           )}
-          {/* Cancel booking button - only show when not cancelled */}
-          {!isCancelled && onCancel && (
-            <button
-              onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
-              className={`w-full flex items-center justify-center gap-1 rounded-lg py-1.5 mt-2 text-xs font-medium transition-colors text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
-            >
-              <XCircle className="h-3.5 w-3.5" />
-              结束预约
-            </button>
+          {/* Action buttons */}
+          {!isCancelled && (
+            <div className="flex gap-2 mt-2">
+              {onCancel && (
+                <button
+                  onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                  className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  结束预约
+                </button>
+              )}
+              {onCancel && (
+                <button
+                  onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                  className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  订单已完成
+                </button>
+              )}
+            </div>
           )}
           {/* Auto-show rating when cancelled and not yet rated */}
           {isCancelled && onRate && !hasRated && (
