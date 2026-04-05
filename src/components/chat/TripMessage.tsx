@@ -133,6 +133,14 @@ export function parseTripCancelMessage(content: string): { type: "trip_cancel"; 
   return null;
 }
 
+export function parseTripCompleteMessage(content: string): { type: "trip_complete"; from: string; to: string; price?: string; completedBy: string } | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed?.type === "trip_complete") return parsed;
+  } catch {}
+  return null;
+}
+
 export interface TripAcceptNotifyData {
   type: "trip_accept_notify";
   driverName: string;
@@ -153,11 +161,13 @@ export function parseTripAcceptNotify(content: string): TripAcceptNotifyData | n
   return null;
 }
 
-function AcceptTripCard({ acceptData, isMe, isCancelled, onCancel, onRate, hasRated }: {
+function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, onComplete, onRate, hasRated }: {
   acceptData: { from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } };
   isMe: boolean;
   isCancelled?: boolean;
+  isCompleted?: boolean;
   onCancel?: (trip: { from: string; to: string; price?: string }) => void;
+  onComplete?: (trip: { from: string; to: string; price?: string }) => void;
   onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
   hasRated?: boolean;
 }) {
@@ -168,7 +178,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, onCancel, onRate, hasRa
       <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
         <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
           <Check className="h-3.5 w-3.5" />
-          {isCancelled ? "行程已结束" : "已接受行程"}
+          {isCompleted ? "✅ 订单已完成" : isCancelled ? "行程已结束" : "已接受行程"}
         </div>
         <div className="space-y-1 text-xs">
           <div className="flex items-start gap-2">
@@ -210,26 +220,30 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, onCancel, onRate, hasRa
           </div>
         )}
         {/* Action buttons */}
-        {!isCancelled && onCancel && (
+        {!isCancelled && !isCompleted && (onCancel || onComplete) && (
           <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
-              className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
-            >
-              <XCircle className="h-3.5 w-3.5" />
-              结束预约
-            </button>
-            <button
-              onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
-              className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
-            >
-              <Check className="h-3.5 w-3.5" />
-              订单已完成
-            </button>
+            {onComplete && (
+              <button
+                onClick={() => onComplete({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
+              >
+                <Check className="h-3.5 w-3.5" />
+                订单已完成
+              </button>
+            )}
+            {onCancel && (
+              <button
+                onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                结束预约
+              </button>
+            )}
           </div>
         )}
-        {/* Auto-show rating when cancelled and not yet rated */}
-        {isCancelled && onRate && !hasRated && (
+        {/* Auto-show rating when completed/cancelled and not yet rated */}
+        {(isCancelled || isCompleted) && onRate && !hasRated && (
           <TripRatingInput onSubmit={(rating, comment) => {
             onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price }, rating, comment);
           }} />
@@ -252,11 +266,13 @@ interface TripMessageProps {
   onCounter?: (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => void;
   onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
   onCancel?: (trip: { from: string; to: string; price?: string }) => void;
+  onComplete?: (trip: { from: string; to: string; price?: string }) => void;
   hasRated?: boolean;
   isCancelled?: boolean;
+  isCompleted?: boolean;
 }
 
-export default function TripMessage({ content, isMe, onAccept, onCounter, onRate, onCancel, hasRated, isCancelled }: TripMessageProps) {
+export default function TripMessage({ content, isMe, onAccept, onCounter, onRate, onCancel, onComplete, hasRated, isCancelled, isCompleted }: TripMessageProps) {
   const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
   const [showCounterInput, setShowCounterInput] = useState(false);
   const [counterPrice, setCounterPrice] = useState("");
@@ -317,6 +333,41 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
     );
   }
 
+  // Handle trip_complete type
+  const completeData = parseTripCompleteMessage(content);
+  if (completeData) {
+    return (
+      <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+        <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+          <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5 text-emerald-600 dark:text-emerald-400">
+            <Check className="h-3.5 w-3.5" />
+            ✅ 订单已完成
+          </div>
+          <div className="space-y-1 text-xs opacity-60">
+            <div className="flex items-start gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              </div>
+              <span className="break-words">{completeData.from}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              </div>
+              <span className="break-words">{completeData.to}</span>
+            </div>
+          </div>
+          {completeData.price && (
+            <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
+              <DollarSign className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">费用: ${completeData.price}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Handle trip_cancel type
   const cancelData = parseTripCancelMessage(content);
   if (cancelData) {
@@ -350,7 +401,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
   const acceptData = parseTripAcceptMessage(content);
   if (acceptData) {
     return (
-      <AcceptTripCard acceptData={acceptData} isMe={isMe} isCancelled={isCancelled} onCancel={onCancel} onRate={onRate} hasRated={hasRated} />
+      <AcceptTripCard acceptData={acceptData} isMe={isMe} isCancelled={isCancelled} isCompleted={isCompleted} onCancel={onCancel} onComplete={onComplete} onRate={onRate} hasRated={hasRated} />
     );
   }
 

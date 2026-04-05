@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle } from "lucide-react";
+import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle, Check, DollarSign } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
@@ -29,7 +29,7 @@ import IncomingCall from "@/components/chat/IncomingCall";
 import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 import EmojiPicker from "@/components/chat/EmojiPicker";
 import TripSharePanel from "@/components/chat/TripSharePanel";
-import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage, parseTripAcceptNotify } from "@/components/chat/TripMessage";
+import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage, parseTripAcceptNotify, parseTripCompleteMessage } from "@/components/chat/TripMessage";
 import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
 
@@ -612,6 +612,31 @@ export default function ChatRoom() {
     }
   };
 
+  // --- Order Complete flow ---
+  const [pendingCompleteTrip, setPendingCompleteTrip] = useState<{ from: string; to: string; price?: string } | null>(null);
+
+  const handleCompleteTrip = (trip: { from: string; to: string; price?: string }) => {
+    setPendingCompleteTrip(trip);
+  };
+
+  const confirmCompleteTrip = async () => {
+    const trip = pendingCompleteTrip;
+    setPendingCompleteTrip(null);
+    if (!trip || !userId || !conversationId) return;
+    const completeContent = JSON.stringify({ type: "trip_complete", from: trip.from, to: trip.to, price: trip.price, completedBy: userId });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content: completeContent,
+    });
+    if (!error) {
+      await supabase.from("conversations").update({
+        last_message: "✅ 订单已完成",
+        updated_at: new Date().toISOString(),
+      }).eq("id", conversationId);
+    }
+  };
+
   // Check if current user already rated for a specific accept message
   const hasUserRated = useCallback((acceptMsgId: string) => {
     return messages.some((m) => {
@@ -644,17 +669,30 @@ export default function ChatRoom() {
     } catch { return false; }
   }, [messages]);
 
-  // Check if there's an active (accepted but not cancelled) trip in this conversation
+  // Check if a specific accepted trip has been completed
+  const isCompletedForAccept = useCallback((acceptContent: string) => {
+    try {
+      const accept = JSON.parse(acceptContent);
+      return messages.some((m) => {
+        try {
+          const cd = JSON.parse(m.content);
+          return cd?.type === "trip_complete" && cd.from === accept.from && cd.to === accept.to;
+        } catch { return false; }
+      });
+    } catch { return false; }
+  }, [messages]);
+
+  // Check if there's an active (accepted but not cancelled/completed) trip in this conversation
   const hasActiveTrip = useCallback(() => {
     const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
-    return accepts.some((acceptMsg) => !isCancelledForAccept(acceptMsg.content));
-  }, [messages, isCancelledForAccept]);
+    return accepts.some((acceptMsg) => !isCancelledForAccept(acceptMsg.content) && !isCompletedForAccept(acceptMsg.content));
+  }, [messages, isCancelledForAccept, isCompletedForAccept]);
 
   // Get active trip details for banner
   const activeTripInfo = useCallback(() => {
     const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
     for (const acceptMsg of accepts) {
-      if (!isCancelledForAccept(acceptMsg.content)) {
+      if (!isCancelledForAccept(acceptMsg.content) && !isCompletedForAccept(acceptMsg.content)) {
         const data = parseTripAcceptMessage(acceptMsg.content);
         if (data) return { from: data.from, to: data.to, price: data.price };
       }
@@ -787,13 +825,22 @@ export default function ChatRoom() {
                   {trip.price && <span className="text-muted-foreground ml-1">${trip.price}</span>}
                 </div>
               </div>
-              <button
-                onClick={() => handleCancelTrip(trip)}
-                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors"
-              >
-                <XCircle className="h-3.5 w-3.5" />
-                结束预约
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => handleCompleteTrip(trip)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  订单已完成
+                </button>
+                <button
+                  onClick={() => handleCancelTrip(trip)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  结束预约
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -904,8 +951,8 @@ export default function ChatRoom() {
                       <TripRatingDisplay content={msg.content} isMe={isMe} currentUserId={userId || undefined} />
                     ) : parseTripAcceptNotify(msg.content) ? (
                       <TripMessage content={msg.content} isMe={isMe} />
-                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content)) ? (
-                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} />
+                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content) || (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })()) ? (
+                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
@@ -1046,6 +1093,30 @@ export default function ChatRoom() {
           <AlertDialogCancel>继续行程</AlertDialogCancel>
           <AlertDialogAction onClick={confirmCancelTrip} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
             确认结束
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={!!pendingCompleteTrip} onOpenChange={(open) => { if (!open) setPendingCompleteTrip(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>✅ 确认订单完成</AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <span className="block">确认订单已完成后，系统将解除行程锁定。</span>
+            {pendingCompleteTrip?.price && (
+              <span className="flex items-center gap-1.5 text-base font-semibold text-primary">
+                <DollarSign className="h-4 w-4" />
+                请确认已完成付款：${pendingCompleteTrip.price}
+              </span>
+            )}
+            <span className="block text-muted-foreground text-xs">完成后您可以对对方进行评价。</span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmCompleteTrip}>
+            确认完成
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
