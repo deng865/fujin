@@ -212,22 +212,26 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
           </div>
         )}
         {/* Action buttons */}
-        {!isCancelled && onCancel && (
+        {!isCancelled && !isCompleted && (onCancel || onComplete) && (
           <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
-              className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
-            >
-              <XCircle className="h-3.5 w-3.5" />
-              结束预约
-            </button>
-            <button
-              onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
-              className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
-            >
-              <Check className="h-3.5 w-3.5" />
-              订单已完成
-            </button>
+            {onComplete && (
+              <button
+                onClick={() => onComplete({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
+              >
+                <Check className="h-3.5 w-3.5" />
+                订单已完成
+              </button>
+            )}
+            {onCancel && (
+              <button
+                onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                结束预约
+              </button>
+            )}
           </div>
         )}
         {/* Auto-show rating when cancelled and not yet rated */}
