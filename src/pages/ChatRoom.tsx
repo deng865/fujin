@@ -96,7 +96,7 @@ export default function ChatRoom() {
 
       const { data: profile } = await supabase
         .from("public_profiles")
-        .select("name, avatar_url")
+        .select("name, avatar_url, user_type")
         .eq("id", otherId)
         .single();
 
@@ -105,6 +105,21 @@ export default function ChatRoom() {
         avatar_url: profile?.avatar_url || null,
         phone: null,
       });
+
+      // Check if this is a passenger-driver conversation
+      const otherType = profile?.user_type;
+      const { data: myProfileType } = await supabase
+        .from("profiles")
+        .select("user_type")
+        .eq("id", user.id)
+        .single();
+      const myType = myProfileType?.user_type;
+      if (
+        (myType === "passenger" && otherType === "driver") ||
+        (myType === "driver" && otherType === "passenger")
+      ) {
+        setIsRideChat(true);
+      }
 
       const { data: msgs } = await supabase
         .from("messages")
