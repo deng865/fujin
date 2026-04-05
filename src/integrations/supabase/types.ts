@@ -22,6 +22,7 @@ export type Database = {
           is_visible: boolean | null
           label: string
           name: string
+          parent_id: string | null
           sort_order: number | null
           updated_at: string | null
         }
@@ -32,6 +33,7 @@ export type Database = {
           is_visible?: boolean | null
           label: string
           name: string
+          parent_id?: string | null
           sort_order?: number | null
           updated_at?: string | null
         }
@@ -42,10 +44,19 @@ export type Database = {
           is_visible?: boolean | null
           label?: string
           name?: string
+          parent_id?: string | null
           sort_order?: number | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_messages: {
         Row: {
