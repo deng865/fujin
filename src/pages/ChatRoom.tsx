@@ -1097,6 +1097,30 @@ export default function ChatRoom() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    <AlertDialog open={!!pendingCompleteTrip} onOpenChange={(open) => { if (!open) setPendingCompleteTrip(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>✅ 确认订单完成</AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <span className="block">确认订单已完成后，系统将解除行程锁定。</span>
+            {pendingCompleteTrip?.price && (
+              <span className="flex items-center gap-1.5 text-base font-semibold text-primary">
+                <DollarSign className="h-4 w-4" />
+                请确认已完成付款：${pendingCompleteTrip.price}
+              </span>
+            )}
+            <span className="block text-muted-foreground text-xs">完成后您可以对对方进行评价。</span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmCompleteTrip}>
+            确认完成
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
