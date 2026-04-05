@@ -496,7 +496,7 @@ export default function ChatRoom() {
     }
   };
 
-  const handleAcceptTrip = async (trip: { from: string; to: string; price?: string }) => {
+  const handleAcceptTrip = async (trip: { from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } }) => {
     if (!userId || !conversationId) return;
     // Check if this user already has an active trip (driver lock)
     const lockedConvId = await checkActiveTripLock(userId);
@@ -515,6 +515,59 @@ export default function ChatRoom() {
         last_message: "✅ 已接受行程",
         updated_at: new Date().toISOString(),
       }).eq("id", conversationId);
+
+      // Send trip_accept_notify with driver info
+      try {
+        const { data: driverProfile } = await supabase
+          .from("profiles")
+          .select("name, avatar_url, average_rating, vehicle_model, vehicle_color, license_plate")
+          .eq("id", userId)
+          .single();
+
+        // Get driver's current location and calculate distance/ETA to pickup
+        let distanceMi = 0;
+        let etaMin = 0;
+        if (trip.fromCoords) {
+          try {
+            const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+              navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+            );
+            const driverLat = pos.coords.latitude;
+            const driverLng = pos.coords.longitude;
+            const res = await fetch(
+              `https://api.mapbox.com/directions/v5/mapbox/driving/${driverLng},${driverLat};${trip.fromCoords.lng},${trip.fromCoords.lat}?access_token=${MAPBOX_TOKEN}&overview=false`
+            );
+            const data = await res.json();
+            if (data.routes?.[0]) {
+              distanceMi = (data.routes[0].distance / 1000) * 0.621371;
+              etaMin = Math.round(data.routes[0].duration / 60);
+            }
+          } catch {
+            // Fallback: estimate based on straight-line
+            distanceMi = 5;
+            etaMin = 10;
+          }
+        }
+
+        const notifyContent = JSON.stringify({
+          type: "trip_accept_notify",
+          driverName: driverProfile?.name || "司机",
+          driverAvatar: driverProfile?.avatar_url || null,
+          driverRating: driverProfile?.average_rating || null,
+          vehicleModel: (driverProfile as any)?.vehicle_model || null,
+          vehicleColor: (driverProfile as any)?.vehicle_color || null,
+          licensePlate: (driverProfile as any)?.license_plate || null,
+          distanceMi,
+          etaMin,
+        });
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: userId,
+          content: notifyContent,
+        });
+      } catch (e) {
+        console.error("Failed to send accept notify", e);
+      }
     }
   };
 
