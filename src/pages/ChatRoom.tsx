@@ -669,11 +669,24 @@ export default function ChatRoom() {
     } catch { return false; }
   }, [messages]);
 
-  // Check if there's an active (accepted but not cancelled) trip in this conversation
+  // Check if a specific accepted trip has been completed
+  const isCompletedForAccept = useCallback((acceptContent: string) => {
+    try {
+      const accept = JSON.parse(acceptContent);
+      return messages.some((m) => {
+        try {
+          const cd = JSON.parse(m.content);
+          return cd?.type === "trip_complete" && cd.from === accept.from && cd.to === accept.to;
+        } catch { return false; }
+      });
+    } catch { return false; }
+  }, [messages]);
+
+  // Check if there's an active (accepted but not cancelled/completed) trip in this conversation
   const hasActiveTrip = useCallback(() => {
     const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
-    return accepts.some((acceptMsg) => !isCancelledForAccept(acceptMsg.content));
-  }, [messages, isCancelledForAccept]);
+    return accepts.some((acceptMsg) => !isCancelledForAccept(acceptMsg.content) && !isCompletedForAccept(acceptMsg.content));
+  }, [messages, isCancelledForAccept, isCompletedForAccept]);
 
   // Get active trip details for banner
   const activeTripInfo = useCallback(() => {
