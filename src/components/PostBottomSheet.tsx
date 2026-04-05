@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { checkActiveTripLock } from "@/lib/tripLock";
 import FavoriteButton from "@/components/FavoriteButton";
 import {
   Drawer,
