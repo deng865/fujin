@@ -278,7 +278,19 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
           )}
         </div>
 
-        {/* Price */}
+        {/* Distance indicator */}
+        {from.coords && to.coords && (
+          <div className="flex items-center gap-1.5 px-1">
+            <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0">
+              <Route className="h-3.5 w-3.5 text-primary" />
+            </div>
+            <span className="text-xs font-medium text-primary">
+              两地距离: {haversineKm(from.coords.lat, from.coords.lng, to.coords.lat, to.coords.lng).toFixed(1)} km
+              ({(haversineKm(from.coords.lat, from.coords.lng, to.coords.lat, to.coords.lng) * 0.621371).toFixed(1)} mi)
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center gap-1.5">
           <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0">
             <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
