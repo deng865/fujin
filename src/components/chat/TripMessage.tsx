@@ -234,8 +234,8 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
             )}
           </div>
         )}
-        {/* Auto-show rating when cancelled and not yet rated */}
-        {isCancelled && onRate && !hasRated && (
+        {/* Auto-show rating when completed/cancelled and not yet rated */}
+        {(isCancelled || isCompleted) && onRate && !hasRated && (
           <TripRatingInput onSubmit={(rating, comment) => {
             onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price }, rating, comment);
           }} />
