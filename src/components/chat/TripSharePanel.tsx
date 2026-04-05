@@ -167,7 +167,7 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
     setMapPin(null);
   };
 
-  const canSend = from.text.trim() && to.text.trim() && !sending;
+  const canSend = from.text.trim() && to.text.trim() && price.trim() && !sending;
 
   // Map picker overlay
   if (mapField) {
