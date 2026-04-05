@@ -799,6 +799,27 @@ export default function ChatRoom() {
         );
       })()}
 
+      {/* Driver real-time tracking map */}
+      {(() => {
+        if (!hasActiveTrip() || !userId || !conversationId) return null;
+        // Find the passenger's pickup coords from the original trip message
+        const tripMsg = messages.find((m) => {
+          const td = parseTripMessage(m.content);
+          return td && td.fromCoords;
+        });
+        if (!tripMsg) return null;
+        const td = parseTripMessage(tripMsg.content);
+        if (!td?.fromCoords) return null;
+        return (
+          <DriverTracking
+            conversationId={conversationId}
+            userId={userId}
+            isDriver={isDriver}
+            passengerLocation={td.fromCoords}
+          />
+        );
+      })()}
+
       {longPressMsg && (
         <div className="fixed inset-0 z-30" onClick={() => setLongPressMsg(null)} />
       )}
