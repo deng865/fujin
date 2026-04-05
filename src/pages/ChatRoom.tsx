@@ -571,6 +571,7 @@ export default function ChatRoom() {
         }).eq("id", ratedUserId);
       }
     }
+  };
 
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
