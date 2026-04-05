@@ -510,8 +510,16 @@ export default function ChatRoom() {
     }
   };
 
-  const handleCancelTrip = async (trip: { from: string; to: string; price?: string }) => {
-    if (!userId || !conversationId) return;
+  const [pendingCancelTrip, setPendingCancelTrip] = useState<{ from: string; to: string; price?: string } | null>(null);
+
+  const handleCancelTrip = (trip: { from: string; to: string; price?: string }) => {
+    setPendingCancelTrip(trip);
+  };
+
+  const confirmCancelTrip = async () => {
+    const trip = pendingCancelTrip;
+    setPendingCancelTrip(null);
+    if (!trip || !userId || !conversationId) return;
     const cancelContent = JSON.stringify({ type: "trip_cancel", from: trip.from, to: trip.to, cancelledBy: userId });
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
