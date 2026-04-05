@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle } from "lucide-react";
 import { TripRatingInput } from "./TripRating";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
+import Map, { Marker, Source, Layer } from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371;
@@ -12,17 +14,49 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 }
 
 function TripMiniMap({ fromCoords, toCoords }: { fromCoords: { lat: number; lng: number }; toCoords: { lat: number; lng: number } }) {
-  const path = encodeURIComponent(`polyline(${fromCoords.lng},${fromCoords.lat},${toCoords.lng},${toCoords.lat})`);
-  const pinFrom = `pin-s-a+22c55e(${fromCoords.lng},${fromCoords.lat})`;
-  const pinTo = `pin-s-b+ef4444(${toCoords.lng},${toCoords.lat})`;
-  const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${pinFrom},${pinTo},path-2+3b82f6-0.6(${path})/auto/240x120@2x?padding=30&access_token=${MAPBOX_TOKEN}`;
+  const bounds = useMemo(() => {
+    const minLng = Math.min(fromCoords.lng, toCoords.lng);
+    const maxLng = Math.max(fromCoords.lng, toCoords.lng);
+    const minLat = Math.min(fromCoords.lat, toCoords.lat);
+    const maxLat = Math.max(fromCoords.lat, toCoords.lat);
+    const padLng = Math.max((maxLng - minLng) * 0.3, 0.005);
+    const padLat = Math.max((maxLat - minLat) * 0.3, 0.005);
+    return [[minLng - padLng, minLat - padLat], [maxLng + padLng, maxLat + padLat]] as [[number, number], [number, number]];
+  }, [fromCoords, toCoords]);
+
+  const lineGeoJson = useMemo(() => ({
+    type: "Feature" as const,
+    properties: {},
+    geometry: {
+      type: "LineString" as const,
+      coordinates: [[fromCoords.lng, fromCoords.lat], [toCoords.lng, toCoords.lat]],
+    },
+  }), [fromCoords, toCoords]);
+
   return (
-    <img
-      src={url}
-      alt="行程路线"
-      className="w-full h-[120px] object-cover rounded-lg mt-2"
-      loading="lazy"
-    />
+    <div className="w-full h-[140px] rounded-lg mt-2 overflow-hidden">
+      <Map
+        mapboxAccessToken={MAPBOX_TOKEN}
+        initialViewState={{ bounds, fitBoundsOptions: { padding: 30 } }}
+        style={{ width: "100%", height: "100%" }}
+        mapStyle="mapbox://styles/mapbox/streets-v12"
+        interactive={true}
+        scrollZoom={true}
+        dragPan={true}
+        touchZoomRotate={true}
+        attributionControl={false}
+      >
+        <Source id="route-line" type="geojson" data={lineGeoJson}>
+          <Layer id="route-line-layer" type="line" paint={{ "line-color": "#3b82f6", "line-width": 3, "line-opacity": 0.7 }} />
+        </Source>
+        <Marker longitude={fromCoords.lng} latitude={fromCoords.lat} anchor="center">
+          <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-white shadow-md" />
+        </Marker>
+        <Marker longitude={toCoords.lng} latitude={toCoords.lat} anchor="center">
+          <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow-md" />
+        </Marker>
+      </Map>
+    </div>
   );
 }
 
