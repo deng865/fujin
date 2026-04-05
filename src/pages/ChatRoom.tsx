@@ -611,6 +611,8 @@ export default function ChatRoom() {
                       <MediaMessage content={msg.content} isMe={isMe} />
                     ) : parseVoiceMessage(msg.content) ? (
                       <VoiceMessage content={msg.content} isMe={isMe} />
+                    ) : parseTripMessage(msg.content) ? (
+                      <TripMessage content={msg.content} isMe={isMe} />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
@@ -622,32 +624,6 @@ export default function ChatRoom() {
                                 <span className="font-medium">{parsed.contactType === "phone" ? "手机号" : "微信号"}</span>
                               </div>
                               <p className="mt-1 font-mono text-xs select-all">{parsed.value}</p>
-                            </div>
-                          );
-                        }
-                        if (parsed?.type === "trip") {
-                          return (
-                            <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
-                              <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
-                                <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
-                                  <Route className="h-3.5 w-3.5" />
-                                  行程信息
-                                </div>
-                                <div className="space-y-1.5 text-xs">
-                                  <div className="flex items-start gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                    </div>
-                                    <span className="break-words">{parsed.from}</span>
-                                  </div>
-                                  <div className="flex items-start gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                                    </div>
-                                    <span className="break-words">{parsed.to}</span>
-                                  </div>
-                                </div>
-                              </div>
                             </div>
                           );
                         }
