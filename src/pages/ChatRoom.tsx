@@ -503,6 +503,22 @@ export default function ChatRoom() {
     }
   };
 
+  const handleCancelTrip = async (trip: { from: string; to: string; price?: string }) => {
+    if (!userId || !conversationId) return;
+    const cancelContent = JSON.stringify({ type: "trip_cancel", from: trip.from, to: trip.to, cancelledBy: userId });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content: cancelContent,
+    });
+    if (!error) {
+      await supabase.from("conversations").update({
+        last_message: "❌ 已结束预约",
+        updated_at: new Date().toISOString(),
+      }).eq("id", conversationId);
+    }
+  };
+
   // Check if current user already rated for a specific accept message
   const hasUserRated = useCallback((acceptMsgId: string) => {
     return messages.some((m) => {
@@ -523,6 +539,23 @@ export default function ChatRoom() {
       });
     } catch { return false; }
   }, [messages, userId]);
+
+  // Check if a specific accepted trip has been cancelled
+  const isCancelledForAccept = useCallback((acceptContent: string) => {
+    try {
+      const accept = JSON.parse(acceptContent);
+      return messages.some((m) => {
+        const cd = parseTripCancelMessage(m.content);
+        return cd && cd.from === accept.from && cd.to === accept.to;
+      });
+    } catch { return false; }
+  }, [messages]);
+
+  // Check if there's an active (accepted but not cancelled) trip in this conversation
+  const hasActiveTrip = useCallback(() => {
+    const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
+    return accepts.some((acceptMsg) => !isCancelledForAccept(acceptMsg.content));
+  }, [messages, isCancelledForAccept]);
 
   const handleRateTrip = async (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => {
     if (!userId || !conversationId) return;
