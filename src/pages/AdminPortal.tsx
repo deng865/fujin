@@ -415,14 +415,275 @@ function UsersPanel() {
   );
 }
 
+// ─── Icon Picker ───
+function IconPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const CurrentIcon = AVAILABLE_ICONS[value] || MapPin;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-border hover:bg-accent transition-colors"
+      >
+        <CurrentIcon className="h-4 w-4" />
+        <span className="text-xs text-muted-foreground">{value}</span>
+        <Pencil className="h-3 w-3 text-muted-foreground" />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-lg p-3 w-[280px] max-h-[240px] overflow-y-auto">
+          <div className="grid grid-cols-6 gap-1">
+            {Object.entries(AVAILABLE_ICONS).map(([name, Icon]) => (
+              <button
+                key={name}
+                onClick={() => { onChange(name); setOpen(false); }}
+                title={name}
+                className={`p-2 rounded-lg transition-colors ${value === name ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+              >
+                <Icon className="h-4 w-4 mx-auto" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Categories Config ───
 function CategoriesPanel() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newLabel, setNewLabel] = useState("");
   const [newName, setNewName] = useState("");
+  const [newIcon, setNewIcon] = useState("MapPin");
+  const [newParentId, setNewParentId] = useState<string>("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editIcon, setEditIcon] = useState("");
 
   const fetchCategories = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("categories")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    setCategories(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchCategories(); }, []);
+
+  const topCategories = categories.filter((c) => !c.parent_id);
+  const getChildren = (parentId: string) => categories.filter((c) => c.parent_id === parentId);
+
+  const handleToggleVisibility = async (id: string, current: boolean) => {
+    await supabase.from("categories").update({ is_visible: !current }).eq("id", id);
+    toast({ title: current ? "已隐藏分类" : "已显示分类" });
+    fetchCategories();
+  };
+
+  const handleAdd = async () => {
+    if (!newName.trim() || !newLabel.trim()) return;
+    const name = newName.trim().toLowerCase();
+    const { data: existing } = await supabase.from("categories").select("id").eq("name", name).maybeSingle();
+    if (existing) {
+      toast({ title: "添加失败", description: `分类标识 "${name}" 已存在`, variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from("categories").insert({
+      name,
+      label: newLabel.trim(),
+      icon: newIcon,
+      parent_id: newParentId || null,
+      sort_order: categories.length + 1,
+    });
+    if (error) {
+      toast({ title: "添加失败", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "已添加分类" });
+      setNewName(""); setNewLabel(""); setNewIcon("MapPin"); setNewParentId("");
+      fetchCategories();
+    }
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    await supabase.from("categories").update({ label: editLabel, icon: editIcon }).eq("id", id);
+    toast({ title: "已更新分类" });
+    setEditingId(null);
+    fetchCategories();
+  };
+
+  const handleMoveUp = async (index: number) => {
+    if (index === 0) return;
+    const current = categories[index];
+    const above = categories[index - 1];
+    await Promise.all([
+      supabase.from("categories").update({ sort_order: above.sort_order }).eq("id", current.id),
+      supabase.from("categories").update({ sort_order: current.sort_order }).eq("id", above.id),
+    ]);
+    fetchCategories();
+  };
+
+  const handleMoveDown = async (index: number) => {
+    if (index === categories.length - 1) return;
+    const current = categories[index];
+    const below = categories[index + 1];
+    await Promise.all([
+      supabase.from("categories").update({ sort_order: below.sort_order }).eq("id", current.id),
+      supabase.from("categories").update({ sort_order: current.sort_order }).eq("id", below.id),
+    ]);
+    fetchCategories();
+  };
+
+  const handleDelete = async (id: string) => {
+    await supabase.from("categories").delete().eq("id", id);
+    toast({ title: "已删除分类" });
+    fetchCategories();
+  };
+
+  if (loading) return <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mt-10" />;
+
+  const renderCategoryRow = (cat: any, index: number, isChild = false) => {
+    const isEditing = editingId === cat.id;
+    const CatIcon = AVAILABLE_ICONS[cat.icon] || MapPin;
+
+    return (
+      <tr key={cat.id} className={`hover:bg-muted/30 ${isChild ? "bg-muted/10" : ""}`}>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground w-6 text-center">{cat.sort_order}</span>
+            <div className="flex flex-col">
+              <Button size="icon" variant="ghost" className="h-5 w-5" disabled={index === 0} onClick={() => handleMoveUp(index)}>
+                <ChevronUp className="h-3 w-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-5 w-5" disabled={index === categories.length - 1} onClick={() => handleMoveDown(index)}>
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </td>
+        <td className="px-4 py-3">
+          {isEditing ? (
+            <IconPicker value={editIcon} onChange={setEditIcon} />
+          ) : (
+            <div className="flex items-center gap-2">
+              <CatIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{cat.icon}</span>
+            </div>
+          )}
+        </td>
+        <td className="px-4 py-3 font-mono text-xs">
+          {isChild && <span className="text-muted-foreground mr-1">└</span>}
+          {cat.name}
+        </td>
+        <td className="px-4 py-3">
+          {isEditing ? (
+            <input
+              value={editLabel}
+              onChange={(e) => setEditLabel(e.target.value)}
+              className="border border-border rounded-lg px-2 py-1 text-sm w-full max-w-[160px] bg-background"
+              autoFocus
+            />
+          ) : (
+            <span className="font-medium">{cat.label}</span>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cat.is_visible ? "bg-emerald-50 text-emerald-700" : "bg-yellow-50 text-yellow-700"}`}>
+            {cat.is_visible ? "可见" : "隐藏"}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-right">
+          <div className="flex items-center justify-end gap-1">
+            {isEditing ? (
+              <>
+                <Button size="sm" variant="ghost" className="text-primary" onClick={() => handleSaveEdit(cat.id)}>
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" variant="ghost" onClick={() => { setEditingId(cat.id); setEditLabel(cat.label); setEditIcon(cat.icon); }}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={() => handleToggleVisibility(cat.id, cat.is_visible)}>
+              {cat.is_visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(cat.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-6">分类配置</h2>
+
+      {/* Add new */}
+      <div className="flex flex-wrap gap-2 mb-6 items-end">
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">父级分类</label>
+          <select
+            value={newParentId}
+            onChange={(e) => setNewParentId(e.target.value)}
+            className="h-9 rounded-lg border border-border bg-background px-2 text-sm w-[120px]"
+          >
+            <option value="">顶级分类</option>
+            {topCategories.map((c) => (
+              <option key={c.id} value={c.id}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">英文标识</label>
+          <input placeholder="如: beauty" value={newName} onChange={(e) => setNewName(e.target.value)} className="h-9 rounded-lg border border-border bg-background px-2 text-sm w-[120px]" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">显示名称</label>
+          <input placeholder="如: 美容" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} className="h-9 rounded-lg border border-border bg-background px-2 text-sm w-[120px]" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">图标</label>
+          <IconPicker value={newIcon} onChange={setNewIcon} />
+        </div>
+        <Button onClick={handleAdd} disabled={!newName.trim() || !newLabel.trim()} className="h-9">
+          <Plus className="h-4 w-4 mr-1" /> 添加
+        </Button>
+      </div>
+
+      <div className="border border-border rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-muted/50 text-left">
+              <th className="px-4 py-3 font-medium">排序</th>
+              <th className="px-4 py-3 font-medium">图标</th>
+              <th className="px-4 py-3 font-medium">标识</th>
+              <th className="px-4 py-3 font-medium">显示名称</th>
+              <th className="px-4 py-3 font-medium">状态</th>
+              <th className="px-4 py-3 font-medium text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {topCategories.map((cat, index) => {
+              const children = getChildren(cat.id);
+              return [
+                renderCategoryRow(cat, index),
+                ...children.map((child, ci) => renderCategoryRow(child, ci, true)),
+              ];
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
     setLoading(true);
     const { data } = await supabase
       .from("categories")
