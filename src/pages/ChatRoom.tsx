@@ -7,6 +7,7 @@ import { chatMessageSchema } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/validation";
 import { filterMessage } from "@/lib/sensitiveWords";
 import { toast } from "@/hooks/use-toast";
+import { checkActiveTripLock } from "@/lib/tripLock";
 import LocationMessage, { parseLocationMessage } from "@/components/chat/LocationMessage";
 import MediaMessage, { parseMediaMessage } from "@/components/chat/MediaMessage";
 import VoiceMessage, { parseVoiceMessage } from "@/components/chat/VoiceMessage";
