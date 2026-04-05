@@ -59,6 +59,35 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
   const [counterPrice, setCounterPrice] = useState("");
   const [showRatingInput, setShowRatingInput] = useState(false);
 
+  // Handle trip_cancel type
+  const cancelData = parseTripCancelMessage(content);
+  if (cancelData) {
+    return (
+      <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+        <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+          <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5 text-destructive">
+            <XCircle className="h-3.5 w-3.5" />
+            已结束预约
+          </div>
+          <div className="space-y-1 text-xs opacity-60">
+            <div className="flex items-start gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              </div>
+              <span className="break-words">{cancelData.from}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              </div>
+              <span className="break-words">{cancelData.to}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Handle trip_accept type
   const acceptData = parseTripAcceptMessage(content);
   if (acceptData) {
@@ -67,7 +96,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
         <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
           <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
             <Check className="h-3.5 w-3.5" />
-            已接受行程
+            {isCancelled ? "行程已结束" : "已接受行程"}
           </div>
           <div className="space-y-1 text-xs">
             <div className="flex items-start gap-2">
@@ -89,8 +118,18 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
               <span className="font-medium">成交价: ${acceptData.price}</span>
             </div>
           )}
-          {/* Rating button */}
-          {onRate && !hasRated && !showRatingInput && (
+          {/* Cancel booking button - only show when not cancelled */}
+          {!isCancelled && onCancel && (
+            <button
+              onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+              className={`w-full flex items-center justify-center gap-1 rounded-lg py-1.5 mt-2 text-xs font-medium transition-colors text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              结束预约
+            </button>
+          )}
+          {/* Rating button - only show when cancelled */}
+          {isCancelled && onRate && !hasRated && !showRatingInput && (
             <button
               onClick={() => setShowRatingInput(true)}
               className={`w-full flex items-center justify-center gap-1 rounded-lg py-1.5 mt-2 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
