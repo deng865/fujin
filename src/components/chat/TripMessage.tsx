@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle } from "lucide-react";
 import { TripRatingInput } from "./TripRating";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
-import Map, { Marker, Source, Layer } from "react-map-gl";
+import Map, { Marker, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
