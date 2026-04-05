@@ -612,6 +612,31 @@ export default function ChatRoom() {
     }
   };
 
+  // --- Order Complete flow ---
+  const [pendingCompleteTrip, setPendingCompleteTrip] = useState<{ from: string; to: string; price?: string } | null>(null);
+
+  const handleCompleteTrip = (trip: { from: string; to: string; price?: string }) => {
+    setPendingCompleteTrip(trip);
+  };
+
+  const confirmCompleteTrip = async () => {
+    const trip = pendingCompleteTrip;
+    setPendingCompleteTrip(null);
+    if (!trip || !userId || !conversationId) return;
+    const completeContent = JSON.stringify({ type: "trip_complete", from: trip.from, to: trip.to, price: trip.price, completedBy: userId });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content: completeContent,
+    });
+    if (!error) {
+      await supabase.from("conversations").update({
+        last_message: "✅ 订单已完成",
+        updated_at: new Date().toISOString(),
+      }).eq("id", conversationId);
+    }
+  };
+
   // Check if current user already rated for a specific accept message
   const hasUserRated = useCallback((acceptMsgId: string) => {
     return messages.some((m) => {
