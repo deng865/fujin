@@ -1,8 +1,16 @@
 import { useState, useRef, useCallback } from "react";
-import { MapPin, Navigation, Loader2, Send, DollarSign, Map, X } from "lucide-react";
+import { MapPin, Navigation, Loader2, Send, DollarSign, Map, X, Route } from "lucide-react";
 import MapGL, { Marker, MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 interface TripSharePanelProps {
   onSend: (from: string, to: string, fromCoords?: { lat: number; lng: number }, toCoords?: { lat: number; lng: number }, price?: string) => void;
@@ -270,7 +278,19 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
           )}
         </div>
 
-        {/* Price */}
+        {/* Distance indicator */}
+        {from.coords && to.coords && (
+          <div className="flex items-center gap-1.5 px-1">
+            <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0">
+              <Route className="h-3.5 w-3.5 text-primary" />
+            </div>
+            <span className="text-xs font-medium text-primary">
+              两地距离: {haversineKm(from.coords.lat, from.coords.lng, to.coords.lat, to.coords.lng).toFixed(1)} km
+              ({(haversineKm(from.coords.lat, from.coords.lng, to.coords.lat, to.coords.lng) * 0.621371).toFixed(1)} mi)
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center gap-1.5">
           <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0">
             <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
