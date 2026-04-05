@@ -80,15 +80,21 @@ export default function ProfilePage() {
 
   const handleSaveProfile = async () => {
     if (!user) return;
+    const updateData: any = { name, phone: phone || null, wechat_id: wechatId || null };
+    // Include vehicle fields
+    updateData.vehicle_model = vehicleModel || null;
+    updateData.vehicle_color = vehicleColor || null;
+    updateData.license_plate = licensePlate || null;
+    
     const { error } = await supabase
       .from("profiles")
-      .update({ name, phone: phone || null, wechat_id: wechatId || null })
+      .update(updateData)
       .eq("id", user.id);
 
     if (error) toast.error("更新失败");
     else {
       toast.success("资料已更新 / Profile updated");
-      setProfile({ ...profile!, name, phone: phone || null, wechat_id: wechatId || null });
+      setProfile({ ...profile!, name, phone: phone || null, wechat_id: wechatId || null, vehicle_model: vehicleModel || null, vehicle_color: vehicleColor || null, license_plate: licensePlate || null });
       setEditing(false);
     }
   };
