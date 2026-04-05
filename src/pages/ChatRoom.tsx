@@ -505,7 +505,7 @@ export default function ChatRoom() {
       toast({ title: "你有进行中的行程", description: "请先结束当前预约后再接受新行程" });
       return;
     }
-    const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price });
+    const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price, fromCoords: trip.fromCoords, toCoords: trip.toCoords });
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
       sender_id: userId,
