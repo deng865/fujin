@@ -447,6 +447,28 @@ export default function ChatRoom() {
     setShowContactMenu(false);
   };
 
+  const handleSendTrip = async (from: string, to: string, fromCoords?: { lat: number; lng: number }) => {
+    if (!userId || !conversationId) return;
+    setSendingTrip(true);
+    try {
+      const tripContent = JSON.stringify({ type: "trip", from, to, fromCoords });
+      const { error } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: tripContent,
+      });
+      if (!error) {
+        await supabase.from("conversations").update({
+          last_message: "🚗 行程信息",
+          updated_at: new Date().toISOString(),
+        }).eq("id", conversationId);
+        setShowTripPanel(false);
+      }
+    } catch {} finally {
+      setSendingTrip(false);
+    }
+  };
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
