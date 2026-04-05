@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route } from "lucide-react";
+import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/validation";
@@ -564,6 +564,18 @@ export default function ChatRoom() {
     return accepts.some((acceptMsg) => !isCancelledForAccept(acceptMsg.content));
   }, [messages, isCancelledForAccept]);
 
+  // Get active trip details for banner
+  const activeTripInfo = useCallback(() => {
+    const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
+    for (const acceptMsg of accepts) {
+      if (!isCancelledForAccept(acceptMsg.content)) {
+        const data = parseTripAcceptMessage(acceptMsg.content);
+        if (data) return { from: data.from, to: data.to, price: data.price };
+      }
+    }
+    return null;
+  }, [messages, isCancelledForAccept]);
+
   const handleRateTrip = async (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => {
     if (!userId || !conversationId) return;
     // Get the other user's ID
@@ -673,7 +685,33 @@ export default function ChatRoom() {
         </div>
       </div>
 
-      {/* Dismiss long-press menu on backdrop click */}
+      {/* Active trip banner */}
+      {(() => {
+        const trip = activeTripInfo();
+        if (!trip) return null;
+        return (
+          <div className="shrink-0 bg-primary/10 border-b border-primary/20 px-4 py-2 max-w-lg mx-auto w-full">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Route className="h-4 w-4 text-primary shrink-0" />
+                <div className="text-xs truncate">
+                  <span className="font-medium text-primary">行程进行中</span>
+                  <span className="text-muted-foreground ml-1.5">{trip.from} → {trip.to}</span>
+                  {trip.price && <span className="text-muted-foreground ml-1">${trip.price}</span>}
+                </div>
+              </div>
+              <button
+                onClick={() => handleCancelTrip(trip)}
+                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                结束预约
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {longPressMsg && (
         <div className="fixed inset-0 z-30" onClick={() => setLongPressMsg(null)} />
       )}
