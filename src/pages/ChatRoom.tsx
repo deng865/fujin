@@ -17,7 +17,7 @@ import IncomingCall from "@/components/chat/IncomingCall";
 import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 import EmojiPicker from "@/components/chat/EmojiPicker";
 import TripSharePanel from "@/components/chat/TripSharePanel";
-import TripMessage, { parseTripMessage, parseTripAcceptMessage } from "@/components/chat/TripMessage";
+import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage } from "@/components/chat/TripMessage";
 
 interface Message {
   id: string;
