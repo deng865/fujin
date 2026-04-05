@@ -83,6 +83,12 @@ export default function TripMessage({ content, isMe }: TripMessageProps) {
               </button>
             </div>
           </div>
+          {trip.price && (
+            <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
+              <DollarSign className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">期望价格: ${trip.price}</span>
+            </div>
+          )}
         </div>
       </div>
 
