@@ -624,6 +624,32 @@ export default function ChatRoom() {
                             </div>
                           );
                         }
+                        if (parsed?.type === "trip") {
+                          return (
+                            <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+                              <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+                                <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
+                                  <Route className="h-3.5 w-3.5" />
+                                  行程信息
+                                </div>
+                                <div className="space-y-1.5 text-xs">
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                    </div>
+                                    <span className="break-words">{parsed.from}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                    </div>
+                                    <span className="break-words">{parsed.to}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
                       } catch {}
                       return (
                         <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
