@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile } from "lucide-react";
+import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
 import { sanitizeHtml } from "@/lib/validation";
@@ -16,6 +16,7 @@ import VoiceCall from "@/components/chat/VoiceCall";
 import IncomingCall from "@/components/chat/IncomingCall";
 import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 import EmojiPicker from "@/components/chat/EmojiPicker";
+import TripSharePanel from "@/components/chat/TripSharePanel";
 
 interface Message {
   id: string;
@@ -52,6 +53,9 @@ export default function ChatRoom() {
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [showContactMenu, setShowContactMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showTripPanel, setShowTripPanel] = useState(false);
+  const [sendingTrip, setSendingTrip] = useState(false);
+  const [isRideChat, setIsRideChat] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -92,7 +96,7 @@ export default function ChatRoom() {
 
       const { data: profile } = await supabase
         .from("public_profiles")
-        .select("name, avatar_url")
+        .select("name, avatar_url, user_type")
         .eq("id", otherId)
         .single();
 
@@ -101,6 +105,21 @@ export default function ChatRoom() {
         avatar_url: profile?.avatar_url || null,
         phone: null,
       });
+
+      // Check if this is a passenger-driver conversation
+      const otherType = profile?.user_type;
+      const { data: myProfileType } = await supabase
+        .from("profiles")
+        .select("user_type")
+        .eq("id", user.id)
+        .single();
+      const myType = myProfileType?.user_type;
+      if (
+        (myType === "passenger" && otherType === "driver") ||
+        (myType === "driver" && otherType === "passenger")
+      ) {
+        setIsRideChat(true);
+      }
 
       const { data: msgs } = await supabase
         .from("messages")
@@ -428,6 +447,28 @@ export default function ChatRoom() {
     setShowContactMenu(false);
   };
 
+  const handleSendTrip = async (from: string, to: string, fromCoords?: { lat: number; lng: number }) => {
+    if (!userId || !conversationId) return;
+    setSendingTrip(true);
+    try {
+      const tripContent = JSON.stringify({ type: "trip", from, to, fromCoords });
+      const { error } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: tripContent,
+      });
+      if (!error) {
+        await supabase.from("conversations").update({
+          last_message: "🚗 行程信息",
+          updated_at: new Date().toISOString(),
+        }).eq("id", conversationId);
+        setShowTripPanel(false);
+      }
+    } catch {} finally {
+      setSendingTrip(false);
+    }
+  };
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
@@ -583,6 +624,32 @@ export default function ChatRoom() {
                             </div>
                           );
                         }
+                        if (parsed?.type === "trip") {
+                          return (
+                            <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+                              <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+                                <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
+                                  <Route className="h-3.5 w-3.5" />
+                                  行程信息
+                                </div>
+                                <div className="space-y-1.5 text-xs">
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                    </div>
+                                    <span className="break-words">{parsed.from}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                    </div>
+                                    <span className="break-words">{parsed.to}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
                       } catch {}
                       return (
                         <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
@@ -611,8 +678,17 @@ export default function ChatRoom() {
       {/* Input bar */}
       <div className="shrink-0 border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-1.5 px-3 py-2 max-w-lg mx-auto">
+          {isRideChat && (
+            <button
+              onClick={() => { setShowTripPanel(!showTripPanel); setShowContactMenu(false); setShowEmojiPicker(false); }}
+              className={`p-2 rounded-full transition-colors shrink-0 ${showTripPanel ? "text-primary" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}
+              title="行程"
+            >
+              <Route className="h-5 w-5" />
+            </button>
+          )}
           <VoiceRecorder conversationId={conversationId!} userId={userId!} disabled={sending || uploadingMedia} />
-          <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} onFocus={() => { setShowEmojiPicker(false); setShowContactMenu(false); }} placeholder="输入消息..." maxLength={2000} className="flex-1 min-w-0 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
+          <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} onFocus={() => { setShowEmojiPicker(false); setShowContactMenu(false); setShowTripPanel(false); }} placeholder="输入消息..." maxLength={2000} className="flex-1 min-w-0 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
           <button
             onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowContactMenu(false); }}
             className={`p-2 hover:bg-accent rounded-full transition-colors shrink-0 ${showEmojiPicker ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
@@ -637,6 +713,10 @@ export default function ChatRoom() {
         {/* Emoji picker panel */}
         {showEmojiPicker && (
           <EmojiPicker onSelect={(emoji) => setInput(prev => prev + emoji)} />
+        )}
+        {/* Trip share panel */}
+        {showTripPanel && (
+          <TripSharePanel onSend={handleSendTrip} sending={sendingTrip} />
         )}
         {/* Expandable action panel (WeChat style "+" menu) */}
         {showContactMenu && (
