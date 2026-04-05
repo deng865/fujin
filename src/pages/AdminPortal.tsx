@@ -686,17 +686,7 @@ function CategoriesPanel() {
 }
 
 
-    if (index === 0) return;
-    const current = categories[index];
-    const above = categories[index - 1];
-    await Promise.all([
-      supabase.from("categories").update({ sort_order: above.sort_order }).eq("id", current.id),
-      supabase.from("categories").update({ sort_order: current.sort_order }).eq("id", above.id),
-    ]);
-    fetchCategories();
-  };
 
-  const handleMoveDown = async (index: number) => {
     if (index === categories.length - 1) return;
     const current = categories[index];
     const below = categories[index + 1];
