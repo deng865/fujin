@@ -470,6 +470,22 @@ export default function ChatRoom() {
     }
   };
 
+  const handleAcceptTrip = async (trip: { from: string; to: string; price?: string }) => {
+    if (!userId || !conversationId) return;
+    const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content: acceptContent,
+    });
+    if (!error) {
+      await supabase.from("conversations").update({
+        last_message: "✅ 已接受行程",
+        updated_at: new Date().toISOString(),
+      }).eq("id", conversationId);
+    }
+  };
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
