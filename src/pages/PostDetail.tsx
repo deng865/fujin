@@ -8,6 +8,7 @@ import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
 import { zhCN } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { checkActiveTripLock } from "@/lib/tripLock";
 
 interface PostDetailData {
   id: string;
@@ -99,6 +100,17 @@ export default function PostDetail() {
     }
 
     setStartingChat(true);
+
+    // Block if user has an active trip and this is a driver post
+    if (post.category === "driver") {
+      const lockedConvId = await checkActiveTripLock(user.id);
+      if (lockedConvId) {
+        toast({ title: "你有进行中的行程", description: "请先结束当前预约后再联系其他司机" });
+        setStartingChat(false);
+        navigate(`/chat/${lockedConvId}`);
+        return;
+      }
+    }
 
     // Check if conversation already exists
     const { data: existing } = await supabase

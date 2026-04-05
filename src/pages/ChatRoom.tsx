@@ -17,7 +17,7 @@ import IncomingCall from "@/components/chat/IncomingCall";
 import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 import EmojiPicker from "@/components/chat/EmojiPicker";
 import TripSharePanel from "@/components/chat/TripSharePanel";
-import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage } from "@/components/chat/TripMessage";
+import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage } from "@/components/chat/TripMessage";
 import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
 
 interface Message {
@@ -281,6 +281,11 @@ export default function ChatRoom() {
 
   const canRecall = (msg: Message) => {
     if (msg.sender_id !== userId || msg.is_recalled) return false;
+    // Trip-related messages cannot be recalled
+    try {
+      const parsed = JSON.parse(msg.content);
+      if (parsed?.type && ["trip", "trip_accept", "trip_counter", "trip_cancel", "trip_rating"].includes(parsed.type)) return false;
+    } catch {}
     const elapsed = Date.now() - new Date(msg.created_at).getTime();
     return elapsed < 2 * 60 * 1000; // 2 minutes
   };
@@ -498,6 +503,22 @@ export default function ChatRoom() {
     }
   };
 
+  const handleCancelTrip = async (trip: { from: string; to: string; price?: string }) => {
+    if (!userId || !conversationId) return;
+    const cancelContent = JSON.stringify({ type: "trip_cancel", from: trip.from, to: trip.to, cancelledBy: userId });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content: cancelContent,
+    });
+    if (!error) {
+      await supabase.from("conversations").update({
+        last_message: "❌ 已结束预约",
+        updated_at: new Date().toISOString(),
+      }).eq("id", conversationId);
+    }
+  };
+
   // Check if current user already rated for a specific accept message
   const hasUserRated = useCallback((acceptMsgId: string) => {
     return messages.some((m) => {
@@ -518,6 +539,23 @@ export default function ChatRoom() {
       });
     } catch { return false; }
   }, [messages, userId]);
+
+  // Check if a specific accepted trip has been cancelled
+  const isCancelledForAccept = useCallback((acceptContent: string) => {
+    try {
+      const accept = JSON.parse(acceptContent);
+      return messages.some((m) => {
+        const cd = parseTripCancelMessage(m.content);
+        return cd && cd.from === accept.from && cd.to === accept.to;
+      });
+    } catch { return false; }
+  }, [messages]);
+
+  // Check if there's an active (accepted but not cancelled) trip in this conversation
+  const hasActiveTrip = useCallback(() => {
+    const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
+    return accepts.some((acceptMsg) => !isCancelledForAccept(acceptMsg.content));
+  }, [messages, isCancelledForAccept]);
 
   const handleRateTrip = async (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => {
     if (!userId || !conversationId) return;
@@ -711,8 +749,8 @@ export default function ChatRoom() {
                       <VoiceMessage content={msg.content} isMe={isMe} />
                     ) : parseTripRatingMessage(msg.content) ? (
                       <TripRatingDisplay content={msg.content} isMe={isMe} />
-                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content)) ? (
-                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} onRate={handleRateTrip} hasRated={hasRatedForAccept(msg.content)} />
+                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content)) ? (
+                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
