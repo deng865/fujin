@@ -38,6 +38,9 @@ export default function ProfilePage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [wechatId, setWechatId] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleColor, setVehicleColor] = useState("");
+  const [licensePlate, setLicensePlate] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
