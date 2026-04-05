@@ -43,10 +43,11 @@ interface TripMessageProps {
   hasRated?: boolean;
 }
 
-export default function TripMessage({ content, isMe, onAccept, onCounter }: TripMessageProps) {
+export default function TripMessage({ content, isMe, onAccept, onCounter, onRate, hasRated }: TripMessageProps) {
   const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
   const [showCounterInput, setShowCounterInput] = useState(false);
   const [counterPrice, setCounterPrice] = useState("");
+  const [showRatingInput, setShowRatingInput] = useState(false);
 
   // Handle trip_accept type
   const acceptData = parseTripAcceptMessage(content);
