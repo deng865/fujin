@@ -169,6 +169,18 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
     }
 
     setStartingChat(true);
+
+    // Block if user has an active trip and this is a driver post
+    if (post.category === "driver") {
+      const lockedConvId = await checkActiveTripLock(currentUserId);
+      if (lockedConvId) {
+        toast({ title: "你有进行中的行程", description: "请先结束当前预约后再联系其他司机" });
+        setStartingChat(false);
+        onClose();
+        navigate(`/chat/${lockedConvId}`);
+        return;
+      }
+    }
     const { data: existing } = await supabase
       .from("conversations").select("id")
       .or(`and(participant_1.eq.${currentUserId},participant_2.eq.${postData.user_id}),and(participant_1.eq.${postData.user_id},participant_2.eq.${currentUserId})`)
