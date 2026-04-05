@@ -270,8 +270,8 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
       <div className={`rounded-2xl overflow-hidden w-[280px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
         <div className="bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3 border border-emerald-200 dark:border-emerald-800 rounded-2xl">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-3">
-            <Check className="h-4 w-4" />
-            司机已接单
+            <Car className="h-4 w-4" />
+            🚗 司机已接单，正在赶来
           </div>
           <div className="flex items-center gap-3 mb-3">
             <Avatar className="h-12 w-12 border-2 border-emerald-200 dark:border-emerald-700">
