@@ -53,15 +53,18 @@ export default function ProfilePage() {
 
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("name, phone, wechat_id, avatar_url")
+        .select("name, phone, wechat_id, avatar_url, vehicle_model, vehicle_color, license_plate, user_type")
         .eq("id", user.id)
         .single();
 
       if (profileData) {
-        setProfile(profileData);
+        setProfile(profileData as any);
         setName(profileData.name);
         setPhone(profileData.phone || "");
         setWechatId(profileData.wechat_id || "");
+        setVehicleModel((profileData as any).vehicle_model || "");
+        setVehicleColor((profileData as any).vehicle_color || "");
+        setLicensePlate((profileData as any).license_plate || "");
       }
 
       const { data: postsData } = await supabase
