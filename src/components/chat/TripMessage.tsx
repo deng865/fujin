@@ -153,11 +153,13 @@ export function parseTripAcceptNotify(content: string): TripAcceptNotifyData | n
   return null;
 }
 
-function AcceptTripCard({ acceptData, isMe, isCancelled, onCancel, onRate, hasRated }: {
+function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, onComplete, onRate, hasRated }: {
   acceptData: { from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } };
   isMe: boolean;
   isCancelled?: boolean;
+  isCompleted?: boolean;
   onCancel?: (trip: { from: string; to: string; price?: string }) => void;
+  onComplete?: (trip: { from: string; to: string; price?: string }) => void;
   onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
   hasRated?: boolean;
 }) {
