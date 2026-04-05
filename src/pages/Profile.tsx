@@ -22,6 +22,10 @@ interface Profile {
   phone: string | null;
   wechat_id: string | null;
   avatar_url: string | null;
+  vehicle_model: string | null;
+  vehicle_color: string | null;
+  license_plate: string | null;
+  user_type: string | null;
 }
 
 export default function ProfilePage() {

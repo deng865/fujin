@@ -310,7 +310,7 @@ export default function ChatRoom() {
     // Trip-related messages cannot be recalled
     try {
       const parsed = JSON.parse(msg.content);
-      if (parsed?.type && ["trip", "trip_accept", "trip_counter", "trip_cancel", "trip_rating"].includes(parsed.type)) return false;
+      if (parsed?.type && ["trip", "trip_accept", "trip_counter", "trip_cancel", "trip_rating", "trip_accept_notify"].includes(parsed.type)) return false;
     } catch {}
     const elapsed = Date.now() - new Date(msg.created_at).getTime();
     return elapsed < 2 * 60 * 1000; // 2 minutes
