@@ -281,6 +281,11 @@ export default function ChatRoom() {
 
   const canRecall = (msg: Message) => {
     if (msg.sender_id !== userId || msg.is_recalled) return false;
+    // Trip-related messages cannot be recalled
+    try {
+      const parsed = JSON.parse(msg.content);
+      if (parsed?.type && ["trip", "trip_accept", "trip_counter", "trip_cancel", "trip_rating"].includes(parsed.type)) return false;
+    } catch {}
     const elapsed = Date.now() - new Date(msg.created_at).getTime();
     return elapsed < 2 * 60 * 1000; // 2 minutes
   };
