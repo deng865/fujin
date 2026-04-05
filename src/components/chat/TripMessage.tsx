@@ -109,7 +109,7 @@ export function parseTripMessage(content: string): TripData | null {
   return null;
 }
 
-export function parseTripAcceptMessage(content: string): { type: "trip_accept"; from: string; to: string; price?: string } | null {
+export function parseTripAcceptMessage(content: string): { type: "trip_accept"; from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } } | null {
   try {
     const parsed = JSON.parse(content);
     if (parsed?.type === "trip_accept") return parsed;
