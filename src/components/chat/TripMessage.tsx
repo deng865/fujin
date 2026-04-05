@@ -245,8 +245,8 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, onCancel, onRate, hasRa
   );
 }
 
-
-  interface TripMessageProps {
+interface TripMessageProps {
+  content: string;
   isMe: boolean;
   onAccept?: (trip: { from: string; to: string; price?: string }) => void;
   onCounter?: (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => void;
