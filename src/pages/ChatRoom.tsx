@@ -109,6 +109,7 @@ export default function ChatRoom() {
       if (!conv) { navigate("/messages"); return; }
 
       const otherId = conv.participant_1 === user.id ? conv.participant_2 : conv.participant_1;
+      setOtherUserId(otherId);
 
       const { data: profile } = await supabase
         .from("public_profiles")
@@ -130,6 +131,16 @@ export default function ChatRoom() {
         .eq("category", "driver");
       if (driverPostCount && driverPostCount > 0) {
         setIsRideChat(true);
+      }
+
+      // Check if current user is a driver
+      const { count: myDriverPostCount } = await supabase
+        .from("posts")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("category", "driver");
+      if (myDriverPostCount && myDriverPostCount > 0) {
+        setIsDriver(true);
       }
 
       const { data: msgs } = await supabase
