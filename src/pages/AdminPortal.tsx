@@ -684,16 +684,8 @@ function CategoriesPanel() {
     </div>
   );
 }
-    setLoading(true);
-    const { data } = await supabase
-      .from("categories")
-      .select("*")
-      .order("sort_order", { ascending: true });
-    setCategories(data || []);
-    setLoading(false);
-  };
 
-  useEffect(() => { fetchCategories(); }, []);
+
 
   const handleToggleVisibility = async (id: string, current: boolean) => {
     await supabase.from("categories").update({ is_visible: !current }).eq("id", id);
