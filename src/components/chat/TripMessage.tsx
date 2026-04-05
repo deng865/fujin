@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Route, Navigation, DollarSign, Check, MessageCircle, Send } from "lucide-react";
+import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star } from "lucide-react";
+import { TripRatingInput } from "./TripRating";
 
 interface TripData {
   type: "trip";
