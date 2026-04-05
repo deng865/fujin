@@ -311,8 +311,19 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
               </button>
             </div>
           </div>
-          {trip.price && (
+          {/* Mini map preview */}
+          {trip.fromCoords && trip.toCoords && (
+            <TripMiniMap fromCoords={trip.fromCoords} toCoords={trip.toCoords} />
+          )}
+          {/* Distance + price */}
+          {trip.fromCoords && trip.toCoords && (
             <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
+              <Route className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">距离: {haversineKm(trip.fromCoords.lat, trip.fromCoords.lng, trip.toCoords.lat, trip.toCoords.lng).toFixed(1)} km</span>
+            </div>
+          )}
+          {trip.price && (
+            <div className={`flex items-center gap-1.5 text-xs ${trip.fromCoords && trip.toCoords ? "mt-1" : "mt-2 pt-2 border-t"} ${!(trip.fromCoords && trip.toCoords) && (isMe ? "border-primary-foreground/20" : "border-border/50")}`}>
               <DollarSign className="h-3.5 w-3.5 shrink-0" />
               <span className="font-medium">期望价格: ${trip.price}</span>
             </div>
