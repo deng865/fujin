@@ -685,30 +685,7 @@ function CategoriesPanel() {
   );
 }
 
-    if (!newName.trim() || !newLabel.trim()) return;
-    const name = newName.trim().toLowerCase();
-    const { data: existing } = await supabase.from("categories").select("id").eq("name", name).maybeSingle();
-    if (existing) {
-      toast({ title: "添加失败", description: `分类标识 "${name}" 已存在，请使用其他名称`, variant: "destructive" });
-      return;
-    }
-    const { error } = await supabase.from("categories").insert({
-      name,
-      label: newLabel.trim(),
-      icon: "MapPin",
-      sort_order: categories.length + 1,
-    });
-    if (error) {
-      toast({ title: "添加失败", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "已添加分类" });
-      setNewName("");
-      setNewLabel("");
-      fetchCategories();
-    }
-  };
 
-  const handleMoveUp = async (index: number) => {
     if (index === 0) return;
     const current = categories[index];
     const above = categories[index - 1];
