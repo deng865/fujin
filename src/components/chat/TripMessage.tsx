@@ -358,7 +358,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
   const acceptData = parseTripAcceptMessage(content);
   if (acceptData) {
     return (
-      <AcceptTripCard acceptData={acceptData} isMe={isMe} isCancelled={isCancelled} onCancel={onCancel} onRate={onRate} hasRated={hasRated} />
+      <AcceptTripCard acceptData={acceptData} isMe={isMe} isCancelled={isCancelled} isCompleted={isCompleted} onCancel={onCancel} onComplete={onComplete} onRate={onRate} hasRated={hasRated} />
     );
   }
 
