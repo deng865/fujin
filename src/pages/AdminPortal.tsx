@@ -685,15 +685,6 @@ function CategoriesPanel() {
   );
 }
 
-
-
-  const handleToggleVisibility = async (id: string, current: boolean) => {
-    await supabase.from("categories").update({ is_visible: !current }).eq("id", id);
-    toast({ title: current ? "已隐藏分类" : "已显示分类" });
-    fetchCategories();
-  };
-
-  const handleAdd = async () => {
     if (!newName.trim() || !newLabel.trim()) return;
     const name = newName.trim().toLowerCase();
     const { data: existing } = await supabase.from("categories").select("id").eq("name", name).maybeSingle();
