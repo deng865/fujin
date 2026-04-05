@@ -5,7 +5,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 
 interface TripSharePanelProps {
-  onSend: (from: string, to: string, fromCoords?: { lat: number; lng: number }, price?: string) => void;
+  onSend: (from: string, to: string, fromCoords?: { lat: number; lng: number }, toCoords?: { lat: number; lng: number }, price?: string) => void;
   sending: boolean;
 }
 
@@ -286,7 +286,7 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
         </div>
       </div>
       <button
-        onClick={() => canSend && onSend(from.text.trim(), to.text.trim(), from.coords, price.trim() || undefined)}
+        onClick={() => canSend && onSend(from.text.trim(), to.text.trim(), from.coords, to.coords, price.trim() || undefined)}
         disabled={!canSend}
         className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
       >
