@@ -5,7 +5,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 
 interface TripSharePanelProps {
-  onSend: (from: string, to: string, fromCoords?: { lat: number; lng: number }, price?: string) => void;
+  onSend: (from: string, to: string, fromCoords?: { lat: number; lng: number }, toCoords?: { lat: number; lng: number }, price?: string) => void;
   sending: boolean;
 }
 
