@@ -951,8 +951,8 @@ export default function ChatRoom() {
                       <TripRatingDisplay content={msg.content} isMe={isMe} currentUserId={userId || undefined} />
                     ) : parseTripAcceptNotify(msg.content) ? (
                       <TripMessage content={msg.content} isMe={isMe} />
-                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content)) ? (
-                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} />
+                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content) || (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })()) ? (
+                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
