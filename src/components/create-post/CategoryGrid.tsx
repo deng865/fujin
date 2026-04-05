@@ -2,13 +2,18 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane,
-  UserCheck, Scale, MapPin, Recycle, Wrench, ShoppingBag, LucideIcon,
+  UserCheck, Scale, MapPin, Wrench, ShoppingBag, Heart, Music, Camera, Star, Coffee, Scissors,
+  Stethoscope, Building, Dumbbell, Baby, Dog, Laptop, Paintbrush, Hammer,
+  BookOpen, Headphones, Truck, Wallet, Globe, Flower2, Sparkles, Pizza,
+  LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, LucideIcon> = {
   Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane,
-  UserCheck, Scale, MapPin, Recycle, Wrench, ShoppingBag,
+  UserCheck, Scale, MapPin, Wrench, ShoppingBag, Heart, Music, Camera, Star, Coffee, Scissors,
+  Stethoscope, Building, Dumbbell, Baby, Dog, Laptop, Paintbrush, Hammer,
+  BookOpen, Headphones, Truck, Wallet, Globe, Flower2, Sparkles, Pizza,
 };
 
 interface CategoryGridProps {
