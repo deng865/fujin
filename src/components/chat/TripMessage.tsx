@@ -1,19 +1,20 @@
-import { useState, useMemo } from "react";
-import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle, Loader2 } from "lucide-react";
 import { TripRatingInput } from "./TripRating";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import Map, { Marker, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+interface RouteInfo {
+  coordinates: [number, number][];
+  distanceKm: number;
+  distanceMi: number;
+  durationMin: number;
 }
 
-function TripMiniMap({ fromCoords, toCoords }: { fromCoords: { lat: number; lng: number }; toCoords: { lat: number; lng: number } }) {
+function TripMiniMap({ fromCoords, toCoords, onRouteLoaded }: { fromCoords: { lat: number; lng: number }; toCoords: { lat: number; lng: number }; onRouteLoaded?: (info: RouteInfo) => void }) {
+  const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
+
   const bounds = useMemo(() => {
     const minLng = Math.min(fromCoords.lng, toCoords.lng);
     const maxLng = Math.max(fromCoords.lng, toCoords.lng);
@@ -24,14 +25,44 @@ function TripMiniMap({ fromCoords, toCoords }: { fromCoords: { lat: number; lng:
     return [[minLng - padLng, minLat - padLat], [maxLng + padLng, maxLat + padLat]] as [[number, number], [number, number]];
   }, [fromCoords, toCoords]);
 
-  const lineGeoJson = useMemo(() => ({
+  // Fallback straight line
+  const fallbackLine = useMemo(() => ({
     type: "Feature" as const,
     properties: {},
-    geometry: {
-      type: "LineString" as const,
-      coordinates: [[fromCoords.lng, fromCoords.lat], [toCoords.lng, toCoords.lat]],
-    },
+    geometry: { type: "LineString" as const, coordinates: [[fromCoords.lng, fromCoords.lat], [toCoords.lng, toCoords.lat]] },
   }), [fromCoords, toCoords]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchRoute = async () => {
+      try {
+        const res = await fetch(
+          `https://api.mapbox.com/directions/v5/mapbox/driving/${fromCoords.lng},${fromCoords.lat};${toCoords.lng},${toCoords.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`
+        );
+        const data = await res.json();
+        if (!cancelled && data.routes?.[0]) {
+          const route = data.routes[0];
+          const coords = route.geometry.coordinates;
+          setRouteGeoJson({
+            type: "Feature",
+            properties: {},
+            geometry: route.geometry,
+          });
+          const km = route.distance / 1000;
+          onRouteLoaded?.({
+            coordinates: coords,
+            distanceKm: km,
+            distanceMi: km * 0.621371,
+            durationMin: Math.round(route.duration / 60),
+          });
+        }
+      } catch {
+        // keep fallback line
+      }
+    };
+    fetchRoute();
+    return () => { cancelled = true; };
+  }, [fromCoords, toCoords]);
 
   return (
     <div className="w-full h-[140px] rounded-lg mt-2 overflow-hidden">
@@ -46,8 +77,8 @@ function TripMiniMap({ fromCoords, toCoords }: { fromCoords: { lat: number; lng:
         touchZoomRotate={true}
         attributionControl={false}
       >
-        <Source id="route-line" type="geojson" data={lineGeoJson}>
-          <Layer id="route-line-layer" type="line" paint={{ "line-color": "#3b82f6", "line-width": 3, "line-opacity": 0.7 }} />
+        <Source id="route-line" type="geojson" data={routeGeoJson || fallbackLine}>
+          <Layer id="route-line-layer" type="line" paint={{ "line-color": "#3b82f6", "line-width": 3, "line-opacity": 0.8 }} layout={{ "line-cap": "round", "line-join": "round" }} />
         </Source>
         <Marker longitude={fromCoords.lng} latitude={fromCoords.lat} anchor="center">
           <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-white shadow-md" />
