@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Route, Navigation } from "lucide-react";
+import { Route, Navigation, DollarSign } from "lucide-react";
 
 interface TripData {
   type: "trip";
   from: string;
   to: string;
   fromCoords?: { lat: number; lng: number };
+  price?: string;
 }
 
 export function parseTripMessage(content: string): TripData | null {
