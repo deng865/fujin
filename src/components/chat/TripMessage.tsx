@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Route, Navigation, DollarSign, Check, MessageCircle, Send } from "lucide-react";
+import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star } from "lucide-react";
+import { TripRatingInput } from "./TripRating";
 
 interface TripData {
   type: "trip";
@@ -38,12 +39,15 @@ interface TripMessageProps {
   isMe: boolean;
   onAccept?: (trip: { from: string; to: string; price?: string }) => void;
   onCounter?: (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => void;
+  onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
+  hasRated?: boolean;
 }
 
-export default function TripMessage({ content, isMe, onAccept, onCounter }: TripMessageProps) {
+export default function TripMessage({ content, isMe, onAccept, onCounter, onRate, hasRated }: TripMessageProps) {
   const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
   const [showCounterInput, setShowCounterInput] = useState(false);
   const [counterPrice, setCounterPrice] = useState("");
+  const [showRatingInput, setShowRatingInput] = useState(false);
 
   // Handle trip_accept type
   const acceptData = parseTripAcceptMessage(content);
@@ -74,6 +78,28 @@ export default function TripMessage({ content, isMe, onAccept, onCounter }: Trip
               <DollarSign className="h-3.5 w-3.5 shrink-0" />
               <span className="font-medium">成交价: ${acceptData.price}</span>
             </div>
+          )}
+          {/* Rating button */}
+          {onRate && !hasRated && !showRatingInput && (
+            <button
+              onClick={() => setShowRatingInput(true)}
+              className={`w-full flex items-center justify-center gap-1 rounded-lg py-1.5 mt-2 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
+            >
+              <Star className="h-3.5 w-3.5" />
+              评价行程
+            </button>
+          )}
+          {hasRated && (
+            <div className={`flex items-center justify-center gap-1 text-xs mt-2 pt-2 border-t opacity-60 ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
+              <Check className="h-3 w-3" />
+              已评价
+            </div>
+          )}
+          {showRatingInput && onRate && (
+            <TripRatingInput onSubmit={(rating, comment) => {
+              onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price }, rating, comment);
+              setShowRatingInput(false);
+            }} />
           )}
         </div>
       </div>

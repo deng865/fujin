@@ -18,6 +18,7 @@ import CallMessage, { parseCallMessage } from "@/components/chat/CallMessage";
 import EmojiPicker from "@/components/chat/EmojiPicker";
 import TripSharePanel from "@/components/chat/TripSharePanel";
 import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage } from "@/components/chat/TripMessage";
+import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
 
 interface Message {
   id: string;
@@ -502,6 +503,76 @@ export default function ChatRoom() {
     }
   };
 
+  // Check if current user already rated for a specific accept message
+  const hasUserRated = useCallback((acceptMsgId: string) => {
+    return messages.some((m) => {
+      if (m.sender_id !== userId) return false;
+      const ratingData = parseTripRatingMessage(m.content);
+      return ratingData !== null && m.content.includes(acceptMsgId);
+    });
+  }, [messages, userId]);
+
+  // Simplified: check if user has any rating message after an accept
+  const hasRatedForAccept = useCallback((acceptContent: string) => {
+    try {
+      const accept = JSON.parse(acceptContent);
+      return messages.some((m) => {
+        if (m.sender_id !== userId) return false;
+        const rd = parseTripRatingMessage(m.content);
+        return rd && rd.from === accept.from && rd.to === accept.to;
+      });
+    } catch { return false; }
+  }, [messages, userId]);
+
+  const handleRateTrip = async (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => {
+    if (!userId || !conversationId) return;
+    // Get the other user's ID
+    const { data: conv } = await supabase
+      .from("conversations")
+      .select("participant_1, participant_2")
+      .eq("id", conversationId)
+      .single();
+    if (!conv) return;
+    const ratedUserId = conv.participant_1 === userId ? conv.participant_2 : conv.participant_1;
+
+    const ratingContent = JSON.stringify({
+      type: "trip_rating",
+      from: trip.from,
+      to: trip.to,
+      price: trip.price,
+      rating,
+      comment: comment || undefined,
+      ratedUserId,
+    });
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content: ratingContent,
+    });
+    if (!error) {
+      await supabase.from("conversations").update({
+        last_message: `⭐ 行程评价 ${rating}分`,
+        updated_at: new Date().toISOString(),
+      }).eq("id", conversationId);
+
+      // Update profile rating
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("rating_sum, total_ratings")
+        .eq("id", ratedUserId)
+        .single();
+      if (profile) {
+        const newSum = (profile.rating_sum || 0) + rating;
+        const newTotal = (profile.total_ratings || 0) + 1;
+        await supabase.from("profiles").update({
+          rating_sum: newSum,
+          total_ratings: newTotal,
+          average_rating: parseFloat((newSum / newTotal).toFixed(1)),
+        }).eq("id", ratedUserId);
+      }
+    }
+  };
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
@@ -643,8 +714,10 @@ export default function ChatRoom() {
                       <MediaMessage content={msg.content} isMe={isMe} />
                     ) : parseVoiceMessage(msg.content) ? (
                       <VoiceMessage content={msg.content} isMe={isMe} />
+                    ) : parseTripRatingMessage(msg.content) ? (
+                      <TripRatingDisplay content={msg.content} isMe={isMe} />
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content)) ? (
-                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} />
+                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} onRate={handleRateTrip} hasRated={hasRatedForAccept(msg.content)} />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
