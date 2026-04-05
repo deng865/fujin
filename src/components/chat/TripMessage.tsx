@@ -379,13 +379,21 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
           </div>
           {/* Mini map preview */}
           {trip.fromCoords && trip.toCoords && (
-            <TripMiniMap fromCoords={trip.fromCoords} toCoords={trip.toCoords} />
+            <TripMiniMap fromCoords={trip.fromCoords} toCoords={trip.toCoords} onRouteLoaded={setRouteInfo} />
           )}
-          {/* Distance + price */}
+          {/* Driving distance + duration */}
           {trip.fromCoords && trip.toCoords && (
             <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
               <Route className="h-3.5 w-3.5 shrink-0" />
-              <span className="font-medium">距离: {haversineKm(trip.fromCoords.lat, trip.fromCoords.lng, trip.toCoords.lat, trip.toCoords.lng).toFixed(1)} km</span>
+              {routeInfo ? (
+                <span className="font-medium">
+                  驾车 {routeInfo.distanceKm.toFixed(1)} km ({routeInfo.distanceMi.toFixed(1)} mi) · 约 {routeInfo.durationMin} 分钟
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> 计算路线...
+                </span>
+              )}
             </div>
           )}
           {trip.price && (
