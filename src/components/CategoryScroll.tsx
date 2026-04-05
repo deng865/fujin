@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import {
   Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, Scale,
   MapPin, Wrench, ShoppingBag, Heart, Music, Camera, Star, Coffee, Scissors,
+  Stethoscope, Building, Dumbbell, Baby, Dog, Laptop, Paintbrush, Hammer,
+  BookOpen, Headphones, Truck, Wallet, Globe, Flower2, Sparkles, Pizza,
   MoreHorizontal, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, Scale,
   MapPin, Wrench, ShoppingBag, Heart, Music, Camera, Star, Coffee, Scissors,
+  Stethoscope, Building, Dumbbell, Baby, Dog, Laptop, Paintbrush, Hammer,
+  BookOpen, Headphones, Truck, Wallet, Globe, Flower2, Sparkles, Pizza,
 };
 
 const fallbackCategories = [
