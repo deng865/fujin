@@ -940,5 +940,23 @@ export default function ChatRoom() {
         <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
       </div>
     </div>
+
+    <AlertDialog open={!!pendingCancelTrip} onOpenChange={(open) => { if (!open) setPendingCancelTrip(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>确认结束行程</AlertDialogTitle>
+          <AlertDialogDescription>
+            您的行程是否已经结束？如果行程尚未完成就提前结束，可能会影响对方对您的评分。
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmCancelTrip} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            确认结束
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
