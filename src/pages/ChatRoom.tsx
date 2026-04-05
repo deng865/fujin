@@ -657,6 +657,7 @@ export default function ChatRoom() {
   }
 
   return (
+    <>
     <div className="flex flex-col h-[100dvh] bg-background">
       {inCall && userId && conversationId && (
         <VoiceCall
