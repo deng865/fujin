@@ -133,6 +133,14 @@ export function parseTripCancelMessage(content: string): { type: "trip_cancel"; 
   return null;
 }
 
+export function parseTripCompleteMessage(content: string): { type: "trip_complete"; from: string; to: string; price?: string; completedBy: string } | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed?.type === "trip_complete") return parsed;
+  } catch {}
+  return null;
+}
+
 export interface TripAcceptNotifyData {
   type: "trip_accept_notify";
   driverName: string;
