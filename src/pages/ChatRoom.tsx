@@ -400,6 +400,42 @@ export default function ChatRoom() {
     }
   };
 
+  const handleStartLiveShare = async (durationMinutes: number) => {
+    if (!userId || !conversationId) return;
+    // Send a message indicating live share started
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+      );
+      let address = "实时位置共享";
+      try {
+        const token = import.meta.env.VITE_MAPBOX_TOKEN;
+        if (token) {
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${pos.coords.longitude},${pos.coords.latitude}.json?access_token=${token}&language=zh`);
+          const geo = await res.json();
+          if (geo.features?.[0]?.place_name) address = geo.features[0].place_name;
+        }
+      } catch {}
+      const liveContent = JSON.stringify({
+        type: "live_location",
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        address,
+        durationMinutes,
+        sharedBy: userId,
+      });
+      await supabase.from("messages").insert({
+        conversation_id: conversationId, sender_id: userId, content: liveContent,
+      });
+      await supabase.from("conversations").update({ last_message: "📍 实时位置共享", updated_at: new Date().toISOString() }).eq("id", conversationId);
+      setLiveShare({ duration: durationMinutes, startedAt: Date.now() });
+    } catch {
+      toast({ title: "获取位置失败", description: "请确保已开启定位权限", variant: "destructive" });
+    }
+      setSendingLocation(false);
+    }
+  };
+
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !userId || !conversationId) return;
