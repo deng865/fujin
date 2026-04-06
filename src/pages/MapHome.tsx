@@ -53,7 +53,7 @@ export default function MapHome() {
   const [mapType, setMapType] = useState("roadmap");
   const [user, setUser] = useState<any>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [activeTab, setActiveTab] = useState("discover");
+  const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
   const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {
