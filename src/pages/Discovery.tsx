@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
 import PostBottomSheet from "@/components/PostBottomSheet";
-import BottomNav from "@/components/BottomNav";
+import { cn } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 interface Post {
