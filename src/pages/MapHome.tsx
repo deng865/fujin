@@ -11,7 +11,6 @@ import MapControls from "@/components/MapControls";
 import PostMarkers from "@/components/PostMarkers";
 import PostBottomSheet from "@/components/PostBottomSheet";
 import { toast } from "@/hooks/use-toast";
-import { toast } from "@/hooks/use-toast";
 
 const DEFAULT_CENTER = { lat: 32.7767, lng: -96.797 };
 
