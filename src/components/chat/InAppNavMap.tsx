@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Navigation, MapPin } from "lucide-react";
-import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl";
+import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl/mapbox";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 interface InAppNavMapProps {
   lat: number;
@@ -12,11 +13,10 @@ interface InAppNavMapProps {
 
 export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapProps) {
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [route, setRoute] = useState<GeoJSON.Feature | null>(null);
+  const [route, setRoute] = useState<any>(null);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const mapRef = useRef<any>(null);
 
-  // Get user location
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -39,7 +39,7 @@ export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapP
       if (data.routes?.[0]) {
         const r = data.routes[0];
         setRoute({
-          type: "Feature",
+          type: "Feature" as const,
           properties: {},
           geometry: r.geometry,
         });
@@ -49,7 +49,6 @@ export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapP
           distance: distKm < 1 ? `${Math.round(r.distance)}m` : `${distKm.toFixed(1)}km`,
           duration: durMin < 60 ? `${durMin}分钟` : `${Math.floor(durMin / 60)}小时${durMin % 60}分钟`,
         });
-        // Fit bounds
         const coords = r.geometry.coordinates;
         const lngs = coords.map((c: number[]) => c[0]);
         const lats = coords.map((c: number[]) => c[1]);
@@ -63,7 +62,6 @@ export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapP
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      {/* Header */}
       <div className="shrink-0 bg-background/90 backdrop-blur-xl border-b border-border/50 z-10">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
           <button onClick={onClose} className="p-2 -ml-2 hover:bg-accent rounded-xl">
@@ -74,7 +72,6 @@ export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapP
         </div>
       </div>
 
-      {/* Map */}
       <div className="flex-1 relative">
         <Map
           ref={mapRef}
@@ -84,32 +81,26 @@ export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapP
           mapboxAccessToken={MAPBOX_TOKEN}
         >
           <NavigationControl position="top-right" showCompass showZoom={false} />
-
-          {/* Destination marker */}
           <Marker longitude={lng} latitude={lat}>
             <div className="flex flex-col items-center">
               <div className="h-8 w-8 rounded-full bg-destructive flex items-center justify-center shadow-lg">
-                <MapPin className="h-5 w-5 text-white" />
+                <MapPin className="h-5 w-5 text-destructive-foreground" />
               </div>
               <div className="w-2 h-2 bg-destructive rounded-full mt-0.5" />
             </div>
           </Marker>
-
-          {/* User marker */}
           {userPos && (
             <Marker longitude={userPos.lng} latitude={userPos.lat}>
-              <div className="h-4 w-4 rounded-full bg-blue-500 border-2 border-white shadow-lg" />
+              <div className="h-4 w-4 rounded-full border-2 border-background shadow-lg" style={{ backgroundColor: "hsl(var(--primary))" }} />
             </Marker>
           )}
-
-          {/* Route line */}
           {route && (
             <Source type="geojson" data={route}>
               <Layer
                 id="route-line"
                 type="line"
                 paint={{
-                  "line-color": "#3b82f6",
+                  "line-color": "hsl(217, 91%, 60%)",
                   "line-width": 4,
                   "line-opacity": 0.8,
                 }}
@@ -119,7 +110,6 @@ export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapP
         </Map>
       </div>
 
-      {/* Bottom info */}
       <div className="shrink-0 bg-background border-t border-border/50 px-4 py-4 max-w-lg mx-auto w-full">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -137,7 +127,6 @@ export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapP
           </div>
           <button
             onClick={() => {
-              // Open external nav as fallback
               const ua = navigator.userAgent.toLowerCase();
               if (/iphone|ipad/.test(ua)) {
                 window.open(`https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, "_blank");
