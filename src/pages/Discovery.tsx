@@ -249,8 +249,6 @@ export default function Discovery() {
         userLng={userLng ?? undefined}
       />
 
-      {/* Bottom Nav */}
-      <BottomNav activeTab="discover" onTabChange={handleTabChange} onPostClick={handlePostClick} />
     </div>
   );
 }
