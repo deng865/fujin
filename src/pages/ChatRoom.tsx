@@ -73,6 +73,8 @@ export default function ChatRoom() {
   const [showTripPanel, setShowTripPanel] = useState(false);
   const [sendingTrip, setSendingTrip] = useState(false);
   const [isRideChat, setIsRideChat] = useState(false);
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
+  const [liveShare, setLiveShare] = useState<{ duration: number; startedAt: number } | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [isDriver, setIsDriver] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
