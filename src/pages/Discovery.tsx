@@ -8,7 +8,6 @@ import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
 import PostBottomSheet from "@/components/PostBottomSheet";
 import { cn } from "@/lib/utils";
-import { cn } from "@/lib/utils";
 
 interface Post {
   id: string;
