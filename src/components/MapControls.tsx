@@ -15,7 +15,7 @@ const mapTypes = [
   { id: "terrain", label: "地形", icon: Mountain },
 ];
 
-export default function MapControls({ onLocateMe, onMapTypeChange, currentMapType }: MapControlsProps) {
+export default function MapControls({ onLocateMe, onMapTypeChange, currentMapType, onResetNorth, bearing = 0 }: MapControlsProps) {
   const [showLayers, setShowLayers] = useState(false);
 
   return (
@@ -42,6 +42,16 @@ export default function MapControls({ onLocateMe, onMapTypeChange, currentMapTyp
           })}
         </div>
       )}
+
+      <button
+        onClick={onResetNorth}
+        className="bg-background/80 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/30 p-3 hover:bg-accent transition-all active:scale-95"
+      >
+        <Navigation
+          className="h-5 w-5 text-foreground transition-transform duration-300"
+          style={{ transform: `rotate(${-bearing}deg)` }}
+        />
+      </button>
 
       <button
         onClick={() => setShowLayers(!showLayers)}
