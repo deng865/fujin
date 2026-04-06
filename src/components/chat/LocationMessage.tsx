@@ -1,5 +1,6 @@
-import { MapPin, Navigation } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useState } from "react";
+import InAppNavMap from "./InAppNavMap";
 
 interface LocationData {
   type: "location";
@@ -26,29 +27,19 @@ export function parseLocationMessage(content: string): LocationData | null {
 }
 
 export default function LocationMessage({ content, isMe }: LocationMessageProps) {
-  const [showMenu, setShowMenu] = useState(false);
+  const [showNavMap, setShowNavMap] = useState(false);
   const loc = parseLocationMessage(content);
   if (!loc) return null;
 
   const mapPreviewUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ef4444(${loc.lng},${loc.lat})/${loc.lng},${loc.lat},14,0/280x160@2x?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || ""}`;
 
-  const openAppleMaps = () => {
-    window.open(`https://maps.apple.com/?ll=${loc.lat},${loc.lng}&q=${encodeURIComponent(loc.address || "共享位置")}`, "_blank");
-    setShowMenu(false);
-  };
-
-  const openGoogleMaps = () => {
-    window.open(`https://www.google.com/maps?q=${loc.lat},${loc.lng}`, "_blank");
-    setShowMenu(false);
-  };
-
   return (
-    <div className="relative">
+    <>
       <div
         className={`rounded-2xl overflow-hidden cursor-pointer ${
           isMe ? "rounded-br-md" : "rounded-bl-md"
         }`}
-        onClick={() => setShowMenu(!showMenu)}
+        onClick={() => setShowNavMap(true)}
       >
         <div className="relative w-[220px] h-[120px] bg-muted">
           {import.meta.env.VITE_MAPBOX_TOKEN ? (
@@ -72,27 +63,14 @@ export default function LocationMessage({ content, isMe }: LocationMessageProps)
         </div>
       </div>
 
-      {showMenu && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-          <div className={`absolute z-50 ${isMe ? "right-0" : "left-0"} mt-1 bg-background border border-border rounded-xl shadow-lg overflow-hidden min-w-[160px]`}>
-            <button
-              onClick={openAppleMaps}
-              className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2 transition-colors"
-            >
-              <Navigation className="h-4 w-4" />
-              Apple Maps
-            </button>
-            <button
-              onClick={openGoogleMaps}
-              className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2 border-t border-border/50 transition-colors"
-            >
-              <Navigation className="h-4 w-4" />
-              Google Maps
-            </button>
-          </div>
-        </>
+      {showNavMap && (
+        <InAppNavMap
+          lat={loc.lat}
+          lng={loc.lng}
+          address={loc.address}
+          onClose={() => setShowNavMap(false)}
+        />
       )}
-    </div>
+    </>
   );
 }

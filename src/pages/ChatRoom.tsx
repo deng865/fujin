@@ -23,6 +23,8 @@ import LocationMessage, { parseLocationMessage } from "@/components/chat/Locatio
 import MediaMessage, { parseMediaMessage } from "@/components/chat/MediaMessage";
 import VoiceMessage, { parseVoiceMessage } from "@/components/chat/VoiceMessage";
 import VoiceRecorder from "@/components/chat/VoiceRecorder";
+import LocationShareDialog from "@/components/chat/LocationShareDialog";
+import LiveLocationBanner from "@/components/chat/LiveLocationBanner";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import VoiceCall from "@/components/chat/VoiceCall";
 import IncomingCall from "@/components/chat/IncomingCall";
@@ -71,6 +73,8 @@ export default function ChatRoom() {
   const [showTripPanel, setShowTripPanel] = useState(false);
   const [sendingTrip, setSendingTrip] = useState(false);
   const [isRideChat, setIsRideChat] = useState(false);
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
+  const [liveShare, setLiveShare] = useState<{ duration: number; startedAt: number } | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [isDriver, setIsDriver] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
@@ -393,6 +397,40 @@ export default function ChatRoom() {
       toast({ title: "获取位置失败", description: "请确保已开启定位权限", variant: "destructive" });
     } finally {
       setSendingLocation(false);
+    }
+  };
+
+  const handleStartLiveShare = async (durationMinutes: number) => {
+    if (!userId || !conversationId) return;
+    // Send a message indicating live share started
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+      );
+      let address = "实时位置共享";
+      try {
+        const token = import.meta.env.VITE_MAPBOX_TOKEN;
+        if (token) {
+          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${pos.coords.longitude},${pos.coords.latitude}.json?access_token=${token}&language=zh`);
+          const geo = await res.json();
+          if (geo.features?.[0]?.place_name) address = geo.features[0].place_name;
+        }
+      } catch {}
+      const liveContent = JSON.stringify({
+        type: "live_location",
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        address,
+        durationMinutes,
+        sharedBy: userId,
+      });
+      await supabase.from("messages").insert({
+        conversation_id: conversationId, sender_id: userId, content: liveContent,
+      });
+      await supabase.from("conversations").update({ last_message: "📍 实时位置共享", updated_at: new Date().toISOString() }).eq("id", conversationId);
+      setLiveShare({ duration: durationMinutes, startedAt: Date.now() });
+    } catch {
+      toast({ title: "获取位置失败", description: "请确保已开启定位权限", variant: "destructive" });
     }
   };
 
@@ -810,6 +848,17 @@ export default function ChatRoom() {
         </div>
       </div>
 
+      {/* Live location sharing banner */}
+      {liveShare && userId && conversationId && (
+        <LiveLocationBanner
+          conversationId={conversationId}
+          userId={userId}
+          durationMinutes={liveShare.duration}
+          startedAt={liveShare.startedAt}
+          onStop={() => setLiveShare(null)}
+        />
+      )}
+
       {/* Active trip banner */}
       {(() => {
         const trip = activeTripInfo();
@@ -1045,7 +1094,7 @@ export default function ChatRoom() {
                 </div>
                 <span className="text-[11px] text-muted-foreground">照片</span>
               </button>
-              <button onClick={() => { handleSendLocation(); setShowContactMenu(false); }} disabled={sendingLocation} className="flex flex-col items-center gap-1.5">
+              <button onClick={() => { setShowLocationDialog(true); setShowContactMenu(false); }} disabled={sendingLocation} className="flex flex-col items-center gap-1.5">
                 <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
                   {sendingLocation ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <MapPin className="h-6 w-6 text-muted-foreground" />}
                 </div>
@@ -1079,6 +1128,14 @@ export default function ChatRoom() {
         <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
       </div>
     </div>
+
+    <LocationShareDialog
+      open={showLocationDialog}
+      onClose={() => setShowLocationDialog(false)}
+      onSendLocation={handleSendLocation}
+      onShareLive={handleStartLiveShare}
+      sendingLocation={sendingLocation}
+    />
 
     <AlertDialog open={!!pendingCancelTrip} onOpenChange={(open) => { if (!open) setPendingCancelTrip(null); }}>
       <AlertDialogContent>
