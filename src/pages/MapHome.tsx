@@ -53,6 +53,7 @@ export default function MapHome() {
   const [mapType, setMapType] = useState("roadmap");
   const [user, setUser] = useState<any>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [bearing, setBearing] = useState(0);
   const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {
