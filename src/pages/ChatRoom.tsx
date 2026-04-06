@@ -1094,7 +1094,7 @@ export default function ChatRoom() {
                 </div>
                 <span className="text-[11px] text-muted-foreground">照片</span>
               </button>
-              <button onClick={() => { handleSendLocation(); setShowContactMenu(false); }} disabled={sendingLocation} className="flex flex-col items-center gap-1.5">
+              <button onClick={() => { setShowLocationDialog(true); setShowContactMenu(false); }} disabled={sendingLocation} className="flex flex-col items-center gap-1.5">
                 <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
                   {sendingLocation ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <MapPin className="h-6 w-6 text-muted-foreground" />}
                 </div>
