@@ -150,10 +150,14 @@ export default function MapHome() {
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={MAP_STYLES[mapType]}
         style={{ width: "100%", height: "100%" }}
-        onLoad={fetchPosts}
+        onLoad={() => {
+          fetchPosts();
+          setTimeout(() => geolocateRef.current?.trigger(), 500);
+        }}
         onMoveEnd={handleMoveEnd}
       >
         <GeolocateControl
+          ref={geolocateRef}
           positionOptions={{ enableHighAccuracy: true }}
           trackUserLocation
           showUserLocation
