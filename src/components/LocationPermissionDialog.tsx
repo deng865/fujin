@@ -40,7 +40,7 @@ export const LocationPermissionDialog = ({
           </AlertDialogAction>
           <AlertDialogAction
             onClick={() => onSelect("once")}
-            className="w-full bg-secondary hover:bg-secondary/80"
+            className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80"
           >
             允许一次
           </AlertDialogAction>

@@ -197,7 +197,7 @@ const Auth = () => {
   }
 
   return (
-    <div className="flex min-h-[100dvh] items-start justify-center bg-background px-4 py-10 overflow-y-auto">
+    <div className="flex min-h-[100dvh] items-start justify-center bg-background px-4 pt-6 pb-20 overflow-y-auto">
       <LocationPermissionDialog open={showLocationDialog} onSelect={handleLocationPermission} />
 
       <div className="w-full max-w-sm space-y-8">
