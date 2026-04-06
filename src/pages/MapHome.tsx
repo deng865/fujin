@@ -112,9 +112,6 @@ export default function MapHome() {
     mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: 12, duration: 1000 });
   };
 
-  const handlePostClick = () => {
-    navigate(user ? "/create-post" : "/auth");
-  };
 
   const handleToggleFavorite = async (postId: string) => {
     if (!favUserId) { navigate("/auth"); return; }
