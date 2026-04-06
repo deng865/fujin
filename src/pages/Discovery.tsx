@@ -140,16 +140,6 @@ export default function Discovery() {
     await toggleFavorite(postId);
   };
 
-  const handleTabChange = (tab: string) => {
-    if (tab === "profile") navigate(user ? "/profile" : "/auth");
-    else if (tab === "messages") navigate(user ? "/messages" : "/auth");
-    else if (tab === "favorites") navigate(user ? "/favorites" : "/auth");
-    else if (tab === "discover") navigate("/discovery");
-  };
-
-  const handlePostClick = () => {
-    navigate(user ? "/create-post" : "/auth");
-  };
 
   return (
     <div className="h-screen w-screen bg-background flex flex-col overflow-hidden">
