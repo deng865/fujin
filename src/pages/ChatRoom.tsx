@@ -848,6 +848,17 @@ export default function ChatRoom() {
         </div>
       </div>
 
+      {/* Live location sharing banner */}
+      {liveShare && userId && conversationId && (
+        <LiveLocationBanner
+          conversationId={conversationId}
+          userId={userId}
+          durationMinutes={liveShare.duration}
+          startedAt={liveShare.startedAt}
+          onStop={() => setLiveShare(null)}
+        />
+      )}
+
       {/* Active trip banner */}
       {(() => {
         const trip = activeTripInfo();
