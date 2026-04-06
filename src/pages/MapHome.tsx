@@ -170,6 +170,8 @@ export default function MapHome() {
         onLocateMe={handleLocateMe}
         onMapTypeChange={setMapType}
         currentMapType={mapType}
+        bearing={bearing}
+        onResetNorth={() => mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: 500 })}
       />
 
       <PostBottomSheet
