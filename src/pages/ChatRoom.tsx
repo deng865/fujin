@@ -23,6 +23,8 @@ import LocationMessage, { parseLocationMessage } from "@/components/chat/Locatio
 import MediaMessage, { parseMediaMessage } from "@/components/chat/MediaMessage";
 import VoiceMessage, { parseVoiceMessage } from "@/components/chat/VoiceMessage";
 import VoiceRecorder from "@/components/chat/VoiceRecorder";
+import LocationShareDialog from "@/components/chat/LocationShareDialog";
+import LiveLocationBanner from "@/components/chat/LiveLocationBanner";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import VoiceCall from "@/components/chat/VoiceCall";
 import IncomingCall from "@/components/chat/IncomingCall";
