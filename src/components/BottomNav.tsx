@@ -20,7 +20,7 @@ export default function BottomNav({ activeTab, onTabChange, onPostClick }: Botto
   const unreadCount = useUnreadCount();
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-20">
+    <div className="fixed bottom-0 left-0 right-0 z-[999]">
       <div className="bg-background/80 backdrop-blur-2xl border-t border-border/30 px-2 pb-[env(safe-area-inset-bottom)] pt-1">
         <div className="flex items-center justify-around max-w-lg mx-auto relative">
           {tabs.map((tab) => {
