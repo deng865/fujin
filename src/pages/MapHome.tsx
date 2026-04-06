@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import MapGL, { MapRef } from "react-map-gl/mapbox";
+import MapGL, { MapRef, GeolocateControl } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
@@ -152,6 +152,12 @@ export default function MapHome() {
         onLoad={fetchPosts}
         onMoveEnd={handleMoveEnd}
       >
+        <GeolocateControl
+          positionOptions={{ enableHighAccuracy: true }}
+          trackUserLocation
+          showUserLocation
+          style={{ display: "none" }}
+        />
         <PostMarkers posts={filtered} onSelectPost={setSelectedPost} favoriteIds={favoriteIds} />
       </MapGL>
 
