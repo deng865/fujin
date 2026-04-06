@@ -10,7 +10,6 @@ import CategoryScroll from "@/components/CategoryScroll";
 import MapControls from "@/components/MapControls";
 import PostMarkers from "@/components/PostMarkers";
 import PostBottomSheet from "@/components/PostBottomSheet";
-import BottomNav from "@/components/BottomNav";
 import { toast } from "@/hooks/use-toast";
 
 const DEFAULT_CENTER = { lat: 32.7767, lng: -96.797 };
@@ -54,7 +53,6 @@ export default function MapHome() {
   const [mapType, setMapType] = useState("roadmap");
   const [user, setUser] = useState<any>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [activeTab, setActiveTab] = useState("discover");
   const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {
@@ -114,17 +112,6 @@ export default function MapHome() {
     mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: 12, duration: 1000 });
   };
 
-  const handlePostClick = () => {
-    navigate(user ? "/create-post" : "/auth");
-  };
-
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    if (tab === "discover") navigate("/discovery");
-    if (tab === "profile") navigate(user ? "/profile" : "/auth");
-    if (tab === "messages") navigate(user ? "/messages" : "/auth");
-    if (tab === "favorites") navigate(user ? "/favorites" : "/auth");
-  };
 
   const handleToggleFavorite = async (postId: string) => {
     if (!favUserId) { navigate("/auth"); return; }
@@ -191,12 +178,6 @@ export default function MapHome() {
         onToggleFavorite={handleToggleFavorite}
         userLat={center.lat}
         userLng={center.lng}
-      />
-
-      <BottomNav
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        onPostClick={handlePostClick}
       />
     </div>
   );

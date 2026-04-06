@@ -1,23 +1,44 @@
-import { Compass, MessageCircle, Plus, Heart, User } from "lucide-react";
+import { Home, MessageCircle, Plus, Heart, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
-
-interface BottomNavProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-  onPostClick: () => void;
-}
+import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const tabs = [
-  { id: "discover", label: "发现", icon: Compass },
-  { id: "messages", label: "消息", icon: MessageCircle },
-  { id: "post", label: "", icon: Plus },
-  { id: "favorites", label: "收藏", icon: Heart },
-  { id: "profile", label: "我的", icon: User },
+  { id: "home", label: "首页", icon: Home, path: "/" },
+  { id: "messages", label: "消息", icon: MessageCircle, path: "/messages", auth: true },
+  { id: "post", label: "", icon: Plus, path: "/create-post", auth: true },
+  { id: "favorites", label: "收藏", icon: Heart, path: "/favorites", auth: true },
+  { id: "profile", label: "我的", icon: User, path: "/profile", auth: true },
 ];
 
-export default function BottomNav({ activeTab, onTabChange, onPostClick }: BottomNavProps) {
+export default function BottomNav() {
   const unreadCount = useUnreadCount();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+  }, []);
+
+  const activeTab = (() => {
+    const path = location.pathname;
+    if (path === "/" || path === "/discovery") return "home";
+    if (path.startsWith("/messages") || path.startsWith("/chat")) return "messages";
+    if (path.startsWith("/favorites")) return "favorites";
+    if (path.startsWith("/profile")) return "profile";
+    return "home";
+  })();
+
+  const handleTabChange = (tab: typeof tabs[number]) => {
+    if (tab.auth && !user) {
+      navigate("/auth");
+      return;
+    }
+    navigate(tab.path);
+  };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[999]">
@@ -30,7 +51,7 @@ export default function BottomNav({ activeTab, onTabChange, onPostClick }: Botto
               return (
                 <button
                   key={tab.id}
-                  onClick={onPostClick}
+                  onClick={() => handleTabChange(tab)}
                   className="relative -mt-5 bg-primary text-primary-foreground rounded-full p-4 shadow-xl hover:opacity-90 transition-all active:scale-90 ring-4 ring-background/80"
                 >
                   <Plus className="h-6 w-6" />
@@ -42,7 +63,7 @@ export default function BottomNav({ activeTab, onTabChange, onPostClick }: Botto
             return (
               <button
                 key={tab.id}
-                onClick={() => onTabChange(tab.id)}
+                onClick={() => handleTabChange(tab)}
                 className={cn(
                   "relative flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-all active:scale-95 min-w-[52px]",
                   isActive ? "text-primary" : "text-muted-foreground"

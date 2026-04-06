@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
 import PostBottomSheet from "@/components/PostBottomSheet";
-import BottomNav from "@/components/BottomNav";
 import { cn } from "@/lib/utils";
 
 interface Post {
@@ -141,16 +140,6 @@ export default function Discovery() {
     await toggleFavorite(postId);
   };
 
-  const handleTabChange = (tab: string) => {
-    if (tab === "profile") navigate(user ? "/profile" : "/auth");
-    else if (tab === "messages") navigate(user ? "/messages" : "/auth");
-    else if (tab === "favorites") navigate(user ? "/favorites" : "/auth");
-    else if (tab === "discover") navigate("/discovery");
-  };
-
-  const handlePostClick = () => {
-    navigate(user ? "/create-post" : "/auth");
-  };
 
   return (
     <div className="h-screen w-screen bg-background flex flex-col overflow-hidden">
@@ -249,8 +238,6 @@ export default function Discovery() {
         userLng={userLng ?? undefined}
       />
 
-      {/* Bottom Nav */}
-      <BottomNav activeTab="discover" onTabChange={handleTabChange} onPostClick={handlePostClick} />
     </div>
   );
 }
