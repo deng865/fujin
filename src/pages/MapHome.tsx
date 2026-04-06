@@ -156,6 +156,7 @@ export default function MapHome() {
         }}
         onMoveEnd={handleMoveEnd}
       >
+        <NavigationControl position="top-right" showCompass showZoom />
         <GeolocateControl
           ref={geolocateRef}
           positionOptions={{ enableHighAccuracy: true }}
