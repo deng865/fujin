@@ -1129,6 +1129,14 @@ export default function ChatRoom() {
       </div>
     </div>
 
+    <LocationShareDialog
+      open={showLocationDialog}
+      onClose={() => setShowLocationDialog(false)}
+      onSendLocation={handleSendLocation}
+      onShareLive={handleStartLiveShare}
+      sendingLocation={sendingLocation}
+    />
+
     <AlertDialog open={!!pendingCancelTrip} onOpenChange={(open) => { if (!open) setPendingCancelTrip(null); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
