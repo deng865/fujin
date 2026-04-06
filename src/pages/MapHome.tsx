@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import MapGL, { MapRef, GeolocateControl } from "react-map-gl/mapbox";
+import MapGL, { MapRef, GeolocateControl, NavigationControl } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
@@ -156,6 +156,7 @@ export default function MapHome() {
         }}
         onMoveEnd={handleMoveEnd}
       >
+        <NavigationControl position="top-right" showCompass showZoom />
         <GeolocateControl
           ref={geolocateRef}
           positionOptions={{ enableHighAccuracy: true }}
