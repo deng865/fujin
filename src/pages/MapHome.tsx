@@ -143,6 +143,7 @@ export default function MapHome() {
           setTimeout(() => geolocateRef.current?.trigger(), 500);
         }}
         onMoveEnd={handleMoveEnd}
+        onRotate={(e) => setBearing(e.viewState.bearing)}
       >
         
         <GeolocateControl
