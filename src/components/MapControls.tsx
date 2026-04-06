@@ -1,4 +1,4 @@
-import { Crosshair, Layers, Map as MapIcon, Satellite, Mountain } from "lucide-react";
+import { Crosshair, Layers, Map as MapIcon, Satellite, Mountain, Navigation } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -6,8 +6,9 @@ interface MapControlsProps {
   onLocateMe: () => void;
   onMapTypeChange: (type: string) => void;
   currentMapType: string;
+  onResetNorth?: () => void;
+  bearing?: number;
 }
-
 const mapTypes = [
   { id: "roadmap", label: "标准", icon: MapIcon },
   { id: "satellite", label: "卫星", icon: Satellite },
