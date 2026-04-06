@@ -152,6 +152,12 @@ export default function MapHome() {
         onLoad={fetchPosts}
         onMoveEnd={handleMoveEnd}
       >
+        <GeolocateControl
+          positionOptions={{ enableHighAccuracy: true }}
+          trackUserLocation
+          showUserLocation
+          style={{ display: "none" }}
+        />
         <PostMarkers posts={filtered} onSelectPost={setSelectedPost} favoriteIds={favoriteIds} />
       </MapGL>
 
