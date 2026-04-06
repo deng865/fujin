@@ -186,6 +186,3 @@ export default function MapHome() {
     </div>
   );
 }
-    </div>
-  );
-}
