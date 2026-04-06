@@ -432,8 +432,6 @@ export default function ChatRoom() {
     } catch {
       toast({ title: "获取位置失败", description: "请确保已开启定位权限", variant: "destructive" });
     }
-      setSendingLocation(false);
-    }
   };
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
