@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import MapGL, { MapRef, GeolocateControl, NavigationControl } from "react-map-gl/mapbox";
+import MapGL, { MapRef, GeolocateControl } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +53,7 @@ export default function MapHome() {
   const [mapType, setMapType] = useState("roadmap");
   const [user, setUser] = useState<any>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [bearing, setBearing] = useState(0);
   const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {
@@ -142,8 +143,9 @@ export default function MapHome() {
           setTimeout(() => geolocateRef.current?.trigger(), 500);
         }}
         onMoveEnd={handleMoveEnd}
+        onRotate={(e) => setBearing(e.viewState.bearing)}
       >
-        <NavigationControl position="top-right" showCompass showZoom />
+        
         <GeolocateControl
           ref={geolocateRef}
           positionOptions={{ enableHighAccuracy: true }}
@@ -169,6 +171,8 @@ export default function MapHome() {
         onLocateMe={handleLocateMe}
         onMapTypeChange={setMapType}
         currentMapType={mapType}
+        bearing={bearing}
+        onResetNorth={() => mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: 500 })}
       />
 
       <PostBottomSheet
