@@ -46,6 +46,7 @@ const MAP_STYLES: Record<string, string> = {
 export default function MapHome() {
   const navigate = useNavigate();
   const mapRef = useRef<MapRef>(null);
+  const geolocateRef = useRef<any>(null);
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -149,10 +150,14 @@ export default function MapHome() {
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={MAP_STYLES[mapType]}
         style={{ width: "100%", height: "100%" }}
-        onLoad={fetchPosts}
+        onLoad={() => {
+          fetchPosts();
+          setTimeout(() => geolocateRef.current?.trigger(), 500);
+        }}
         onMoveEnd={handleMoveEnd}
       >
         <GeolocateControl
+          ref={geolocateRef}
           positionOptions={{ enableHighAccuracy: true }}
           trackUserLocation
           showUserLocation
