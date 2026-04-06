@@ -46,6 +46,7 @@ const MAP_STYLES: Record<string, string> = {
 export default function MapHome() {
   const navigate = useNavigate();
   const mapRef = useRef<MapRef>(null);
+  const geolocateRef = useRef<any>(null);
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
