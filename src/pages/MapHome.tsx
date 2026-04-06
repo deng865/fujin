@@ -183,12 +183,9 @@ export default function MapHome() {
         userLat={center.lat}
         userLng={center.lng}
       />
-
-      <BottomNav
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        onPostClick={handlePostClick}
-      />
+    </div>
+  );
+}
     </div>
   );
 }
