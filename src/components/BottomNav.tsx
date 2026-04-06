@@ -51,7 +51,7 @@ export default function BottomNav() {
               return (
                 <button
                   key={tab.id}
-                  onClick={onPostClick}
+                  onClick={() => handleTabChange(tab)}
                   className="relative -mt-5 bg-primary text-primary-foreground rounded-full p-4 shadow-xl hover:opacity-90 transition-all active:scale-90 ring-4 ring-background/80"
                 >
                   <Plus className="h-6 w-6" />
@@ -63,7 +63,7 @@ export default function BottomNav() {
             return (
               <button
                 key={tab.id}
-                onClick={() => onTabChange(tab.id)}
+                onClick={() => handleTabChange(tab)}
                 className={cn(
                   "relative flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-all active:scale-95 min-w-[52px]",
                   isActive ? "text-primary" : "text-muted-foreground"
