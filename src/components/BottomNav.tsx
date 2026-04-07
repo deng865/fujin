@@ -2,8 +2,7 @@ import { Home, MessageCircle, Plus, Heart, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const tabs = [
   { id: "home", label: "首页", icon: Home, path: "/" },
@@ -17,11 +16,7 @@ export default function BottomNav() {
   const unreadCount = useUnreadCount();
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-  }, []);
+  const { user } = useAuth();
 
   const activeTab = (() => {
     const path = location.pathname;

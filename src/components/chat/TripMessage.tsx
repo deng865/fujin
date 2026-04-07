@@ -33,8 +33,16 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded }: { fromCoords: { la
     geometry: { type: "LineString" as const, coordinates: [[fromCoords.lng, fromCoords.lat], [toCoords.lng, toCoords.lat]] },
   }), [fromCoords, toCoords]);
 
+  const [routeError, setRouteError] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
+    setRouteError(false);
+
+    const timeout = setTimeout(() => {
+      if (!cancelled) setRouteError(true);
+    }, 10000);
+
     const fetchRoute = async () => {
       try {
         const res = await fetch(
@@ -42,6 +50,7 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded }: { fromCoords: { la
         );
         const data = await res.json();
         if (!cancelled && data.routes?.[0]) {
+          clearTimeout(timeout);
           const route = data.routes[0];
           const coords = route.geometry.coordinates;
           setRouteGeoJson({
@@ -56,13 +65,15 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded }: { fromCoords: { la
             distanceMi: km * 0.621371,
             durationMin: Math.round(route.duration / 60),
           });
+        } else if (!cancelled) {
+          setRouteError(true);
         }
       } catch {
-        // keep fallback line
+        if (!cancelled) setRouteError(true);
       }
     };
     fetchRoute();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(timeout); };
   }, [fromCoords, toCoords]);
 
   return (
