@@ -13,7 +13,7 @@ interface RouteInfo {
   durationMin: number;
 }
 
-function TripMiniMap({ fromCoords, toCoords, onRouteLoaded }: { fromCoords: { lat: number; lng: number }; toCoords: { lat: number; lng: number }; onRouteLoaded?: (info: RouteInfo) => void }) {
+function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fromCoords: { lat: number; lng: number }; toCoords: { lat: number; lng: number }; onRouteLoaded?: (info: RouteInfo) => void; onRouteError?: () => void }) {
   const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
 
   const bounds = useMemo(() => {
@@ -33,8 +33,16 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded }: { fromCoords: { la
     geometry: { type: "LineString" as const, coordinates: [[fromCoords.lng, fromCoords.lat], [toCoords.lng, toCoords.lat]] },
   }), [fromCoords, toCoords]);
 
+  const [routeError, setRouteError] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
+    setRouteError(false);
+
+    const timeout = setTimeout(() => {
+      if (!cancelled) { setRouteError(true); onRouteError?.(); }
+    }, 10000);
+
     const fetchRoute = async () => {
       try {
         const res = await fetch(
@@ -42,6 +50,7 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded }: { fromCoords: { la
         );
         const data = await res.json();
         if (!cancelled && data.routes?.[0]) {
+          clearTimeout(timeout);
           const route = data.routes[0];
           const coords = route.geometry.coordinates;
           setRouteGeoJson({
@@ -56,13 +65,15 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded }: { fromCoords: { la
             distanceMi: km * 0.621371,
             durationMin: Math.round(route.duration / 60),
           });
+        } else if (!cancelled) {
+          setRouteError(true); onRouteError?.();
         }
       } catch {
-        // keep fallback line
+        if (!cancelled) { setRouteError(true); onRouteError?.(); }
       }
     };
     fetchRoute();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(timeout); };
   }, [fromCoords, toCoords]);
 
   return (
@@ -172,6 +183,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
   hasRated?: boolean;
 }) {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [routeFailed, setRouteFailed] = useState(false);
 
   return (
     <div className={`rounded-2xl overflow-hidden w-[260px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
@@ -196,7 +208,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
         </div>
         {/* Mini map for accept card */}
         {acceptData.fromCoords && acceptData.toCoords && (
-          <TripMiniMap fromCoords={acceptData.fromCoords} toCoords={acceptData.toCoords} onRouteLoaded={setRouteInfo} />
+          <TripMiniMap fromCoords={acceptData.fromCoords} toCoords={acceptData.toCoords} onRouteLoaded={setRouteInfo} onRouteError={() => setRouteFailed(true)} />
         )}
         {/* Distance & ETA */}
         {acceptData.fromCoords && acceptData.toCoords && (
@@ -206,6 +218,8 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
               <span className="font-medium">
                 {routeInfo.distanceKm.toFixed(1)} km ({routeInfo.distanceMi.toFixed(1)} mi) · 约 {routeInfo.durationMin} 分钟
               </span>
+            ) : routeFailed ? (
+              <span className="text-muted-foreground">无法获取路线信息</span>
             ) : (
               <span className="flex items-center gap-1">
                 <Loader2 className="h-3 w-3 animate-spin" /> 计算路线...
@@ -278,6 +292,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
   const [counterPrice, setCounterPrice] = useState("");
   const [showRatingInput, setShowRatingInput] = useState(false);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [mainRouteFailed, setMainRouteFailed] = useState(false);
 
   // Handle trip_accept_notify type (driver accepted notification)
   const notifyData = parseTripAcceptNotify(content);
@@ -548,7 +563,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
           </div>
           {/* Mini map preview */}
           {trip.fromCoords && trip.toCoords && (
-            <TripMiniMap fromCoords={trip.fromCoords} toCoords={trip.toCoords} onRouteLoaded={setRouteInfo} />
+            <TripMiniMap fromCoords={trip.fromCoords} toCoords={trip.toCoords} onRouteLoaded={setRouteInfo} onRouteError={() => setMainRouteFailed(true)} />
           )}
           {/* Driving distance + duration */}
           {trip.fromCoords && trip.toCoords && (
@@ -558,6 +573,8 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
                 <span className="font-medium">
                   驾车 {routeInfo.distanceKm.toFixed(1)} km ({routeInfo.distanceMi.toFixed(1)} mi) · 约 {routeInfo.durationMin} 分钟
                 </span>
+              ) : mainRouteFailed ? (
+                <span className="text-muted-foreground">无法获取路线信息</span>
               ) : (
                 <span className="flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" /> 计算路线...
