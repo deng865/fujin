@@ -214,6 +214,19 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId]);
 
+  // Listen for live-location-stop broadcast from the other party
+  useEffect(() => {
+    if (!conversationId || !userId) return;
+    const ch = supabase.channel(`live-loc-${conversationId}`);
+    ch.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
+      if (payload?.payload?.userId !== userId) {
+        setLiveShare(null);
+        toast({ title: "位置共享已结束", description: "对方已停止共享位置" });
+      }
+    }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [conversationId, userId]);
+
   const saveCallRecord = useCallback(async (status: "missed" | "declined" | "completed" | "cancelled", callerId: string, duration?: number) => {
     if (!conversationId || !userId) return;
     const callContent = JSON.stringify({ type: "call", status, callerId, duration });
