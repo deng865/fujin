@@ -214,7 +214,7 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
         <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-muted-foreground/20" />
 
         {post && (
-          <div className="overflow-y-auto pb-24">
+          <div className="overflow-y-auto" style={{ paddingBottom: "calc(140px + env(safe-area-inset-bottom))" }}>
             {/* Media Carousel */}
             {post.image_urls && post.image_urls.length > 0 && (
               <div className="mt-2">
@@ -311,9 +311,9 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
           </div>
         )}
 
-        {/* Fixed bottom action bar */}
+        {/* Fixed bottom action bar - above BottomNav + safe area */}
         {post && (
-          <div className="absolute bottom-0 inset-x-0 bg-background/95 backdrop-blur-xl border-t border-border/50 px-5 py-3 flex items-center gap-3 safe-bottom">
+          <div className="absolute inset-x-0 bg-background/95 backdrop-blur-xl border-t border-border/50 px-5 py-3 flex items-center gap-3" style={{ bottom: "calc(72px + env(safe-area-inset-bottom))" }}>
             {/* Favorite */}
             {onToggleFavorite && (
               <FavoriteButton

@@ -140,20 +140,19 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
       className={cn(
         "absolute left-0 right-0 z-20 bg-background rounded-t-2xl flex flex-col",
         "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
+        "touch-none select-none",
         !isDragging && "transition-[height] duration-300 ease-out"
       )}
       style={{
         bottom: `${BOTTOM_NAV}px`,
         height: `${displayHeight}px`,
       }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
       {/* Drag handle area */}
-      <div
-        className="shrink-0 touch-none select-none"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
+      <div className="shrink-0">
         {/* Grab bar */}
         <div className="flex justify-center pt-2.5 pb-1">
           <div className="w-9 h-1 rounded-full bg-muted-foreground/25" />
@@ -191,13 +190,7 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
       {(state === "half" || state === "full") && (
         <div
           ref={listRef}
-          className="flex-1 overflow-y-auto overscroll-contain"
-          onTouchStart={(e) => {
-            // Prevent sheet drag when scrolling list content
-            if (listRef.current && listRef.current.scrollTop > 0) {
-              e.stopPropagation();
-            }
-          }}
+          className="flex-1 overflow-y-auto overscroll-contain touch-auto"
         >
           {sorted.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
