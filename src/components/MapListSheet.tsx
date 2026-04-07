@@ -82,6 +82,12 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
     // Don't drag if scrolling inside the list
     const list = listRef.current;
     if (list && state === "full" && list.scrollTop > 0) return;
+    // Don't drag if touch originated inside the scrollable list and it has scroll room
+    if (list && (state === "half" || state === "full")) {
+      const listRect = list.getBoundingClientRect();
+      const touchY = e.touches[0].clientY;
+      if (touchY >= listRect.top && touchY <= listRect.bottom && list.scrollTop > 0) return;
+    }
 
     dragRef.current.startY = e.touches[0].clientY;
     dragRef.current.startState = state;
