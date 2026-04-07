@@ -217,7 +217,7 @@ export default function ChatRoom() {
   // Listen for live-location-stop broadcast from the other party
   useEffect(() => {
     if (!conversationId || !userId) return;
-    const ch = supabase.channel(`live-loc-${conversationId}`);
+    const ch = supabase.channel(`live-loc-listen-${conversationId}`);
     ch.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
       if (payload?.payload?.userId !== userId) {
         setLiveShare(null);
