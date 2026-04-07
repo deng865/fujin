@@ -563,7 +563,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
           </div>
           {/* Mini map preview */}
           {trip.fromCoords && trip.toCoords && (
-            <TripMiniMap fromCoords={trip.fromCoords} toCoords={trip.toCoords} onRouteLoaded={setRouteInfo} />
+            <TripMiniMap fromCoords={trip.fromCoords} toCoords={trip.toCoords} onRouteLoaded={setRouteInfo} onRouteError={() => setMainRouteFailed(true)} />
           )}
           {/* Driving distance + duration */}
           {trip.fromCoords && trip.toCoords && (
@@ -573,6 +573,8 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
                 <span className="font-medium">
                   驾车 {routeInfo.distanceKm.toFixed(1)} km ({routeInfo.distanceMi.toFixed(1)} mi) · 约 {routeInfo.durationMin} 分钟
                 </span>
+              ) : mainRouteFailed ? (
+                <span className="text-muted-foreground">无法获取路线信息</span>
               ) : (
                 <span className="flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" /> 计算路线...
