@@ -110,7 +110,7 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
       <MapFilterChips filters={filters} onChange={onFiltersChange} />
 
       {/* Post list */}
-      <div className="flex-1 overflow-y-auto px-3 pb-20">
+      <div className="flex-1 overflow-y-auto px-3 pb-[calc(20px+env(safe-area-inset-bottom))]">
         {sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
             <MapPin className="h-8 w-8 mb-2 opacity-30" />
