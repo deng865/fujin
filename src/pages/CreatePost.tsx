@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ export default function CreatePost() {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState("");
   const [locationType, setLocationType] = useState<"precise" | "approximate">("precise");
+  const formRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -36,6 +38,28 @@ export default function CreatePost() {
   const updateForm = (partial: Partial<typeof initialFormData>) => {
     setFormData((prev) => ({ ...prev, ...partial }));
   };
+
+  const handleCategorySelect = useCallback((cat: string) => {
+    setCategory(cat);
+    // Scroll to form after category selected
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }, []);
+
+  // Auto-scroll focused input into view when keyboard opens
+  useEffect(() => {
+    const handleFocus = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 300);
+      }
+    };
+    document.addEventListener("focusin", handleFocus);
+    return () => document.removeEventListener("focusin", handleFocus);
+  }, []);
 
   const handleSubmit = async () => {
     if (!category) return toast.error("请选择分类 / Category required");
@@ -98,9 +122,9 @@ export default function CreatePost() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-safe">
+    <div className="fixed inset-0 bg-background flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-xl border-b border-border/50">
+      <div className="flex-shrink-0 z-20 bg-background/90 backdrop-blur-xl border-b border-border/50">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-accent rounded-xl active:scale-95">
             <ArrowLeft className="h-5 w-5" />
@@ -110,42 +134,44 @@ export default function CreatePost() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-5 space-y-8">
-        {/* Section 1: Category Selection */}
-        <CategoryGrid selected={category} onSelect={setCategory} />
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="max-w-lg mx-auto px-4 py-5 space-y-8 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+          {/* Section 1: Category Selection */}
+          <CategoryGrid selected={category} onSelect={handleCategorySelect} />
 
-        {/* Section 2: Dynamic Form - only show after category selected */}
-        {category && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <DynamicForm category={category} data={formData} onChange={updateForm} />
-          </div>
-        )}
+          {/* Section 2: Dynamic Form - only show after category selected */}
+          {category && (
+            <div ref={formRef} className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <DynamicForm category={category} data={formData} onChange={updateForm} />
+            </div>
+          )}
 
-        {/* Section 3: Location Picker */}
-        {category && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <LocationPicker
-              location={location}
-              address={address}
-              locationType={locationType}
-              onLocationChange={setLocation}
-              onAddressChange={setAddress}
-              onLocationTypeChange={setLocationType}
-            />
-          </div>
-        )}
+          {/* Section 3: Location Picker */}
+          {category && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <LocationPicker
+                location={location}
+                address={address}
+                locationType={locationType}
+                onLocationChange={setLocation}
+                onAddressChange={setAddress}
+                onLocationTypeChange={setLocationType}
+              />
+            </div>
+          )}
 
-        {/* Submit Button */}
-        {category && (
-          <Button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full rounded-xl h-12 text-base gap-2"
-          >
-            <Send className="h-4 w-4" />
-            {loading ? "发布中..." : "发布 / Post"}
-          </Button>
-        )}
+          {/* Submit Button */}
+          {category && (
+            <Button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="w-full rounded-xl h-12 text-base gap-2"
+            >
+              <Send className="h-4 w-4" />
+              {loading ? "发布中..." : "发布 / Post"}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
