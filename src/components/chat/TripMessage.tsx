@@ -13,7 +13,7 @@ interface RouteInfo {
   durationMin: number;
 }
 
-function TripMiniMap({ fromCoords, toCoords, onRouteLoaded }: { fromCoords: { lat: number; lng: number }; toCoords: { lat: number; lng: number }; onRouteLoaded?: (info: RouteInfo) => void }) {
+function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fromCoords: { lat: number; lng: number }; toCoords: { lat: number; lng: number }; onRouteLoaded?: (info: RouteInfo) => void; onRouteError?: () => void }) {
   const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
 
   const bounds = useMemo(() => {
