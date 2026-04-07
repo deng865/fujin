@@ -87,7 +87,7 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
   return (
     <div
       ref={sheetRef}
-      className="absolute bottom-[72px] left-0 right-0 z-20 bg-background rounded-t-3xl shadow-2xl border-t border-border/30 transition-all duration-300 ease-out flex flex-col"
+      className="absolute bottom-[72px] left-0 right-0 z-20 bg-background rounded-t-3xl shadow-2xl border-t border-border/30 transition-all duration-300 ease-out flex flex-col pb-[env(safe-area-inset-bottom)]"
       style={{ height: heights[state] }}
     >
       {/* Drag handle */}
