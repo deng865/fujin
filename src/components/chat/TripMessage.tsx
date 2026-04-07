@@ -183,6 +183,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
   hasRated?: boolean;
 }) {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [routeFailed, setRouteFailed] = useState(false);
 
   return (
     <div className={`rounded-2xl overflow-hidden w-[260px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
@@ -207,7 +208,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
         </div>
         {/* Mini map for accept card */}
         {acceptData.fromCoords && acceptData.toCoords && (
-          <TripMiniMap fromCoords={acceptData.fromCoords} toCoords={acceptData.toCoords} onRouteLoaded={setRouteInfo} />
+          <TripMiniMap fromCoords={acceptData.fromCoords} toCoords={acceptData.toCoords} onRouteLoaded={setRouteInfo} onRouteError={() => setRouteFailed(true)} />
         )}
         {/* Distance & ETA */}
         {acceptData.fromCoords && acceptData.toCoords && (
@@ -217,6 +218,8 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
               <span className="font-medium">
                 {routeInfo.distanceKm.toFixed(1)} km ({routeInfo.distanceMi.toFixed(1)} mi) · 约 {routeInfo.durationMin} 分钟
               </span>
+            ) : routeFailed ? (
+              <span className="text-muted-foreground">无法获取路线信息</span>
             ) : (
               <span className="flex items-center gap-1">
                 <Loader2 className="h-3 w-3 animate-spin" /> 计算路线...
