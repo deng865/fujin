@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { MapPin, Clock, ChevronUp, Play } from "lucide-react";
+import { useRef, useState, useCallback, useEffect } from "react";
+import { MapPin, Clock, Play, X } from "lucide-react";
 import MapFilterChips, { type MapFilters } from "@/components/MapFilterChips";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
@@ -51,32 +51,80 @@ interface MapListSheetProps {
   onFiltersChange: (filters: MapFilters) => void;
 }
 
-type SheetState = "peek" | "half" | "full";
+// Bottom nav = 72px, hidden state just shows a small grab bar
+type SheetState = "hidden" | "peek" | "half" | "full";
+
+const BOTTOM_NAV = 72;
+const HANDLE_HEIGHT = 28; // just the grab bar when hidden
 
 export default function MapListSheet({ posts, userLat, userLng, onSelectPost, favoriteIds, onToggleFavorite, filters, onFiltersChange }: MapListSheetProps) {
   const [state, setState] = useState<SheetState>("peek");
-  const dragRef = useRef({ startY: 0, startHeight: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const dragRef = useRef({ startY: 0, startState: state as SheetState });
   const sheetRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  const heights: Record<SheetState, string> = {
-    peek: "120px",
-    half: "50vh",
-    full: "85vh",
-  };
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    dragRef.current.startY = e.touches[0].clientY;
-    dragRef.current.startHeight = sheetRef.current?.offsetHeight || 0;
-  };
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const dy = dragRef.current.startY - e.changedTouches[0].clientY;
-    if (dy > 60) {
-      setState((s) => s === "peek" ? "half" : "full");
-    } else if (dy < -60) {
-      setState((s) => s === "full" ? "half" : "peek");
+  // Calculate heights based on window
+  const getHeight = useCallback((s: SheetState) => {
+    const vh = window.innerHeight;
+    switch (s) {
+      case "hidden": return HANDLE_HEIGHT;
+      case "peek": return 100;
+      case "half": return Math.round(vh * 0.45);
+      case "full": return Math.round(vh * 0.85);
     }
-  };
+  }, []);
+
+  const currentHeight = getHeight(state);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    // Don't drag if scrolling inside the list
+    const list = listRef.current;
+    if (list && state === "full" && list.scrollTop > 0) return;
+
+    dragRef.current.startY = e.touches[0].clientY;
+    dragRef.current.startState = state;
+    setIsDragging(true);
+  }, [state]);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const dy = dragRef.current.startY - e.touches[0].clientY;
+    setDragOffset(dy);
+  }, [isDragging]);
+
+  const onTouchEnd = useCallback(() => {
+    if (!isDragging) return;
+    setIsDragging(false);
+
+    const dy = dragOffset;
+    const threshold = 50;
+
+    if (dy > threshold) {
+      // Swipe up
+      setState((s) => {
+        if (s === "hidden") return "peek";
+        if (s === "peek") return "half";
+        if (s === "half") return "full";
+        return s;
+      });
+    } else if (dy < -threshold) {
+      // Swipe down
+      setState((s) => {
+        if (s === "full") return "half";
+        if (s === "half") return "peek";
+        if (s === "peek") return "hidden";
+        return s;
+      });
+    }
+    setDragOffset(0);
+  }, [isDragging, dragOffset]);
+
+  // Clamp dragged height
+  const displayHeight = isDragging
+    ? Math.max(HANDLE_HEIGHT, Math.min(window.innerHeight * 0.85, currentHeight + dragOffset))
+    : currentHeight;
 
   const sorted = [...posts].sort((a, b) => {
     const dA = haversineKm(userLat, userLng, a.latitude, a.longitude);
@@ -84,113 +132,190 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
     return dA - dB;
   });
 
+  const selectedCategory = posts.length > 0 ? categoryLabels[posts[0]?.category] : null;
+
   return (
     <div
       ref={sheetRef}
-      className="absolute bottom-[72px] left-0 right-0 z-20 bg-background rounded-t-3xl shadow-2xl border-t border-border/30 transition-all duration-300 ease-out flex flex-col"
-      style={{ height: heights[state], paddingBottom: "env(safe-area-inset-bottom)" }}
+      className={cn(
+        "absolute left-0 right-0 z-20 bg-background rounded-t-2xl flex flex-col",
+        "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
+        !isDragging && "transition-[height] duration-300 ease-out"
+      )}
+      style={{
+        bottom: `${BOTTOM_NAV}px`,
+        height: `${displayHeight}px`,
+      }}
     >
-      {/* Drag handle */}
+      {/* Drag handle area */}
       <div
-        className="flex flex-col items-center pt-2 pb-1 cursor-grab active:cursor-grabbing"
+        className="shrink-0 touch-none select-none"
         onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        onClick={() => setState((s) => s === "peek" ? "half" : s === "half" ? "full" : "half")}
       >
-        <div className="w-10 h-1.5 rounded-full bg-muted-foreground/20" />
-        <div className="flex items-center gap-1 mt-1">
-          <ChevronUp className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", state === "full" && "rotate-180")} />
-          <span className="text-xs text-muted-foreground font-medium">
-            {sorted.length} 个结果
-          </span>
+        {/* Grab bar */}
+        <div className="flex justify-center pt-2.5 pb-1">
+          <div className="w-9 h-1 rounded-full bg-muted-foreground/25" />
         </div>
-      </div>
 
-      {/* Filter Chips */}
-      <MapFilterChips filters={filters} onChange={onFiltersChange} />
-
-      {/* Post list */}
-      <div className="flex-1 overflow-y-auto px-3 pb-[calc(20px+env(safe-area-inset-bottom))]">
-        {sorted.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <MapPin className="h-8 w-8 mb-2 opacity-30" />
-            <p className="text-xs">附近暂无内容</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {sorted.map((post) => {
-              const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
-              const distMi = kmToMiles(distKm);
-              const coverUrl = post.image_urls?.[0];
-              const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: zhCN });
-              const isFav = favoriteIds.has(post.id);
-
-              return (
-                <div
-                  key={post.id}
-                  onClick={() => onSelectPost(post)}
-                  className="flex gap-3 p-3 rounded-2xl bg-card border border-border/30 active:scale-[0.98] transition-transform cursor-pointer"
-                >
-                  {/* Thumbnail */}
-                  {coverUrl && (
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-muted">
-                      {isVideo(coverUrl) ? (
-                        <div className="relative w-full h-full">
-                          <video src={coverUrl} className="w-full h-full object-cover" muted preload="metadata" />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Play className="h-5 w-5 text-white drop-shadow" />
-                          </div>
-                        </div>
-                      ) : (
-                        <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-                      )}
-                    </div>
-                  )}
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent text-muted-foreground">
-                          {categoryLabels[post.category] || post.category}
-                        </span>
-                      </div>
-                      <h4 className="text-sm font-semibold text-foreground line-clamp-1">{post.title}</h4>
-                      {post.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{post.description}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <div className="flex items-center gap-2">
-                        {post.price != null && (
-                          <span className="text-xs font-bold text-primary">${post.price.toLocaleString()}</span>
-                        )}
-                        <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                          <MapPin className="h-2.5 w-2.5" />
-                          {distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
-                        </span>
-                      </div>
-                      <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                        <Clock className="h-2.5 w-2.5" />
-                        {timeAgo}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Favorite */}
-                  <div className="shrink-0 flex items-start pt-1">
-                    <FavoriteButton
-                      isFavorite={isFav}
-                      onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
-                      size="sm"
-                    />
-                  </div>
-                </div>
-              );
-            })}
+        {/* Header row: title + count + close */}
+        {state !== "hidden" && (
+          <div className="flex items-center justify-between px-4 pb-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-foreground">
+                附近
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                {sorted.length} 个结果
+              </span>
+            </div>
+            <button
+              onClick={() => setState("hidden")}
+              className="p-1.5 rounded-full hover:bg-accent transition-colors"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
           </div>
         )}
       </div>
+
+      {/* Filter Chips - only show when not hidden */}
+      {state !== "hidden" && (
+        <div className="shrink-0">
+          <MapFilterChips filters={filters} onChange={onFiltersChange} />
+        </div>
+      )}
+
+      {/* Post list */}
+      {(state === "half" || state === "full") && (
+        <div
+          ref={listRef}
+          className="flex-1 overflow-y-auto overscroll-contain"
+          onTouchStart={(e) => {
+            // Prevent sheet drag when scrolling list content
+            if (listRef.current && listRef.current.scrollTop > 0) {
+              e.stopPropagation();
+            }
+          }}
+        >
+          {sorted.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <MapPin className="h-8 w-8 mb-2 opacity-30" />
+              <p className="text-sm">附近暂无内容</p>
+            </div>
+          ) : (
+            <div className="px-4 pb-[calc(16px+env(safe-area-inset-bottom))]">
+              {sorted.map((post, idx) => {
+                const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
+                const distMi = kmToMiles(distKm);
+                const coverUrls = post.image_urls?.slice(0, 3) || [];
+                const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: zhCN });
+                const isFav = favoriteIds.has(post.id);
+
+                return (
+                  <div key={post.id}>
+                    {idx > 0 && <div className="border-t border-border/20 my-1" />}
+                    <div
+                      onClick={() => onSelectPost(post)}
+                      className="py-3 active:bg-accent/50 transition-colors cursor-pointer rounded-lg"
+                    >
+                      {/* Title row */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-[15px] font-semibold text-foreground line-clamp-1">
+                            {post.title}
+                          </h4>
+                          {/* Meta row */}
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {post.price != null && (
+                              <span className="text-xs text-muted-foreground">
+                                ${post.price.toLocaleString()}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-muted-foreground">·</span>
+                            <span className="text-xs text-muted-foreground">
+                              {categoryLabels[post.category] || post.category}
+                            </span>
+                          </div>
+                          {/* Distance + time */}
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs text-primary font-medium">
+                              {distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">·</span>
+                            <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                          </div>
+                          {post.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{post.description}</p>
+                          )}
+                        </div>
+                        <FavoriteButton
+                          isFavorite={isFav}
+                          onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
+                          size="sm"
+                        />
+                      </div>
+
+                      {/* Image gallery row - Google Maps style */}
+                      {coverUrls.length > 0 && (
+                        <div className="flex gap-1.5 mt-2.5 overflow-hidden rounded-xl">
+                          {coverUrls.map((url, i) => (
+                            <div
+                              key={i}
+                              className={cn(
+                                "relative bg-muted overflow-hidden",
+                                coverUrls.length === 1
+                                  ? "w-full aspect-[2/1] rounded-xl"
+                                  : i === 0
+                                    ? "flex-[2] aspect-[4/3] rounded-l-xl"
+                                    : "flex-1 aspect-[3/4] last:rounded-r-xl"
+                              )}
+                            >
+                              {isVideo(url) ? (
+                                <>
+                                  <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                    <Play className="h-6 w-6 text-white drop-shadow-lg" />
+                                  </div>
+                                </>
+                              ) : (
+                                <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Peek mode: show first 1-2 items as preview */}
+      {state === "peek" && sorted.length > 0 && (
+        <div className="px-4 overflow-hidden flex-1">
+          <div
+            onClick={() => { onSelectPost(sorted[0]); }}
+            className="flex items-center gap-3 py-1 cursor-pointer"
+          >
+            {sorted[0].image_urls?.[0] && (
+              <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-muted">
+                <img src={sorted[0].image_urls[0]} alt="" className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-semibold text-foreground line-clamp-1">{sorted[0].title}</h4>
+              <span className="text-xs text-muted-foreground">
+                {kmToMiles(haversineKm(userLat, userLng, sorted[0].latitude, sorted[0].longitude)).toFixed(1)} mi
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
