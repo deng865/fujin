@@ -27,34 +27,43 @@ export default function DriverTracking({
   const lastBroadcast = useRef(0);
 
   // Driver: watch position and broadcast
+  const channelRef = useRef<any>(null);
+
   useEffect(() => {
     if (!isDriver) return;
-    const id = navigator.geolocation.watchPosition(
-      (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setDriverLocation(loc);
-        // Throttle broadcasts to every 3 seconds
-        const now = Date.now();
-        if (now - lastBroadcast.current > 3000) {
-          lastBroadcast.current = now;
-          supabase.channel(`trip-track-${conversationId}`).send({
-            type: "broadcast",
-            event: "driver-location",
-            payload: loc,
-          });
-        }
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
-    );
-    watchIdRef.current = id;
 
-    // Subscribe to broadcast channel (needed for driver to send)
-    const channel = supabase.channel(`trip-track-${conversationId}`).subscribe();
+    // Create and subscribe to channel FIRST, then start watching position
+    const channel = supabase.channel(`trip-track-${conversationId}`);
+    channelRef.current = channel;
+
+    channel.subscribe((status: string) => {
+      if (status === "SUBSCRIBED") {
+        // Only start watching after channel is subscribed
+        const id = navigator.geolocation.watchPosition(
+          (pos) => {
+            const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            setDriverLocation(loc);
+            const now = Date.now();
+            if (now - lastBroadcast.current > 3000) {
+              lastBroadcast.current = now;
+              channelRef.current?.send({
+                type: "broadcast",
+                event: "driver-location",
+                payload: loc,
+              });
+            }
+          },
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+        );
+        watchIdRef.current = id;
+      }
+    });
 
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [isDriver, conversationId]);
 
