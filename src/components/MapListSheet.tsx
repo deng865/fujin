@@ -1,5 +1,6 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { MapPin, Clock, ChevronUp, Play } from "lucide-react";
+import MapFilterChips, { type MapFilters } from "@/components/MapFilterChips";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -46,11 +47,13 @@ interface MapListSheetProps {
   onSelectPost: (post: Post) => void;
   favoriteIds: Set<string>;
   onToggleFavorite: (postId: string) => void;
+  filters: MapFilters;
+  onFiltersChange: (filters: MapFilters) => void;
 }
 
 type SheetState = "peek" | "half" | "full";
 
-export default function MapListSheet({ posts, userLat, userLng, onSelectPost, favoriteIds, onToggleFavorite }: MapListSheetProps) {
+export default function MapListSheet({ posts, userLat, userLng, onSelectPost, favoriteIds, onToggleFavorite, filters, onFiltersChange }: MapListSheetProps) {
   const [state, setState] = useState<SheetState>("peek");
   const dragRef = useRef({ startY: 0, startHeight: 0 });
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -103,8 +106,11 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
         </div>
       </div>
 
+      {/* Filter Chips */}
+      <MapFilterChips filters={filters} onChange={onFiltersChange} />
+
       {/* Post list */}
-      <div className="flex-1 overflow-y-auto px-3 pb-4">
+      <div className="flex-1 overflow-y-auto px-3 pb-20">
         {sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
             <MapPin className="h-8 w-8 mb-2 opacity-30" />
