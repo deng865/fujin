@@ -125,19 +125,18 @@ export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapP
               <p className="text-xs text-muted-foreground">正在获取位置...</p>
             )}
           </div>
-          <button
-            onClick={() => {
-              const ua = navigator.userAgent.toLowerCase();
-              if (/iphone|ipad/.test(ua)) {
-                window.open(`https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, "_blank");
-              } else {
-                window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, "_blank");
-              }
-            }}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
+          <a
+            href={
+              /iphone|ipad/i.test(navigator.userAgent)
+                ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`
+                : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shrink-0 text-center"
           >
             开始导航
-          </button>
+          </a>
         </div>
       </div>
     </div>
