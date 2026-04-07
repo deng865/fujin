@@ -177,11 +177,6 @@ export default function MapHome() {
         onSelectCategory={setSelectedCategory}
       />
 
-      {/* Filter Chips - below category scroll */}
-      <div className="absolute top-[116px] left-0 right-0 z-10">
-        <MapFilterChips filters={filters} onChange={setFilters} />
-      </div>
-
       <MapControls
         onLocateMe={handleLocateMe}
         onMapTypeChange={setMapType}
@@ -198,6 +193,8 @@ export default function MapHome() {
         onSelectPost={setSelectedPost}
         favoriteIds={favoriteIds}
         onToggleFavorite={handleToggleFavorite}
+        filters={filters}
+        onFiltersChange={setFilters}
       />
 
       <PostBottomSheet
