@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Radio, X } from "lucide-react";
+import { Radio, X, StopCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface LiveLocationBannerProps {
@@ -66,7 +66,7 @@ export default function LiveLocationBanner({
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
       if (channelRef.current) {
-        // Send stop signal
+        // Send stop signal so the other party knows sharing ended
         channelRef.current.send({
           type: "broadcast",
           event: "live-location-stop",
@@ -79,16 +79,21 @@ export default function LiveLocationBanner({
 
   return (
     <div className="shrink-0 bg-green-500/10 border-b border-green-500/20 max-w-lg mx-auto w-full">
-      <button
-        onClick={onStop}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 transition-colors hover:bg-green-500/20"
-      >
-        <Radio className="h-4 w-4 text-green-500 animate-pulse" />
-        <span className="text-sm font-medium text-green-600 dark:text-green-400">
-          正在共享位置 · {remaining}
-        </span>
-        <span className="text-xs text-green-500 ml-1">点击停止</span>
-      </button>
+      <div className="flex items-center justify-between px-4 py-2.5">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Radio className="h-4 w-4 text-green-500 animate-pulse shrink-0" />
+          <span className="text-sm font-medium text-green-600 dark:text-green-400 truncate">
+            正在共享位置 · {remaining}
+          </span>
+        </div>
+        <button
+          onClick={onStop}
+          className="ml-3 px-4 py-1.5 bg-destructive text-destructive-foreground rounded-full text-xs font-semibold hover:bg-destructive/90 transition-colors shrink-0 flex items-center gap-1.5"
+        >
+          <StopCircle className="h-3.5 w-3.5" />
+          结束共享
+        </button>
+      </div>
     </div>
   );
 }
