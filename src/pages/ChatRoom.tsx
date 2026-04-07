@@ -624,6 +624,9 @@ export default function ChatRoom() {
         console.error("Failed to send accept notify", e);
       }
     }
+    } finally {
+      setAcceptingTrip(false);
+    }
   };
 
   const handleCounterTrip = async (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => {
