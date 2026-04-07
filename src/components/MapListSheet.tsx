@@ -240,7 +240,7 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
                           </div>
                           {/* Distance + time */}
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                            <span className="text-xs text-primary font-medium">
                               {distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
                             </span>
                             <span className="text-[10px] text-muted-foreground">·</span>
