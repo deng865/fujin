@@ -77,6 +77,7 @@ export default function ChatRoom() {
   const [liveShare, setLiveShare] = useState<{ duration: number; startedAt: number } | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [isDriver, setIsDriver] = useState(false);
+  const [acceptingTrip, setAcceptingTrip] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -549,7 +550,9 @@ export default function ChatRoom() {
   };
 
   const handleAcceptTrip = async (trip: { from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } }) => {
-    if (!userId || !conversationId) return;
+    if (!userId || !conversationId || acceptingTrip) return;
+    setAcceptingTrip(true);
+    try {
     // Check if this user already has an active trip (driver lock)
     const lockedConvId = await checkActiveTripLock(userId);
     if (lockedConvId && lockedConvId !== conversationId) {
@@ -620,6 +623,9 @@ export default function ChatRoom() {
       } catch (e) {
         console.error("Failed to send accept notify", e);
       }
+    }
+    } finally {
+      setAcceptingTrip(false);
     }
   };
 
@@ -1014,7 +1020,7 @@ export default function ChatRoom() {
                     ) : parseTripAcceptNotify(msg.content) ? (
                       <TripMessage content={msg.content} isMe={isMe} />
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content) || (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })()) ? (
-                      <TripMessage content={msg.content} isMe={isMe} onAccept={handleAcceptTrip} onCounter={handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} />
+                      <TripMessage content={msg.content} isMe={isMe} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
