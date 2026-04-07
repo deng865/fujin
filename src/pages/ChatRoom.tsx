@@ -550,7 +550,9 @@ export default function ChatRoom() {
   };
 
   const handleAcceptTrip = async (trip: { from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } }) => {
-    if (!userId || !conversationId) return;
+    if (!userId || !conversationId || acceptingTrip) return;
+    setAcceptingTrip(true);
+    try {
     // Check if this user already has an active trip (driver lock)
     const lockedConvId = await checkActiveTripLock(userId);
     if (lockedConvId && lockedConvId !== conversationId) {
