@@ -10,6 +10,8 @@ import CategoryScroll from "@/components/CategoryScroll";
 import MapControls from "@/components/MapControls";
 import PostMarkers from "@/components/PostMarkers";
 import PostBottomSheet from "@/components/PostBottomSheet";
+import MapFilterChips, { defaultFilters, type MapFilters } from "@/components/MapFilterChips";
+import MapListSheet from "@/components/MapListSheet";
 import { toast } from "@/hooks/use-toast";
 
 const DEFAULT_CENTER = { lat: 32.7767, lng: -96.797 };
@@ -54,6 +56,7 @@ export default function MapHome() {
   const [user, setUser] = useState<any>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [bearing, setBearing] = useState(0);
+  const [filters, setFilters] = useState<MapFilters>(defaultFilters);
   const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {
@@ -113,7 +116,6 @@ export default function MapHome() {
     mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: 12, duration: 1000 });
   };
 
-
   const handleToggleFavorite = async (postId: string) => {
     if (!favUserId) { navigate("/auth"); return; }
     const result = await toggleFavorite(postId);
@@ -121,9 +123,18 @@ export default function MapHome() {
     else if (result === false) toast({ title: "已取消收藏" });
   };
 
+  // Apply category + radius + filter chips
   const filtered = posts.filter((p) => {
     if (selectedCategory && p.category !== selectedCategory) return false;
-    return haversine(center.lat, center.lng, p.latitude, p.longitude) <= searchRadius;
+    if (haversine(center.lat, center.lng, p.latitude, p.longitude) > searchRadius) return false;
+    // Price filter
+    if (filters.price) {
+      const price = p.price ?? 0;
+      if (filters.price === "$" && price > 50) return false;
+      if (filters.price === "$$" && (price <= 50 || price > 200)) return false;
+      if (filters.price === "$$$" && price <= 200) return false;
+    }
+    return true;
   });
 
   return (
@@ -145,7 +156,6 @@ export default function MapHome() {
         onMoveEnd={handleMoveEnd}
         onRotate={(e) => setBearing(e.viewState.bearing)}
       >
-        
         <GeolocateControl
           ref={geolocateRef}
           positionOptions={{ enableHighAccuracy: true }}
@@ -167,12 +177,27 @@ export default function MapHome() {
         onSelectCategory={setSelectedCategory}
       />
 
+      {/* Filter Chips - below category scroll */}
+      <div className="absolute top-[116px] left-0 right-0 z-10">
+        <MapFilterChips filters={filters} onChange={setFilters} />
+      </div>
+
       <MapControls
         onLocateMe={handleLocateMe}
         onMapTypeChange={setMapType}
         currentMapType={mapType}
         bearing={bearing}
         onResetNorth={() => mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: 500 })}
+      />
+
+      {/* Bottom sheet with list of nearby posts */}
+      <MapListSheet
+        posts={filtered}
+        userLat={center.lat}
+        userLng={center.lng}
+        onSelectPost={setSelectedPost}
+        favoriteIds={favoriteIds}
+        onToggleFavorite={handleToggleFavorite}
       />
 
       <PostBottomSheet
