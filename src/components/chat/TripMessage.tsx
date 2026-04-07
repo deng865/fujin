@@ -292,6 +292,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
   const [counterPrice, setCounterPrice] = useState("");
   const [showRatingInput, setShowRatingInput] = useState(false);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [mainRouteFailed, setMainRouteFailed] = useState(false);
 
   // Handle trip_accept_notify type (driver accepted notification)
   const notifyData = parseTripAcceptNotify(content);
