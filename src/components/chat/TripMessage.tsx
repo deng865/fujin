@@ -40,7 +40,7 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fr
     setRouteError(false);
 
     const timeout = setTimeout(() => {
-      if (!cancelled) setRouteError(true);
+      if (!cancelled) { setRouteError(true); onRouteError?.(); }
     }, 10000);
 
     const fetchRoute = async () => {
@@ -66,10 +66,10 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fr
             durationMin: Math.round(route.duration / 60),
           });
         } else if (!cancelled) {
-          setRouteError(true);
+          setRouteError(true); onRouteError?.();
         }
       } catch {
-        if (!cancelled) setRouteError(true);
+        if (!cancelled) { setRouteError(true); onRouteError?.(); }
       }
     };
     fetchRoute();
