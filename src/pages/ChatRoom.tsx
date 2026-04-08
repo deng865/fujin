@@ -213,6 +213,11 @@ export default function ChatRoom() {
               .from("messages")
               .update({ read_at: new Date().toISOString() })
               .eq("id", newMsg.id);
+            // Auto-start receiver's live share when other party initiates
+            const liveData = parseLiveLocationMessage(newMsg.content);
+            if (liveData) {
+              setLiveShare({ duration: liveData.durationMinutes, startedAt: Date.now() });
+            }
           }
         }
       )
