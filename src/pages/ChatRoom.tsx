@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle, Check, DollarSign } from "lucide-react";
+import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle, Check, DollarSign, Star } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
@@ -33,6 +33,7 @@ import EmojiPicker from "@/components/chat/EmojiPicker";
 import TripSharePanel from "@/components/chat/TripSharePanel";
 import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage, parseTripAcceptNotify, parseTripCompleteMessage } from "@/components/chat/TripMessage";
 import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
+import { TripRatingInput } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
 
 interface Message {
@@ -1020,7 +1021,26 @@ export default function ChatRoom() {
                     ) : parseTripAcceptNotify(msg.content) ? (
                       <TripMessage content={msg.content} isMe={isMe} isCancelled={(() => { const nd = parseTripAcceptNotify(msg.content); if (!nd) return false; return messages.some(m => { const cd = parseTripCancelMessage(m.content); return cd !== null; }); })()} isCompleted={(() => { return messages.some(m => { try { return JSON.parse(m.content)?.type === "trip_complete"; } catch { return false; } }); })()} />
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content) || (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })()) ? (
-                      <TripMessage content={msg.content} isMe={isMe} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} />
+                      <>
+                        <TripMessage content={msg.content} isMe={isMe} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} />
+                        {parseTripAcceptMessage(msg.content) && (isCancelledForAccept(msg.content) || isCompletedForAccept(msg.content)) && !hasRatedForAccept(msg.content) && (() => {
+                          const ad = parseTripAcceptMessage(msg.content);
+                          if (!ad) return null;
+                          return (
+                            <div className={`mt-2 w-[260px] rounded-2xl overflow-hidden ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+                              <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+                                <div className="flex items-center gap-1.5 text-xs font-medium mb-1">
+                                  <Star className="h-3.5 w-3.5" />
+                                  请对本次行程评价
+                                </div>
+                                <TripRatingInput onSubmit={(rating, comment) => {
+                                  handleRateTrip({ from: ad.from, to: ad.to, price: ad.price }, rating, comment);
+                                }} />
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </>
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
