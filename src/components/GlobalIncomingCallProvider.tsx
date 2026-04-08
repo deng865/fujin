@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import IncomingCall from "@/components/chat/IncomingCall";
-import { primeAudioNotifications } from "@/lib/audioNotifications";
+import { primeAudioNotifications, playMessageNotificationTone } from "@/lib/audioNotifications";
 
 interface IncomingCallState {
   callerName: string;
@@ -38,6 +38,30 @@ export default function GlobalIncomingCallProvider() {
   // Skip on chat pages (ChatRoom has its own listener) and Messages page (has its own too)
   const isChatPage = location.pathname.startsWith("/chat/");
   const isMessagesPage = location.pathname === "/messages";
+
+  // Global message notification (sound + vibration) on pages that don't have their own listener
+  useEffect(() => {
+    if (!userId || isChatPage || isMessagesPage) return;
+
+    const msgCh = supabase.channel("global-msg-notify")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+      }, (payload) => {
+        const msg = payload.new as any;
+        if (msg.sender_id !== userId) {
+          void playMessageNotificationTone();
+          // Vibrate if supported (200ms pulse)
+          if (navigator.vibrate) {
+            navigator.vibrate(200);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(msgCh); };
+  }, [userId, isChatPage, isMessagesPage]);
 
   // Listen for incoming calls globally
   useEffect(() => {
