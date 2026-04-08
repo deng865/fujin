@@ -392,26 +392,23 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
   // Handle trip_accept_notify type
   const notifyData = parseTripAcceptNotify(content);
   if (notifyData) {
-    const tripEnded = isCancelled || isCompleted;
+    // Hide this card entirely when trip is completed or cancelled — status already shown on AcceptTripCard
+    if (isCancelled || isCompleted) return null;
     return (
       <div className={`rounded-2xl overflow-hidden w-[280px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
-        <div className={`px-4 py-3 border rounded-2xl ${tripEnded ? "bg-muted/50 border-border" : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"}`}>
-          <div className={`flex items-center gap-1.5 text-xs font-semibold mb-3 ${tripEnded ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-400"}`}>
+        <div className="px-4 py-3 border rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
+          <div className="flex items-center gap-1.5 text-xs font-semibold mb-3 text-emerald-700 dark:text-emerald-400">
             <Car className="h-4 w-4" />
-            {isCompleted ? "✅ 订单已完成" : isCancelled ? "已结束预约" : "🚗 司机已接单，正在赶来"}
+            🚗 司机已接单，正在赶来
           </div>
-          {!tripEnded && (
-            <>
-              <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2">
-                <div className="text-xs text-muted-foreground">距离你</div>
-                <div className="text-sm font-semibold text-foreground">{notifyData.distanceMi.toFixed(1)} miles</div>
-              </div>
-              <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2 mt-1">
-                <div className="text-xs text-muted-foreground">预计到达</div>
-                <div className="text-sm font-semibold text-foreground">约 {notifyData.etaMin} 分钟</div>
-              </div>
-            </>
-          )}
+          <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2">
+            <div className="text-xs text-muted-foreground">距离你</div>
+            <div className="text-sm font-semibold text-foreground">{notifyData.distanceMi.toFixed(1)} miles</div>
+          </div>
+          <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2 mt-1">
+            <div className="text-xs text-muted-foreground">预计到达</div>
+            <div className="text-sm font-semibold text-foreground">约 {notifyData.etaMin} 分钟</div>
+          </div>
         </div>
       </div>
     );
