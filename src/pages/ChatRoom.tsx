@@ -930,9 +930,10 @@ export default function ChatRoom() {
   return (
     <>
     <div className="flex flex-col h-[100dvh] bg-background">
-      {inCall && userId && conversationId && (
+      {inCall && userId && conversationId && callSessionId && (
         <VoiceCall
           conversationId={conversationId}
+          callSessionId={callSessionId}
           userId={userId}
           userName={myName}
           otherUserName={otherUser?.name || "用户"}
@@ -940,6 +941,7 @@ export default function ChatRoom() {
           onClose={(callDuration?: number) => {
             setInCall(false);
             setIsCallCaller(true);
+            setCallSessionId(null);
             if (callDuration !== undefined && callDuration > 0) {
               saveCallRecord("completed", userId, callDuration);
             } else if (isCallCaller) {
@@ -951,18 +953,16 @@ export default function ChatRoom() {
       {incomingCall && !inCall && (
         <IncomingCall
           callerName={incomingCall.callerName}
-          onAccept={() => { setIsCallCaller(false); setIncomingCall(null); setInCall(true); }}
-          onDecline={() => {
-            // Send hangup to caller's signal channel
-            if (incomingCall.signalChannel) {
-              const ch = supabase.channel(incomingCall.signalChannel);
-              ch.subscribe((s) => {
-                if (s === "SUBSCRIBED") {
-                  ch.send({ type: "broadcast", event: "hangup", payload: { from: userId } });
-                  setTimeout(() => supabase.removeChannel(ch), 500);
-                }
-              });
-            }
+          onAccept={async () => {
+            // Mark session as answered
+            await supabase.from("call_sessions").update({ status: "answered" } as any).eq("id", incomingCall.sessionId);
+            setCallSessionId(incomingCall.sessionId);
+            setIsCallCaller(false);
+            setIncomingCall(null);
+            setInCall(true);
+          }}
+          onDecline={async () => {
+            await supabase.from("call_sessions").update({ status: "ended", ended_at: new Date().toISOString() } as any).eq("id", incomingCall.sessionId);
             saveCallRecord("declined", incomingCall.callerId);
             setIncomingCall(null);
           }}
