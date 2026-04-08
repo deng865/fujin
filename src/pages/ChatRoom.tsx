@@ -79,6 +79,8 @@ export default function ChatRoom() {
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [isDriver, setIsDriver] = useState(false);
   const [acceptingTrip, setAcceptingTrip] = useState(false);
+  const [completingTrip, setCompletingTrip] = useState(false);
+  const [cancellingTrip, setCancellingTrip] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -656,17 +658,22 @@ export default function ChatRoom() {
     const trip = pendingCancelTrip;
     setPendingCancelTrip(null);
     if (!trip || !userId || !conversationId) return;
-    const cancelContent = JSON.stringify({ type: "trip_cancel", from: trip.from, to: trip.to, cancelledBy: userId });
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: userId,
-      content: cancelContent,
-    });
-    if (!error) {
-      await supabase.from("conversations").update({
-        last_message: "❌ 已结束预约",
-        updated_at: new Date().toISOString(),
-      }).eq("id", conversationId);
+    setCancellingTrip(true);
+    try {
+      const cancelContent = JSON.stringify({ type: "trip_cancel", from: trip.from, to: trip.to, cancelledBy: userId });
+      const { error } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: cancelContent,
+      });
+      if (!error) {
+        await supabase.from("conversations").update({
+          last_message: "❌ 已结束预约",
+          updated_at: new Date().toISOString(),
+        }).eq("id", conversationId);
+      }
+    } finally {
+      setCancellingTrip(false);
     }
   };
 
@@ -681,17 +688,22 @@ export default function ChatRoom() {
     const trip = pendingCompleteTrip;
     setPendingCompleteTrip(null);
     if (!trip || !userId || !conversationId) return;
-    const completeContent = JSON.stringify({ type: "trip_complete", from: trip.from, to: trip.to, price: trip.price, completedBy: userId });
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: userId,
-      content: completeContent,
-    });
-    if (!error) {
-      await supabase.from("conversations").update({
-        last_message: "✅ 订单已完成",
-        updated_at: new Date().toISOString(),
-      }).eq("id", conversationId);
+    setCompletingTrip(true);
+    try {
+      const completeContent = JSON.stringify({ type: "trip_complete", from: trip.from, to: trip.to, price: trip.price, completedBy: userId });
+      const { error } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: completeContent,
+      });
+      if (!error) {
+        await supabase.from("conversations").update({
+          last_message: "✅ 订单已完成",
+          updated_at: new Date().toISOString(),
+        }).eq("id", conversationId);
+      }
+    } finally {
+      setCompletingTrip(false);
     }
   };
 
@@ -910,16 +922,18 @@ export default function ChatRoom() {
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => handleCompleteTrip(trip)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                  disabled={completingTrip || cancellingTrip}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
                 >
-                  <Check className="h-3.5 w-3.5" />
+                  {completingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                   订单已完成
                 </button>
                 <button
                   onClick={() => handleCancelTrip(trip)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors"
+                  disabled={completingTrip || cancellingTrip}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors disabled:opacity-50"
                 >
-                  <XCircle className="h-3.5 w-3.5" />
+                  {cancellingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
                   结束预约
                 </button>
               </div>
@@ -1047,7 +1061,7 @@ export default function ChatRoom() {
                       })()
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content) || (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })()) ? (
                       <>
-                        <TripMessage content={msg.content} isMe={isMe} isActive={isActiveForTrip(msg.content)} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} />
+                        <TripMessage content={msg.content} isMe={isMe} isActive={isActiveForTrip(msg.content)} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} acceptingTrip={acceptingTrip} completingTrip={completingTrip} cancellingTrip={cancellingTrip} />
                         {parseTripAcceptMessage(msg.content) && (isCancelledForAccept(msg.content) || isCompletedForAccept(msg.content)) && !hasRatedForAccept(msg.content) && (() => {
                           const ad = parseTripAcceptMessage(msg.content);
                           if (!ad) return null;

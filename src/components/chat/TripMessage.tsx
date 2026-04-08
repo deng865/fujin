@@ -26,7 +26,6 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fr
     return [[minLng - padLng, minLat - padLat], [maxLng + padLng, maxLat + padLat]] as [[number, number], [number, number]];
   }, [fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng]);
 
-  // Fallback straight line
   const fallbackLine = useMemo(() => ({
     type: "Feature" as const,
     properties: {},
@@ -38,20 +37,11 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fr
   useEffect(() => {
     let cancelled = false;
     setRouteError(false);
-
     const controller = new AbortController();
     const failRoute = () => {
-      if (!cancelled) {
-        setRouteError(true);
-        onRouteError?.();
-      }
+      if (!cancelled) { setRouteError(true); onRouteError?.(); }
     };
-
-    const timeout = window.setTimeout(() => {
-      controller.abort();
-      failRoute();
-    }, 10000);
-
+    const timeout = window.setTimeout(() => { controller.abort(); failRoute(); }, 10000);
     const fetchRoute = async () => {
       try {
         const res = await fetch(
@@ -62,33 +52,17 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fr
         if (!cancelled && data.routes?.[0]) {
           window.clearTimeout(timeout);
           const route = data.routes[0];
-          const coords = route.geometry.coordinates;
-          setRouteGeoJson({
-            type: "Feature",
-            properties: {},
-            geometry: route.geometry,
-          });
+          setRouteGeoJson({ type: "Feature", properties: {}, geometry: route.geometry });
           const km = route.distance / 1000;
-          onRouteLoaded?.({
-            coordinates: coords,
-            distanceKm: km,
-            distanceMi: km * 0.621371,
-            durationMin: Math.round(route.duration / 60),
-          });
-        } else if (!cancelled) {
-          failRoute();
-        }
+          onRouteLoaded?.({ coordinates: route.geometry.coordinates, distanceKm: km, distanceMi: km * 0.621371, durationMin: Math.round(route.duration / 60) });
+        } else if (!cancelled) { failRoute(); }
       } catch (error) {
         if ((error as DOMException)?.name === "AbortError") return;
         failRoute();
       }
     };
     fetchRoute();
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeout);
-      controller.abort();
-    };
+    return () => { cancelled = true; window.clearTimeout(timeout); controller.abort(); };
   }, [fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng]);
 
   return (
@@ -187,7 +161,29 @@ export function parseTripAcceptNotify(content: string): TripAcceptNotifyData | n
   return null;
 }
 
-function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, onComplete, onRate, hasRated }: {
+// Unified status label
+function TripStatusBadge({ isCancelled, isCompleted }: { isCancelled?: boolean; isCompleted?: boolean }) {
+  if (isCompleted) return (
+    <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
+      <Check className="h-3.5 w-3.5" />
+      ✅ 订单已完成
+    </div>
+  );
+  if (isCancelled) return (
+    <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
+      <XCircle className="h-3.5 w-3.5" />
+      已结束预约
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
+      <Car className="h-3.5 w-3.5" />
+      🚗 行程进行中
+    </div>
+  );
+}
+
+function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, onComplete, onRate, hasRated, completingTrip, cancellingTrip }: {
   acceptData: { from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } };
   isMe: boolean;
   isCancelled?: boolean;
@@ -196,19 +192,19 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
   onComplete?: (trip: { from: string; to: string; price?: string }) => void;
   onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
   hasRated?: boolean;
+  completingTrip?: boolean;
+  cancellingTrip?: boolean;
 }) {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [routeFailed, setRouteFailed] = useState(false);
   const tripEnded = isCancelled || isCompleted;
   const showRouteSection = !tripEnded && !!acceptData.fromCoords && !!acceptData.toCoords;
+  const buttonsDisabled = completingTrip || cancellingTrip;
 
   return (
     <div className={`rounded-2xl overflow-hidden w-[260px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
       <div className={`px-3 py-2.5 ${tripEnded ? "bg-muted/60 text-muted-foreground" : isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
-        <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
-          {isCompleted ? <Check className="h-3.5 w-3.5" /> : isCancelled ? <XCircle className="h-3.5 w-3.5" /> : <Car className="h-3.5 w-3.5" />}
-          {isCompleted ? "✅ 订单已完成" : isCancelled ? "已结束预约" : "🚗 行程进行中"}
-        </div>
+        <TripStatusBadge isCancelled={isCancelled} isCompleted={isCompleted} />
         <div className="space-y-1 text-xs">
           <div className="flex items-start gap-2">
             <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
@@ -223,11 +219,9 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
             <span className="break-words">{acceptData.to}</span>
           </div>
         </div>
-        {/* Mini map for accept card */}
         {showRouteSection && (
-          <TripMiniMap fromCoords={acceptData.fromCoords} toCoords={acceptData.toCoords} onRouteLoaded={setRouteInfo} onRouteError={() => setRouteFailed(true)} />
+          <TripMiniMap fromCoords={acceptData.fromCoords!} toCoords={acceptData.toCoords!} onRouteLoaded={setRouteInfo} onRouteError={() => setRouteFailed(true)} />
         )}
-        {/* Distance & ETA */}
         {showRouteSection && (
           <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
             <Route className="h-3.5 w-3.5 shrink-0" />
@@ -250,24 +244,26 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
             <span className="font-medium">成交价: ${acceptData.price}</span>
           </div>
         )}
-        {/* Action buttons */}
+        {/* Action buttons - with loading/disabled states */}
         {!isCancelled && !isCompleted && (onCancel || onComplete) && (
           <div className="flex gap-2 mt-2">
             {onComplete && (
               <button
-                onClick={() => onComplete({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
-                className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
+                onClick={() => !buttonsDisabled && onComplete({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                disabled={buttonsDisabled}
+                className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
               >
-                <Check className="h-3.5 w-3.5" />
+                {completingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                 订单已完成
               </button>
             )}
             {onCancel && (
               <button
-                onClick={() => onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
-                className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
+                onClick={() => !buttonsDisabled && onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                disabled={buttonsDisabled}
+                className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50 text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
               >
-                <XCircle className="h-3.5 w-3.5" />
+                {cancellingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
                 结束预约
               </button>
             )}
@@ -296,17 +292,21 @@ interface TripMessageProps {
   hasRated?: boolean;
   isCancelled?: boolean;
   isCompleted?: boolean;
+  acceptingTrip?: boolean;
+  completingTrip?: boolean;
+  cancellingTrip?: boolean;
 }
 
-export default function TripMessage({ content, isMe, isActive, onAccept, onCounter, onRate, onCancel, onComplete, hasRated, isCancelled, isCompleted }: TripMessageProps) {
+export default function TripMessage({ content, isMe, isActive, onAccept, onCounter, onRate, onCancel, onComplete, hasRated, isCancelled, isCompleted, acceptingTrip, completingTrip, cancellingTrip }: TripMessageProps) {
   const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
   const [showCounterInput, setShowCounterInput] = useState(false);
   const [counterPrice, setCounterPrice] = useState("");
   const [showRatingInput, setShowRatingInput] = useState(false);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [mainRouteFailed, setMainRouteFailed] = useState(false);
+  const [counterSending, setCounterSending] = useState(false);
 
-  // Handle trip_accept_notify type (driver accepted notification)
+  // Handle trip_accept_notify type
   const notifyData = parseTripAcceptNotify(content);
   if (notifyData) {
     const tripEnded = isCancelled || isCompleted;
@@ -315,7 +315,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
         <div className={`px-4 py-3 border rounded-2xl ${tripEnded ? "bg-muted/50 border-border" : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"}`}>
           <div className={`flex items-center gap-1.5 text-xs font-semibold mb-3 ${tripEnded ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-400"}`}>
             <Car className="h-4 w-4" />
-            {isCompleted ? "✅ 订单已完成" : isCancelled ? "已结束预约" : "🚗 行程进行中"}
+            {isCompleted ? "✅ 订单已完成" : isCancelled ? "已结束预约" : "🚗 司机已接单，正在赶来"}
           </div>
           <div className={`flex items-center gap-3 mb-3 ${tripEnded ? "opacity-60" : ""}`}>
             <Avatar className={`h-12 w-12 border-2 ${tripEnded ? "border-border" : "border-emerald-200 dark:border-emerald-700"}`}>
@@ -433,7 +433,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
   const acceptData = parseTripAcceptMessage(content);
   if (acceptData) {
     return (
-      <AcceptTripCard acceptData={acceptData} isMe={isMe} isCancelled={isCancelled} isCompleted={isCompleted} onCancel={onCancel} onComplete={onComplete} onRate={onRate} hasRated={hasRated} />
+      <AcceptTripCard acceptData={acceptData} isMe={isMe} isCancelled={isCancelled} isCompleted={isCompleted} onCancel={onCancel} onComplete={onComplete} onRate={onRate} hasRated={hasRated} completingTrip={completingTrip} cancellingTrip={cancellingTrip} />
     );
   }
 
@@ -445,7 +445,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
         <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
           <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
             <MessageCircle className="h-3.5 w-3.5" />
-            还价
+            💬 议价中
           </div>
           <div className="space-y-1 text-xs">
             <div className="flex items-start gap-2">
@@ -477,16 +477,18 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
           {!isMe && onAccept && (
             <div className="flex gap-2 mt-2">
               <button
-                onClick={() => onAccept({ from: counterData.from, to: counterData.to, price: counterData.price })}
-                className="flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors"
+                onClick={() => !acceptingTrip && onAccept({ from: counterData.from, to: counterData.to, price: counterData.price })}
+                disabled={acceptingTrip}
+                className="flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors disabled:opacity-50"
               >
-                <Check className="h-3 w-3" />
+                {acceptingTrip ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                 接受
               </button>
               {onCounter && (
                 <button
                   onClick={() => { setShowCounterInput(true); setCounterPrice(""); }}
-                  className="flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors"
+                  disabled={acceptingTrip}
+                  className="flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors disabled:opacity-50"
                 >
                   <MessageCircle className="h-3 w-3" />
                   还价
@@ -506,16 +508,18 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
                 className="flex-1 min-w-0 rounded-md px-2 py-1 text-xs bg-background text-foreground outline-none"
               />
               <button
-                onClick={() => {
-                  if (counterPrice.trim()) {
-                    onCounter({ from: counterData.from, to: counterData.to, originalPrice: counterData.price }, counterPrice.trim());
+                onClick={async () => {
+                  if (counterPrice.trim() && !counterSending) {
+                    setCounterSending(true);
+                    await onCounter({ from: counterData.from, to: counterData.to, originalPrice: counterData.price }, counterPrice.trim());
+                    setCounterSending(false);
                     setShowCounterInput(false);
                   }
                 }}
-                disabled={!counterPrice.trim()}
+                disabled={!counterPrice.trim() || counterSending}
                 className="p-1 rounded-md bg-primary-foreground/20 hover:bg-primary-foreground/30 disabled:opacity-50 transition-colors shrink-0"
               >
-                <Send className="h-3 w-3" />
+                {counterSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
               </button>
             </div>
           )}
@@ -538,6 +542,8 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
         onComplete={onComplete}
         onRate={onRate}
         hasRated={hasRated}
+        completingTrip={completingTrip}
+        cancellingTrip={cancellingTrip}
       />
     );
   }
@@ -563,7 +569,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
         <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
           <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
             <Route className="h-3.5 w-3.5" />
-            行程信息
+            📋 议价中
           </div>
           <div className="space-y-1.5 text-xs">
             <div className="flex items-center gap-2">
@@ -593,11 +599,9 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
               </button>
             </div>
           </div>
-          {/* Mini map preview */}
           {trip.fromCoords && trip.toCoords && (
             <TripMiniMap fromCoords={trip.fromCoords} toCoords={trip.toCoords} onRouteLoaded={setRouteInfo} onRouteError={() => setMainRouteFailed(true)} />
           )}
-          {/* Driving distance + duration */}
           {trip.fromCoords && trip.toCoords && (
             <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
               <Route className="h-3.5 w-3.5 shrink-0" />
@@ -620,20 +624,22 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
               <span className="font-medium">出价: ${trip.price}</span>
             </div>
           )}
-          {/* Accept & Counter buttons for the other party */}
+          {/* Accept & Counter buttons for the other party - with loading */}
           {!isMe && onAccept && (
             <div className="flex gap-2 mt-2">
               <button
-                onClick={() => onAccept(trip)}
-                className="flex-1 flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors"
+                onClick={() => !acceptingTrip && onAccept(trip)}
+                disabled={acceptingTrip}
+                className="flex-1 flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors disabled:opacity-50"
               >
-                <Check className="h-3.5 w-3.5" />
+                {acceptingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                 {trip.price ? "接受报价" : "接受行程"}
               </button>
               {trip.price && onCounter && (
                 <button
                   onClick={() => { setShowCounterInput(true); setCounterPrice(""); }}
-                  className="flex-1 flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors"
+                  disabled={acceptingTrip}
+                  className="flex-1 flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors disabled:opacity-50"
                 >
                   <MessageCircle className="h-3.5 w-3.5" />
                   还价
@@ -653,16 +659,18 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
                 className="flex-1 min-w-0 rounded-md px-2 py-1.5 text-xs bg-background text-foreground outline-none"
               />
               <button
-                onClick={() => {
-                  if (counterPrice.trim()) {
-                    onCounter({ from: trip.from, to: trip.to, originalPrice: trip.price }, counterPrice.trim());
+                onClick={async () => {
+                  if (counterPrice.trim() && !counterSending) {
+                    setCounterSending(true);
+                    await onCounter({ from: trip.from, to: trip.to, originalPrice: trip.price }, counterPrice.trim());
+                    setCounterSending(false);
                     setShowCounterInput(false);
                   }
                 }}
-                disabled={!counterPrice.trim()}
+                disabled={!counterPrice.trim() || counterSending}
                 className="p-1.5 rounded-md bg-primary-foreground/20 hover:bg-primary-foreground/30 disabled:opacity-50 transition-colors shrink-0"
               >
-                <Send className="h-3.5 w-3.5" />
+                {counterSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               </button>
             </div>
           )}
