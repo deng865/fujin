@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import IncomingCall from "@/components/chat/IncomingCall";
-import { primeAudioNotifications } from "@/lib/audioNotifications";
+import { primeAudioNotifications, playMessageNotificationTone } from "@/lib/audioNotifications";
 
 interface IncomingCallState {
   callerName: string;
