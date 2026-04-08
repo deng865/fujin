@@ -658,17 +658,22 @@ export default function ChatRoom() {
     const trip = pendingCancelTrip;
     setPendingCancelTrip(null);
     if (!trip || !userId || !conversationId) return;
-    const cancelContent = JSON.stringify({ type: "trip_cancel", from: trip.from, to: trip.to, cancelledBy: userId });
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: userId,
-      content: cancelContent,
-    });
-    if (!error) {
-      await supabase.from("conversations").update({
-        last_message: "❌ 已结束预约",
-        updated_at: new Date().toISOString(),
-      }).eq("id", conversationId);
+    setCancellingTrip(true);
+    try {
+      const cancelContent = JSON.stringify({ type: "trip_cancel", from: trip.from, to: trip.to, cancelledBy: userId });
+      const { error } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: cancelContent,
+      });
+      if (!error) {
+        await supabase.from("conversations").update({
+          last_message: "❌ 已结束预约",
+          updated_at: new Date().toISOString(),
+        }).eq("id", conversationId);
+      }
+    } finally {
+      setCancellingTrip(false);
     }
   };
 
