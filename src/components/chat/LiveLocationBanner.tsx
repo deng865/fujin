@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Radio, X, StopCircle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Radio, StopCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface LiveLocationBannerProps {
   conversationId: string;
   userId: string;
   durationMinutes: number;
-  startedAt: number; // timestamp ms
+  startedAt: number;
   onStop: () => void;
+  onPositionUpdate?: (pos: { lat: number; lng: number }) => void;
 }
 
 export default function LiveLocationBanner({
@@ -16,6 +17,7 @@ export default function LiveLocationBanner({
   durationMinutes,
   startedAt,
   onStop,
+  onPositionUpdate,
 }: LiveLocationBannerProps) {
   const [remaining, setRemaining] = useState("");
   const watchIdRef = useRef<number | null>(null);
@@ -39,34 +41,39 @@ export default function LiveLocationBanner({
     return () => clearInterval(interval);
   }, [startedAt, durationMinutes, onStop]);
 
-  // Watch position and broadcast
+  // Watch position and broadcast — wait for SUBSCRIBED before starting GPS
   useEffect(() => {
-    channelRef.current = supabase.channel(`live-loc-${conversationId}`);
-    channelRef.current.subscribe();
+    const ch = supabase.channel(`live-loc-${conversationId}`);
+    channelRef.current = ch;
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        channelRef.current?.send({
-          type: "broadcast",
-          event: "live-location",
-          payload: {
-            userId,
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            timestamp: Date.now(),
+    ch.subscribe((status: string) => {
+      if (status === "SUBSCRIBED") {
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (pos) => {
+            const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            onPositionUpdate?.(coords);
+            ch.send({
+              type: "broadcast",
+              event: "live-location",
+              payload: {
+                userId,
+                lat: coords.lat,
+                lng: coords.lng,
+                timestamp: Date.now(),
+              },
+            });
           },
-        });
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
-    );
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+        );
+      }
+    });
 
     return () => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
       if (channelRef.current) {
-        // Send stop signal so the other party knows sharing ended
         channelRef.current.send({
           type: "broadcast",
           event: "live-location-stop",
