@@ -945,21 +945,23 @@ export default function ChatRoom() {
       {/* Driver real-time tracking map */}
       {(() => {
         if (!hasActiveTrip() || !userId || !conversationId) return null;
-        // Find the passenger's pickup coords from the original trip message
-        const tripMsg = messages.find((m) => {
-          const td = parseTripMessage(m.content);
-          return td && td.fromCoords;
-        });
-        if (!tripMsg) return null;
-        const td = parseTripMessage(tripMsg.content);
-        if (!td?.fromCoords) return null;
+        // Find the active accepted trip's coordinates
+        const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
+        let activeAccept: ReturnType<typeof parseTripAcceptMessage> = null;
+        for (const acceptMsg of accepts) {
+          if (!isCancelledForAccept(acceptMsg.content) && !isCompletedForAccept(acceptMsg.content)) {
+            activeAccept = parseTripAcceptMessage(acceptMsg.content);
+            break;
+          }
+        }
+        if (!activeAccept?.fromCoords) return null;
         return (
           <DriverTracking
             conversationId={conversationId}
             userId={userId}
             isDriver={isDriver}
-            passengerLocation={td.fromCoords}
-            destinationLocation={td.toCoords}
+            passengerLocation={activeAccept.fromCoords}
+            destinationLocation={activeAccept.toCoords}
           />
         );
       })()}
