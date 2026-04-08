@@ -516,7 +516,7 @@ export default function ChatRoom() {
           if (geo.features?.[0]?.place_name) address = geo.features[0].place_name;
         }
       } catch {}
-      const locationContent = JSON.stringify({ type: "location", lat: latitude, lng: longitude, address });
+      const locationContent = JSON.stringify({ type: "location", lat: latitude, lng: longitude, address, senderName: myName });
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId, sender_id: userId, content: locationContent,
       });
@@ -1182,7 +1182,7 @@ export default function ChatRoom() {
                     {parseLiveLocationMessage(msg.content) ? (
                       <LiveLocationMessage content={msg.content} isMe={isMe} onOpen={() => setShowLiveMap(true)} />
                     ) : parseLocationMessage(msg.content) ? (
-                      <LocationMessage content={msg.content} isMe={isMe} />
+                      <LocationMessage content={msg.content} isMe={isMe} senderName={isMe ? myName : otherUser?.name} />
                     ) : parseMediaMessage(msg.content) ? (
                       <MediaMessage content={msg.content} isMe={isMe} />
                     ) : parseVoiceMessage(msg.content) ? (
