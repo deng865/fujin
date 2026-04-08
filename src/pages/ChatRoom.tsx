@@ -84,6 +84,8 @@ export default function ChatRoom() {
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [liveShare, setLiveShare] = useState<{ duration: number; startedAt: number } | null>(null);
   const [showLiveMap, setShowLiveMap] = useState(false);
+  const [selectedLiveLocation, setSelectedLiveLocation] = useState<{ myPos?: { lat: number; lng: number }; otherPos?: { lat: number; lng: number } } | null>(null);
+  const [cachedMyPos, setCachedMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [isDriver, setIsDriver] = useState(false);
   const [acceptingTrip, setAcceptingTrip] = useState(false);
