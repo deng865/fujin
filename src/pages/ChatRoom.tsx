@@ -1064,7 +1064,8 @@ export default function ChatRoom() {
                       })()
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content)) ? (
                         <TripMessage content={msg.content} isMe={isMe} isActive={isActiveForTrip(msg.content)} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onCounterOpen={scrollToBottom} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} acceptingTrip={acceptingTrip} completingTrip={completingTrip} cancellingTrip={cancellingTrip} />
-                    ) : (() => { try { const p = JSON.parse(msg.content); if (p?.type === "trip_complete") return <span className="hidden" />; } catch {} return null; })() || (
+                    ) : (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })() ? (
+                        <span className="hidden" />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
