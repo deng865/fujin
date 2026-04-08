@@ -4,7 +4,7 @@ import { TripRatingInput } from "./TripRating";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import Map, { Marker, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+
 
 interface RouteInfo {
   coordinates: [number, number][];
@@ -207,14 +207,20 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
         <TripStatusBadge isCancelled={isCancelled} isCompleted={isCompleted} />
         <div className="space-y-1 text-xs">
           <div className="flex items-start gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            <div className="flex items-center gap-1 shrink-0 mt-0.5">
+              <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              </div>
+              <span className="text-[10px] font-medium text-green-600">出发地</span>
             </div>
             <span className="break-words">{acceptData.from}</span>
           </div>
           <div className="flex items-start gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center shrink-0 mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            <div className="flex items-center gap-1 shrink-0 mt-0.5">
+              <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              </div>
+              <span className="text-[10px] font-medium text-red-500">目的地</span>
             </div>
             <span className="break-words">{acceptData.to}</span>
           </div>
