@@ -25,6 +25,8 @@ import VoiceMessage, { parseVoiceMessage } from "@/components/chat/VoiceMessage"
 import VoiceRecorder from "@/components/chat/VoiceRecorder";
 import LocationShareDialog from "@/components/chat/LocationShareDialog";
 import LiveLocationBanner from "@/components/chat/LiveLocationBanner";
+import LiveLocationMessage, { parseLiveLocationMessage } from "@/components/chat/LiveLocationMessage";
+import LiveLocationMap from "@/components/chat/LiveLocationMap";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import VoiceCall from "@/components/chat/VoiceCall";
 import IncomingCall from "@/components/chat/IncomingCall";
@@ -81,6 +83,7 @@ export default function ChatRoom() {
   const [isRideChat, setIsRideChat] = useState(false);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [liveShare, setLiveShare] = useState<{ duration: number; startedAt: number } | null>(null);
+  const [showLiveMap, setShowLiveMap] = useState(false);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [isDriver, setIsDriver] = useState(false);
   const [acceptingTrip, setAcceptingTrip] = useState(false);
@@ -210,6 +213,11 @@ export default function ChatRoom() {
               .from("messages")
               .update({ read_at: new Date().toISOString() })
               .eq("id", newMsg.id);
+            // Auto-start receiver's live share when other party initiates
+            const liveData = parseLiveLocationMessage(newMsg.content);
+            if (liveData) {
+              setLiveShare({ duration: liveData.durationMinutes, startedAt: Date.now() });
+            }
           }
         }
       )
@@ -1171,7 +1179,9 @@ export default function ChatRoom() {
                         </button>
                       </div>
                     )}
-                    {parseLocationMessage(msg.content) ? (
+                    {parseLiveLocationMessage(msg.content) ? (
+                      <LiveLocationMessage content={msg.content} isMe={isMe} onOpen={() => setShowLiveMap(true)} />
+                    ) : parseLocationMessage(msg.content) ? (
                       <LocationMessage content={msg.content} isMe={isMe} />
                     ) : parseMediaMessage(msg.content) ? (
                       <MediaMessage content={msg.content} isMe={isMe} />
@@ -1317,6 +1327,17 @@ export default function ChatRoom() {
       onShareLive={handleStartLiveShare}
       sendingLocation={sendingLocation}
     />
+
+    {showLiveMap && userId && otherUserId && conversationId && (
+      <LiveLocationMap
+        conversationId={conversationId}
+        userId={userId}
+        otherUserId={otherUserId}
+        myName={myName || "我"}
+        otherName={otherUser?.name || "对方"}
+        onClose={() => setShowLiveMap(false)}
+      />
+    )}
 
     <AlertDialog open={!!pendingCancelTrip} onOpenChange={(open) => { if (!open) setPendingCancelTrip(null); }}>
       <AlertDialogContent>
