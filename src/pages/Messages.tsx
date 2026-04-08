@@ -283,6 +283,21 @@ export default function Messages() {
   }
 
   return (
+    <>
+    {incomingCall && (
+      <IncomingCall
+        callerName={incomingCall.callerName}
+        onAccept={async () => {
+          await supabase.from("call_sessions").update({ status: "answered" } as any).eq("id", incomingCall.sessionId);
+          setIncomingCall(null);
+          navigate(`/chat/${incomingCall.conversationId}?callSession=${incomingCall.sessionId}`);
+        }}
+        onDecline={async () => {
+          await supabase.from("call_sessions").update({ status: "ended", ended_at: new Date().toISOString() } as any).eq("id", incomingCall.sessionId);
+          setIncomingCall(null);
+        }}
+      />
+    )}
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
