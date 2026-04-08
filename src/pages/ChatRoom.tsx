@@ -65,7 +65,9 @@ export default function ChatRoom() {
   const [loading, setLoading] = useState(true);
   const [inCall, setInCall] = useState(false);
   const [isCallCaller, setIsCallCaller] = useState(true);
-  const [incomingCall, setIncomingCall] = useState<{ callerName: string; callerId: string; signalChannel?: string } | null>(null);
+  const [callSessionId, setCallSessionId] = useState<string | null>(null);
+  const [startingCall, setStartingCall] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ callerName: string; callerId: string; sessionId: string } | null>(null);
   const [myName, setMyName] = useState("");
   const [myPhone, setMyPhone] = useState<string | null>(null);
   const [myWechat, setMyWechat] = useState<string | null>(null);
