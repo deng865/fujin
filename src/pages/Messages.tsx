@@ -5,6 +5,7 @@ import { ArrowLeft, MessageCircle, PhoneMissed, Bell, ChevronRight, Pin, Trash2,
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { toast } from "sonner";
+import IncomingCall from "@/components/chat/IncomingCall";
 
 interface Conversation {
   id: string;
