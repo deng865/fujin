@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from "react-router-dom";
 import BottomNav from "./BottomNav";
+import GlobalIncomingCallProvider from "./GlobalIncomingCallProvider";
 
 const HIDE_NAV_ROUTES = ["/auth", "/reset-password", "/create-post"];
 
@@ -9,6 +10,7 @@ export default function AppLayout() {
 
   return (
     <>
+      <GlobalIncomingCallProvider />
       <Outlet />
       {!hideNav && <BottomNav />}
     </>
