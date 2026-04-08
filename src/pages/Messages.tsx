@@ -192,6 +192,34 @@ export default function Messages() {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
+  // Listen for incoming calls globally
+  useEffect(() => {
+    if (!userId) return;
+    const ch = supabase.channel("global-incoming-calls")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "call_sessions",
+      }, async (payload) => {
+        const session = payload.new as any;
+        if (session.receiver_id === userId && session.status === "ringing") {
+          const { data: callerProfile } = await supabase
+            .from("public_profiles")
+            .select("name")
+            .eq("id", session.caller_id)
+            .single();
+          setIncomingCall({
+            callerName: callerProfile?.name || "用户",
+            callerId: session.caller_id,
+            sessionId: session.id,
+            conversationId: session.conversation_id,
+          });
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [userId]);
+
   const fetchConversations = async (uid: string) => {
     const { data } = await supabase
       .from("conversations")
