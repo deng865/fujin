@@ -297,7 +297,7 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
         <div className={`px-4 py-3 border rounded-2xl ${tripEnded ? "bg-muted/50 border-border" : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"}`}>
           <div className={`flex items-center gap-1.5 text-xs font-semibold mb-3 ${tripEnded ? "text-muted-foreground" : "text-emerald-700 dark:text-emerald-400"}`}>
             <Car className="h-4 w-4" />
-            {isCompleted ? "✅ 订单已完成" : isCancelled ? "已结束预约" : "🚗 司机已接单，正在赶来"}
+            {isCompleted ? "✅ 订单已完成" : isCancelled ? "已结束预约" : "🚗 行程进行中"}
           </div>
           <div className={`flex items-center gap-3 mb-3 ${tripEnded ? "opacity-60" : ""}`}>
             <Avatar className={`h-12 w-12 border-2 ${tripEnded ? "border-border" : "border-emerald-200 dark:border-emerald-700"}`}>
