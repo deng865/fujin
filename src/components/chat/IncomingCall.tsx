@@ -1,6 +1,7 @@
 import { Phone, PhoneOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { startIncomingRingtone } from "@/lib/audioNotifications";
 
 interface IncomingCallProps {
   callerName: string;
@@ -9,45 +10,9 @@ interface IncomingCallProps {
 }
 
 export default function IncomingCall({ callerName, onAccept, onDecline }: IncomingCallProps) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
   useEffect(() => {
-    // Create a simple ringtone using Web Audio API
-    const ctx = new AudioContext();
-    let playing = true;
-
-    const ring = async () => {
-      while (playing) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 440;
-        gain.gain.value = 0.15;
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
-        await new Promise((r) => setTimeout(r, 500));
-
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.frequency.value = 480;
-        gain2.gain.value = 0.15;
-        osc2.start();
-        osc2.stop(ctx.currentTime + 0.4);
-        await new Promise((r) => setTimeout(r, 2000));
-
-        if (!playing) break;
-      }
-    };
-
-    ring();
-
-    return () => {
-      playing = false;
-      ctx.close();
-    };
+    const stopRingtone = startIncomingRingtone();
+    return () => stopRingtone();
   }, []);
 
   // Auto-decline after 30s

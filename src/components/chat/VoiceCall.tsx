@@ -3,6 +3,7 @@ import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { startOutgoingRingtone } from "@/lib/audioNotifications";
 
 interface VoiceCallProps {
   conversationId: string;
@@ -41,7 +42,7 @@ export default function VoiceCall({
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const channelRef = useRef<any>(null);
-  const ringCtxRef = useRef<AudioContext | null>(null);
+  const stopRingRef = useRef<(() => void) | null>(null);
   const ringPlayingRef = useRef(true);
   const statusRef = useRef(status);
   const durationRef = useRef(duration);
@@ -51,8 +52,8 @@ export default function VoiceCall({
   const cleanup = useCallback(() => {
     clearInterval(timerRef.current);
     ringPlayingRef.current = false;
-    ringCtxRef.current?.close().catch(() => {});
-    ringCtxRef.current = null;
+    stopRingRef.current?.();
+    stopRingRef.current = null;
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     pcRef.current?.close();
     pcRef.current = null;
@@ -66,32 +67,16 @@ export default function VoiceCall({
   // Dialing tone for caller
   useEffect(() => {
     if (!isCaller || status !== "ringing") return;
-    const ctx = new AudioContext();
-    ringCtxRef.current = ctx;
     ringPlayingRef.current = true;
-
-    const playRing = async () => {
-      while (ringPlayingRef.current) {
-        try {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.frequency.value = 440;
-          gain.gain.value = 0.08;
-          osc.start();
-          osc.stop(ctx.currentTime + 0.8);
-          await new Promise((r) => setTimeout(r, 3000));
-        } catch {
-          break;
-        }
-      }
-    };
-    playRing();
+    const stopRingtone = startOutgoingRingtone();
+    stopRingRef.current = stopRingtone;
 
     return () => {
       ringPlayingRef.current = false;
-      ctx.close().catch(() => {});
+      stopRingtone();
+      if (stopRingRef.current === stopRingtone) {
+        stopRingRef.current = null;
+      }
     };
   }, [isCaller, status]);
 
@@ -157,7 +142,8 @@ export default function VoiceCall({
           const state = pc.connectionState;
           if (state === "connected") {
             ringPlayingRef.current = false;
-            ringCtxRef.current?.close().catch(() => {});
+            stopRingRef.current?.();
+            stopRingRef.current = null;
             setStatus("connected");
             timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
           } else if (state === "disconnected" || state === "failed") {
@@ -238,7 +224,8 @@ export default function VoiceCall({
             if (isCaller) {
               // Stop ringing tone
               ringPlayingRef.current = false;
-              ringCtxRef.current?.close().catch(() => {});
+              stopRingRef.current?.();
+              stopRingRef.current = null;
               setStatus("connecting");
               await sendOffer();
             }

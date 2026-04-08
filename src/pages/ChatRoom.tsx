@@ -35,6 +35,7 @@ import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounter
 import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
 import { TripRatingInput } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
+import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
 
 interface Message {
   id: string;
@@ -184,6 +185,10 @@ export default function ChatRoom() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  useEffect(() => {
+    primeAudioNotifications();
+  }, []);
+
   // Realtime subscription - INSERT and UPDATE (for recall)
   useEffect(() => {
     if (!conversationId || !userId) return;
@@ -200,19 +205,7 @@ export default function ChatRoom() {
             return [...prev, newMsg];
           });
           if (newMsg.sender_id !== userId) {
-            // Play notification sound
-            try {
-              const ctx = new AudioContext();
-              const osc = ctx.createOscillator();
-              const gain = ctx.createGain();
-              osc.connect(gain);
-              gain.connect(ctx.destination);
-              osc.frequency.value = 800;
-              gain.gain.value = 0.1;
-              osc.start();
-              osc.stop(ctx.currentTime + 0.15);
-              setTimeout(() => ctx.close(), 300);
-            } catch {}
+            void playMessageNotificationTone();
             await supabase
               .from("messages")
               .update({ read_at: new Date().toISOString() })
@@ -289,10 +282,22 @@ export default function ChatRoom() {
           });
         }
       })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "call_sessions",
+        filter: `conversation_id=eq.${conversationId}`,
+      }, (payload) => {
+        const session = payload.new as any;
+        if (session.receiver_id !== userId) return;
+        if (incomingCall?.sessionId === session.id && session.status !== "ringing") {
+          setIncomingCall(null);
+        }
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
-  }, [conversationId, userId, inCall, otherUser?.name]);
+  }, [conversationId, userId, inCall, otherUser?.name, incomingCall?.sessionId]);
 
   // Also check for any active ringing session on mount
   useEffect(() => {
