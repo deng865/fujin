@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle, Check, DollarSign } from "lucide-react";
+import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle, Check, DollarSign, Star } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
@@ -33,6 +33,7 @@ import EmojiPicker from "@/components/chat/EmojiPicker";
 import TripSharePanel from "@/components/chat/TripSharePanel";
 import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage, parseTripAcceptNotify, parseTripCompleteMessage } from "@/components/chat/TripMessage";
 import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
+import { TripRatingInput } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
 
 interface Message {
