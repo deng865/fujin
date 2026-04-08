@@ -462,7 +462,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
               </button>
               {onCounter && (
                 <button
-                  onClick={() => { setShowCounterInput(true); setCounterPrice(""); }}
+                  onClick={() => { setShowCounterInput(true); setCounterPrice(""); onCounterOpen?.(); }}
                   disabled={acceptingTrip}
                   className="flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors disabled:opacity-50"
                 >
@@ -617,7 +617,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
               </button>
               {trip.price && onCounter && (
                 <button
-                  onClick={() => { setShowCounterInput(true); setCounterPrice(""); }}
+                  onClick={() => { setShowCounterInput(true); setCounterPrice(""); onCounterOpen?.(); }}
                   disabled={acceptingTrip}
                   className="flex-1 flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors disabled:opacity-50"
                 >
