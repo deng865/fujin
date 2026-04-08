@@ -1,21 +1,62 @@
-## 实现计划
 
-### 第一步：数据库迁移
-- 在 `profiles` 表新增 `vehicle_model`（车型）、`vehicle_color`（车色）、`license_plate`（车牌号）字段
-- 在 `rides` 表的 `current_location` 字段已存在，可复用为司机实时位置
 
-### 第二步：司机接单通知消息
-- 新增消息类型 `trip_accept_notify`，内容包含司机姓名、头像、评分、车型、距离、预计到达时间
-- 在 `ChatRoom` 中渲染该消息类型：显示司机头像、车型信息、评分星级、距离和ETA
+# Fix Plan: Live Location Sharing & Static Location Display
 
-### 第三步：司机端实时位置上报
-- 司机接单后，在聊天室启动 `watchPosition` 持续上报 GPS 坐标
-- 通过 Supabase Realtime 将 `rides.current_location` 的变更推送给乘客端
+## Problem 1: Live Location — Other Party Always "Waiting"
 
-### 第四步：乘客端实时地图追踪
-- 在聊天室顶部的行程状态栏中嵌入可展开的实时地图
-- 订阅 `rides.current_location` 的 Realtime 变更，实时更新司机图标位置
-- 显示司机图标从当前位置向乘客位置移动的动画
+**Root Cause**: Channel name mismatch.
+- `LiveLocationBanner` (the broadcaster) uses channel: `live-loc-${conversationId}`
+- `LiveLocationMap` (the viewer) listens on channel: `live-loc-map-${conversationId}`
 
-### 第五步：司机个人资料编辑
-- 在 Profile 页面添加车型、车色、车牌号的编辑表单（仅司机类型用户显示）
+They never communicate because they're on different Supabase Broadcast channels.
+
+**Additionally**, the receiver auto-starts their own `LiveLocationBanner` broadcasting, but the `LiveLocationMap` also starts its own GPS watch internally — creating redundant position tracking that doesn't feed into the broadcast channel the map is listening on.
+
+## Problem 2: Static Location — Should Show Sender Name + Location
+
+**Current behavior**: The `LocationMessage` component shows only the address text (e.g. "共享位置" or a geocoded address). There is no sender name displayed.
+
+**Expected**: Show the sender's username alongside the location, e.g. "张三的位置" in the card.
+
+---
+
+## Plan
+
+### Step 1: Unify Broadcast Channel Names
+**File**: `src/components/chat/LiveLocationMap.tsx`
+
+Change the channel subscription from `live-loc-map-${conversationId}` to `live-loc-${conversationId}` so it matches what `LiveLocationBanner` broadcasts on. Also, the map component should broadcast its own position on the same channel (so both parties see each other), instead of only using a local GPS watch for the "my" marker.
+
+### Step 2: Fix LiveLocationMap to Also Broadcast
+**File**: `src/components/chat/LiveLocationMap.tsx`
+
+The map's GPS `watchPosition` should broadcast coordinates to the shared channel (`live-loc-${conversationId}`) so the other party's map instance can receive them. Currently it only sets local state — the other party never sees these updates.
+
+### Step 3: Add Sender Name to Static Location Message
+**Files**: `src/components/chat/LocationMessage.tsx`, `src/pages/ChatRoom.tsx`
+
+- Add a `senderName` prop to `LocationMessage`
+- Display it in the card footer, e.g. "{senderName}的位置 · {address}"
+- Pass the sender's name from `ChatRoom.tsx` when rendering the component (using the existing `otherName` or current user's name based on `isMe`)
+
+### Step 4: Include sender name in location JSON payload
+**File**: `src/pages/ChatRoom.tsx`
+
+When sending a static location message, include the sender's display name in the JSON content so it can be displayed by the receiver without needing a separate profile lookup:
+```json
+{ "type": "location", "lat": ..., "lng": ..., "address": "...", "senderName": "张三" }
+```
+
+---
+
+## Technical Details
+
+**Channel unification** — Both `LiveLocationBanner` and `LiveLocationMap` will use `live-loc-${conversationId}`. The map will:
+1. Subscribe to the channel
+2. Broadcast its own GPS via `watchPosition` (same as Banner does)
+3. Listen for the other party's broadcasts and update the green marker
+
+This means when both parties have the map open, each broadcasts and each receives — achieving true bidirectional live tracking.
+
+**Static location sender name** — The `LocationMessage` component will parse `senderName` from the JSON content and display it. For backward compatibility with older messages that lack this field, it will fall back to the passed `senderName` prop or generic text.
+
