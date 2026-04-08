@@ -317,37 +317,6 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
             <Car className="h-4 w-4" />
             {isCompleted ? "✅ 订单已完成" : isCancelled ? "已结束预约" : "🚗 司机已接单，正在赶来"}
           </div>
-          <div className={`flex items-center gap-3 mb-3 ${tripEnded ? "opacity-60" : ""}`}>
-            <Avatar className={`h-12 w-12 border-2 ${tripEnded ? "border-border" : "border-emerald-200 dark:border-emerald-700"}`}>
-              {notifyData.driverAvatar ? (
-                <AvatarImage src={notifyData.driverAvatar} alt={notifyData.driverName} />
-              ) : null}
-              <AvatarFallback className={`text-sm font-semibold ${tripEnded ? "bg-muted text-muted-foreground" : "bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300"}`}>
-                {notifyData.driverName.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-foreground">{notifyData.driverName}</p>
-              {notifyData.driverRating && (
-                <div className="flex items-center gap-1 mt-0.5">
-                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                  <span className="text-xs font-medium text-foreground">{notifyData.driverRating.toFixed(1)}</span>
-                </div>
-              )}
-              {notifyData.vehicleModel && (
-                <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
-                  <Car className="h-3 w-3" />
-                  <span>
-                    {notifyData.vehicleColor && `${notifyData.vehicleColor} `}
-                    {notifyData.vehicleModel}
-                  </span>
-                </div>
-              )}
-              {notifyData.licensePlate && (
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">{notifyData.licensePlate}</p>
-              )}
-            </div>
-          </div>
           {!tripEnded && (
             <>
               <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2">
@@ -548,24 +517,22 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
     );
   }
 
-  const openNav = (target: "from" | "to", app: "apple" | "google") => {
+  const getNavUrl = (target: "from" | "to", app: "apple" | "google") => {
     const query = target === "from" ? trip.from : trip.to;
     const coords = target === "from" ? trip.fromCoords : trip.toCoords;
     if (app === "apple") {
-      window.open(coords
+      return coords
         ? `https://maps.apple.com/?daddr=${coords.lat},${coords.lng}&q=${encodeURIComponent(query)}`
-        : `https://maps.apple.com/?daddr=${encodeURIComponent(query)}`, "_blank");
-    } else {
-      window.open(coords
-        ? `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`
-        : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`, "_blank");
+        : `https://maps.apple.com/?daddr=${encodeURIComponent(query)}`;
     }
-    setNavTarget(null);
+    return coords
+      ? `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
   };
 
   return (
     <div className="relative">
-      <div className={`rounded-2xl overflow-hidden w-[240px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+      <div className={`rounded-2xl overflow-hidden w-[260px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
         <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
           <div className="flex items-center gap-1.5 text-xs font-medium mb-2">
             <Route className="h-3.5 w-3.5" />
@@ -573,10 +540,13 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
           </div>
           <div className="space-y-1.5 text-xs">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center shrink-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <div className="flex items-center gap-1 shrink-0">
+                <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                </div>
+                <span className="text-[10px] font-medium text-green-600">出发地</span>
               </div>
-              <span className="break-words flex-1">{trip.from}</span>
+              <span className="break-words flex-1 min-w-0">{trip.from}</span>
               <button
                 onClick={() => setNavTarget(navTarget === "from" ? null : "from")}
                 className={`p-1 rounded-md shrink-0 transition-colors ${isMe ? "hover:bg-primary-foreground/20" : "hover:bg-accent"}`}
@@ -586,10 +556,13 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center shrink-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              <div className="flex items-center gap-1 shrink-0">
+                <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                </div>
+                <span className="text-[10px] font-medium text-red-500">目的地</span>
               </div>
-              <span className="break-words flex-1">{trip.to}</span>
+              <span className="break-words flex-1 min-w-0">{trip.to}</span>
               <button
                 onClick={() => setNavTarget(navTarget === "to" ? null : "to")}
                 className={`p-1 rounded-md shrink-0 transition-colors ${isMe ? "hover:bg-primary-foreground/20" : "hover:bg-accent"}`}
@@ -684,20 +657,26 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
             <div className="px-3 py-1.5 text-[11px] text-muted-foreground border-b border-border/50">
               {navTarget === "from" ? "导航到出发地" : "导航到目的地"}
             </div>
-            <button
-              onClick={() => openNav(navTarget, "apple")}
+            <a
+              href={getNavUrl(navTarget, "apple")}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setNavTarget(null)}
               className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2 transition-colors"
             >
               <Navigation className="h-4 w-4" />
               Apple Maps
-            </button>
-            <button
-              onClick={() => openNav(navTarget, "google")}
+            </a>
+            <a
+              href={getNavUrl(navTarget, "google")}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setNavTarget(null)}
               className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2 border-t border-border/50 transition-colors"
             >
               <Navigation className="h-4 w-4" />
               Google Maps
-            </button>
+            </a>
           </div>
         </>
       )}
