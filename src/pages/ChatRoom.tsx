@@ -1195,7 +1195,18 @@ export default function ChatRoom() {
                       </div>
                     )}
                     {parseLiveLocationMessage(msg.content) ? (
-                      <LiveLocationMessage content={msg.content} isMe={isMe} onOpen={() => setShowLiveMap(true)} />
+                      <LiveLocationMessage content={msg.content} isMe={isMe} onOpen={() => {
+                        const liveData = parseLiveLocationMessage(msg.content);
+                        if (liveData) {
+                          const coords = { lat: liveData.lat, lng: liveData.lng };
+                          const isMeSender = liveData.sharedBy === userId;
+                          setSelectedLiveLocation({
+                            myPos: isMeSender ? coords : cachedMyPos || undefined,
+                            otherPos: isMeSender ? undefined : coords,
+                          });
+                        }
+                        setShowLiveMap(true);
+                      }} />
                     ) : parseLocationMessage(msg.content) ? (
                       <LocationMessage content={msg.content} isMe={isMe} senderName={isMe ? myName : otherUser?.name} />
                     ) : parseMediaMessage(msg.content) ? (
