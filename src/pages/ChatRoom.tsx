@@ -79,6 +79,8 @@ export default function ChatRoom() {
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [isDriver, setIsDriver] = useState(false);
   const [acceptingTrip, setAcceptingTrip] = useState(false);
+  const [completingTrip, setCompletingTrip] = useState(false);
+  const [cancellingTrip, setCancellingTrip] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
