@@ -707,81 +707,72 @@ export default function ChatRoom() {
     }
   };
 
-  // Check if current user already rated for a specific accept message
-  const hasUserRated = useCallback((acceptMsgId: string) => {
-    return messages.some((m) => {
-      if (m.sender_id !== userId) return false;
-      const ratingData = parseTripRatingMessage(m.content);
-      return ratingData !== null && m.content.includes(acceptMsgId);
-    });
-  }, [messages, userId]);
+  // ── Pre-compute trip state once per messages change (avoid O(n²) on every render) ──
+  const tripState = useMemo(() => {
+    const cancelledSet = new Set<string>();
+    const completedSet = new Set<string>();
+    const ratedByMe = new Set<string>();
+    const acceptEntries: { msg: Message; data: ReturnType<typeof parseTripAcceptMessage> }[] = [];
 
-  // Simplified: check if user has any rating message after an accept
-  const hasRatedForAccept = useCallback((acceptContent: string) => {
-    try {
-      const accept = JSON.parse(acceptContent);
-      return messages.some((m) => {
-        if (m.sender_id !== userId) return false;
+    for (const m of messages) {
+      const cd = parseTripCancelMessage(m.content);
+      if (cd) cancelledSet.add(`${cd.from}|${cd.to}`);
+
+      try {
+        const parsed = JSON.parse(m.content);
+        if (parsed?.type === "trip_complete") completedSet.add(`${parsed.from}|${parsed.to}`);
+      } catch {}
+
+      const ad = parseTripAcceptMessage(m.content);
+      if (ad) acceptEntries.push({ msg: m, data: ad });
+
+      if (m.sender_id === userId) {
         const rd = parseTripRatingMessage(m.content);
-        return rd && rd.from === accept.from && rd.to === accept.to;
-      });
-    } catch { return false; }
-  }, [messages, userId]);
-
-  // Check if a specific accepted trip has been cancelled
-  const isCancelledForAccept = useCallback((acceptContent: string) => {
-    try {
-      const accept = JSON.parse(acceptContent);
-      return messages.some((m) => {
-        const cd = parseTripCancelMessage(m.content);
-        return cd && cd.from === accept.from && cd.to === accept.to;
-      });
-    } catch { return false; }
-  }, [messages]);
-
-  // Check if a specific accepted trip has been completed
-  const isCompletedForAccept = useCallback((acceptContent: string) => {
-    try {
-      const accept = JSON.parse(acceptContent);
-      return messages.some((m) => {
-        try {
-          const cd = JSON.parse(m.content);
-          return cd?.type === "trip_complete" && cd.from === accept.from && cd.to === accept.to;
-        } catch { return false; }
-      });
-    } catch { return false; }
-  }, [messages]);
-
-  const isActiveForTrip = useCallback((tripContent: string) => {
-    try {
-      const trip = JSON.parse(tripContent);
-      if (!trip?.from || !trip?.to) return false;
-      return messages.some((m) => {
-        const accept = parseTripAcceptMessage(m.content);
-        return !!accept && accept.from === trip.from && accept.to === trip.to && !isCancelledForAccept(m.content) && !isCompletedForAccept(m.content);
-      });
-    } catch {
-      return false;
-    }
-  }, [messages, isCancelledForAccept, isCompletedForAccept]);
-
-  // Check if there's an active (accepted but not cancelled/completed) trip in this conversation
-  const hasActiveTrip = useCallback(() => {
-    const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
-    return accepts.some((acceptMsg) => !isCancelledForAccept(acceptMsg.content) && !isCompletedForAccept(acceptMsg.content));
-  }, [messages, isCancelledForAccept, isCompletedForAccept]);
-
-  // Get active trip details for banner
-  const activeTripInfo = useCallback(() => {
-    const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
-    for (const acceptMsg of accepts) {
-      if (!isCancelledForAccept(acceptMsg.content) && !isCompletedForAccept(acceptMsg.content)) {
-        const data = parseTripAcceptMessage(acceptMsg.content);
-        if (data) return { from: data.from, to: data.to, price: data.price };
+        if (rd) ratedByMe.add(`${rd.from}|${rd.to}`);
       }
     }
-    return null;
-  }, [messages, isCancelledForAccept]);
+
+    const isTerminal = (key: string) => cancelledSet.has(key) || completedSet.has(key);
+
+    let activeAcceptData: ReturnType<typeof parseTripAcceptMessage> = null;
+    let activeTrip: { from: string; to: string; price?: string } | null = null;
+    for (const entry of acceptEntries) {
+      const key = `${entry.data!.from}|${entry.data!.to}`;
+      if (!isTerminal(key)) {
+        activeAcceptData = entry.data;
+        activeTrip = { from: entry.data!.from, to: entry.data!.to, price: entry.data!.price };
+        break;
+      }
+    }
+
+    return { cancelledSet, completedSet, ratedByMe, activeAcceptData, activeTrip, hasActive: !!activeTrip };
+  }, [messages, userId]);
+
+  const isCancelledForAccept = useCallback((content: string) => {
+    try { const a = JSON.parse(content); return tripState.cancelledSet.has(`${a.from}|${a.to}`); } catch { return false; }
+  }, [tripState.cancelledSet]);
+
+  const isCompletedForAccept = useCallback((content: string) => {
+    try { const a = JSON.parse(content); return tripState.completedSet.has(`${a.from}|${a.to}`); } catch { return false; }
+  }, [tripState.completedSet]);
+
+  const hasRatedForAccept = useCallback((content: string) => {
+    try { const a = JSON.parse(content); return tripState.ratedByMe.has(`${a.from}|${a.to}`); } catch { return false; }
+  }, [tripState.ratedByMe]);
+
+  const isActiveForTrip = useCallback((content: string) => {
+    try {
+      const trip = JSON.parse(content);
+      if (!trip?.from || !trip?.to) return false;
+      const key = `${trip.from}|${trip.to}`;
+      // Check if there's an accepted entry for this trip that is not terminal
+      return !tripState.cancelledSet.has(key) && !tripState.completedSet.has(key) &&
+        messages.some((m) => { const a = parseTripAcceptMessage(m.content); return !!a && a.from === trip.from && a.to === trip.to; });
+    } catch { return false; }
+  }, [tripState, messages]);
+
+  const hasActiveTrip = useCallback(() => tripState.hasActive, [tripState.hasActive]);
+  const activeTripInfo = useCallback(() => tripState.activeTrip, [tripState.activeTrip]);
 
   const handleRateTrip = async (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => {
     if (!userId || !conversationId) return;
