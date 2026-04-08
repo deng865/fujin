@@ -27,32 +27,57 @@ export default function LiveLocationMap({
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [otherPos, setOtherPos] = useState<{ lat: number; lng: number } | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const channelRef = useRef<any>(null);
 
-  // Watch my position
+  // Subscribe to unified channel and broadcast own position
   useEffect(() => {
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        setMyPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
-    );
-    return () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-    };
-  }, []);
+    const ch = supabase.channel(`live-loc-${conversationId}`);
+    channelRef.current = ch;
 
-  // Listen for other party's broadcast
-  useEffect(() => {
-    const ch = supabase.channel(`live-loc-map-${conversationId}`);
     ch.on("broadcast", { event: "live-location" }, (payload: any) => {
       const p = payload?.payload;
       if (p && p.userId === otherUserId) {
         setOtherPos({ lat: p.lat, lng: p.lng });
       }
-    }).subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [conversationId, otherUserId]);
+    });
+
+    ch.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
+      if (payload?.payload?.userId === otherUserId) {
+        setOtherPos(null);
+      }
+    });
+
+    ch.subscribe((status: string) => {
+      if (status === "SUBSCRIBED") {
+        // Start watching and broadcasting own position
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (pos) => {
+            const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            setMyPos(coords);
+            ch.send({
+              type: "broadcast",
+              event: "live-location",
+              payload: {
+                userId,
+                lat: coords.lat,
+                lng: coords.lng,
+                timestamp: Date.now(),
+              },
+            });
+          },
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+        );
+      }
+    });
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      supabase.removeChannel(ch);
+    };
+  }, [conversationId, userId, otherUserId]);
 
   // Init map
   useEffect(() => {

@@ -7,11 +7,13 @@ interface LocationData {
   lat: number;
   lng: number;
   address?: string;
+  senderName?: string;
 }
 
 interface LocationMessageProps {
   content: string;
   isMe: boolean;
+  senderName?: string;
 }
 
 export function parseLocationMessage(content: string): LocationData | null {
@@ -26,10 +28,13 @@ export function parseLocationMessage(content: string): LocationData | null {
   return null;
 }
 
-export default function LocationMessage({ content, isMe }: LocationMessageProps) {
+export default function LocationMessage({ content, isMe, senderName }: LocationMessageProps) {
   const [showNavMap, setShowNavMap] = useState(false);
   const loc = parseLocationMessage(content);
   if (!loc) return null;
+
+  const displayName = loc.senderName || senderName || "";
+  const label = displayName ? `${displayName}的位置` : (loc.address || "共享位置");
 
   const mapPreviewUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ef4444(${loc.lng},${loc.lat})/${loc.lng},${loc.lat},14,0/280x160@2x?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || ""}`;
 
@@ -55,11 +60,16 @@ export default function LocationMessage({ content, isMe }: LocationMessageProps)
             </div>
           )}
         </div>
-        <div className={`px-3 py-2 flex items-center gap-1.5 text-xs ${
+        <div className={`px-3 py-2 flex flex-col gap-0.5 text-xs ${
           isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
         }`}>
-          <MapPin className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{loc.address || "共享位置"}</span>
+          <div className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate font-medium">{label}</span>
+          </div>
+          {displayName && loc.address && (
+            <span className="truncate opacity-70 pl-5">{loc.address}</span>
+          )}
         </div>
       </div>
 
