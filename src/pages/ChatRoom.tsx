@@ -980,6 +980,22 @@ export default function ChatRoom() {
           const showDate = i === 0 || new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString();
           const callData = parseCallMessage(msg.content);
 
+          // Skip trip_complete messages entirely (no wrapper, no avatar, no timestamp)
+          try {
+            const parsed = JSON.parse(msg.content);
+            if (parsed?.type === "trip_complete") return null;
+            if (parsed?.type === "trip_accept_notify") {
+              // Find the matching accept to check if trip ended
+              for (let j = i - 1; j >= 0; j--) {
+                const ad = parseTripAcceptMessage(messages[j].content);
+                if (ad) {
+                  if (isCancelledForAccept(messages[j].content) || isCompletedForAccept(messages[j].content)) return null;
+                  break;
+                }
+              }
+            }
+          } catch {}
+
           // Recalled message
           if (msg.is_recalled) {
             return (
@@ -1049,23 +1065,9 @@ export default function ChatRoom() {
                     ) : parseTripRatingMessage(msg.content) ? (
                       <TripRatingDisplay content={msg.content} isMe={isMe} currentUserId={userId || undefined} />
                     ) : parseTripAcceptNotify(msg.content) ? (
-                      (() => {
-                        const notifyIdx = messages.indexOf(msg);
-                        let matchedAcceptContent: string | null = null;
-                        for (let j = notifyIdx - 1; j >= 0; j--) {
-                          const ad = parseTripAcceptMessage(messages[j].content);
-                          if (ad) { matchedAcceptContent = messages[j].content; break; }
-                        }
-                        const notifyCancelled = matchedAcceptContent ? isCancelledForAccept(matchedAcceptContent) : false;
-                        const notifyCompleted = matchedAcceptContent ? isCompletedForAccept(matchedAcceptContent) : false;
-                        // Hide entirely when trip ended — no avatar, no timestamp
-                        if (notifyCancelled || notifyCompleted) return <span className="hidden" />;
-                        return <TripMessage content={msg.content} isMe={isMe} isCancelled={notifyCancelled} isCompleted={notifyCompleted} />;
-                      })()
+                        <TripMessage content={msg.content} isMe={isMe} isCancelled={false} isCompleted={false} />
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content)) ? (
                         <TripMessage content={msg.content} isMe={isMe} isActive={isActiveForTrip(msg.content)} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onCounterOpen={scrollToBottom} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} acceptingTrip={acceptingTrip} completingTrip={completingTrip} cancellingTrip={cancellingTrip} />
-                    ) : (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })() ? (
-                        <span className="hidden" />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
