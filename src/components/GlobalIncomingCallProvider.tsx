@@ -11,6 +11,34 @@ interface IncomingCallState {
   conversationId: string;
 }
 
+/** Show a browser Notification when the tab is hidden/backgrounded */
+const showNativeNotification = (title: string, body: string, onClick?: () => void) => {
+  if (typeof window === "undefined") return;
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  // Only fire when page is not visible (background / minimised)
+  if (document.visibilityState === "visible") return;
+
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: "/placeholder.svg",
+      tag: `notif-${Date.now()}`,
+    });
+    if (onClick) {
+      n.onclick = () => {
+        window.focus();
+        onClick();
+        n.close();
+      };
+    }
+    // Auto-close after 5s
+    setTimeout(() => n.close(), 5000);
+  } catch {
+    // Safari / iOS may throw
+  }
+};
+
 export default function GlobalIncomingCallProvider() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,7 +67,7 @@ export default function GlobalIncomingCallProvider() {
   const isChatPage = location.pathname.startsWith("/chat/");
   const isMessagesPage = location.pathname === "/messages";
 
-  // Global message notification (sound + vibration) on pages that don't have their own listener
+  // Global message notification (sound + vibration + native notification)
   useEffect(() => {
     if (!userId || isChatPage || isMessagesPage) return;
 
@@ -48,20 +76,48 @@ export default function GlobalIncomingCallProvider() {
         event: "INSERT",
         schema: "public",
         table: "messages",
-      }, (payload) => {
+      }, async (payload) => {
         const msg = payload.new as any;
         if (msg.sender_id !== userId) {
           void playMessageNotificationTone();
-          // Vibrate if supported (200ms pulse)
-          if (navigator.vibrate) {
-            navigator.vibrate(200);
-          }
+          if (navigator.vibrate) navigator.vibrate(200);
+
+          // Native notification when backgrounded
+          // Try to get sender name
+          let senderName = "新消息";
+          try {
+            const { data: p } = await supabase
+              .from("public_profiles")
+              .select("name")
+              .eq("id", msg.sender_id)
+              .single();
+            if (p?.name) senderName = p.name;
+          } catch {}
+
+          // Parse content for preview
+          let preview = "发来一条消息";
+          try {
+            const parsed = JSON.parse(msg.content);
+            if (parsed.type === "text" && parsed.text) {
+              preview = parsed.text.length > 50 ? parsed.text.slice(0, 50) + "…" : parsed.text;
+            } else if (parsed.type === "image") {
+              preview = "[图片]";
+            } else if (parsed.type === "voice") {
+              preview = "[语音消息]";
+            } else if (parsed.type === "location") {
+              preview = "[位置]";
+            }
+          } catch {}
+
+          showNativeNotification(senderName, preview, () => {
+            navigate(`/chat/${msg.conversation_id}`);
+          });
         }
       })
       .subscribe();
 
     return () => { supabase.removeChannel(msgCh); };
-  }, [userId, isChatPage, isMessagesPage]);
+  }, [userId, isChatPage, isMessagesPage, navigate]);
 
   // Listen for incoming calls globally
   useEffect(() => {
@@ -80,11 +136,17 @@ export default function GlobalIncomingCallProvider() {
             .select("name")
             .eq("id", session.caller_id)
             .single();
+          const name = callerProfile?.name || "用户";
           setIncomingCall({
-            callerName: callerProfile?.name || "用户",
+            callerName: name,
             callerId: session.caller_id,
             sessionId: session.id,
             conversationId: session.conversation_id,
+          });
+
+          // Native notification for incoming call when backgrounded
+          showNativeNotification("来电", `${name} 正在呼叫你`, () => {
+            navigate(`/chat/${session.conversation_id}?callSession=${session.id}`);
           });
         }
       })
@@ -102,7 +164,7 @@ export default function GlobalIncomingCallProvider() {
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
-  }, [userId, isChatPage, isMessagesPage, incomingCall?.sessionId]);
+  }, [userId, isChatPage, isMessagesPage, incomingCall?.sessionId, navigate]);
 
   const handleAccept = useCallback(async () => {
     if (!incomingCall) return;
