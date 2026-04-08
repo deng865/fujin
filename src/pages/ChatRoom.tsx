@@ -980,6 +980,22 @@ export default function ChatRoom() {
           const showDate = i === 0 || new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString();
           const callData = parseCallMessage(msg.content);
 
+          // Skip trip_complete messages entirely (no wrapper, no avatar, no timestamp)
+          try {
+            const parsed = JSON.parse(msg.content);
+            if (parsed?.type === "trip_complete") return null;
+            if (parsed?.type === "trip_accept_notify") {
+              // Find the matching accept to check if trip ended
+              for (let j = i - 1; j >= 0; j--) {
+                const ad = parseTripAcceptMessage(messages[j].content);
+                if (ad) {
+                  if (isCancelledForAccept(messages[j].content) || isCompletedForAccept(messages[j].content)) return null;
+                  break;
+                }
+              }
+            }
+          } catch {}
+
           // Recalled message
           if (msg.is_recalled) {
             return (
