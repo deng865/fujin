@@ -1050,8 +1050,6 @@ export default function ChatRoom() {
                       <TripRatingDisplay content={msg.content} isMe={isMe} currentUserId={userId || undefined} />
                     ) : parseTripAcceptNotify(msg.content) ? (
                       (() => {
-                        // Find the corresponding trip_accept message to determine status
-                        // Look for the most recent trip_accept before this notify
                         const notifyIdx = messages.indexOf(msg);
                         let matchedAcceptContent: string | null = null;
                         for (let j = notifyIdx - 1; j >= 0; j--) {
@@ -1060,10 +1058,14 @@ export default function ChatRoom() {
                         }
                         const notifyCancelled = matchedAcceptContent ? isCancelledForAccept(matchedAcceptContent) : false;
                         const notifyCompleted = matchedAcceptContent ? isCompletedForAccept(matchedAcceptContent) : false;
+                        // Hide entirely when trip ended — no avatar, no timestamp
+                        if (notifyCancelled || notifyCompleted) return <span className="hidden" />;
                         return <TripMessage content={msg.content} isMe={isMe} isCancelled={notifyCancelled} isCompleted={notifyCompleted} />;
                       })()
-                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content) || (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })()) ? (
+                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content)) ? (
                         <TripMessage content={msg.content} isMe={isMe} isActive={isActiveForTrip(msg.content)} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onCounterOpen={scrollToBottom} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} acceptingTrip={acceptingTrip} completingTrip={completingTrip} cancellingTrip={cancellingTrip} />
+                    ) : (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })() ? (
+                        <span className="hidden" />
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);

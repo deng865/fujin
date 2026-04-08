@@ -36,7 +36,7 @@ export default function DriverTracking({
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
-  const [eta, setEta] = useState<{ distanceKm: number; durationMin: number } | null>(null);
+  const [eta, setEta] = useState<{ distanceMi: number; durationMin: number } | null>(null);
   const [phase, setPhase] = useState<Phase>("pickup");
   const watchIdRef = useRef<number | null>(null);
   const lastBroadcast = useRef(0);
@@ -131,8 +131,9 @@ export default function DriverTracking({
             properties: {},
             geometry: route.geometry,
           });
+          const km = route.distance / 1000;
           setEta({
-            distanceKm: route.distance / 1000,
+            distanceMi: km * 0.621371,
             durationMin: Math.round(route.duration / 60),
           });
         }
@@ -155,7 +156,7 @@ export default function DriverTracking({
           </span>
           {eta && (
             <span className="text-muted-foreground">
-              · {eta.distanceKm.toFixed(1)} km · 约{eta.durationMin}分钟
+              · {eta.distanceMi.toFixed(1)} mi · 约{eta.durationMin}分钟
             </span>
           )}
         </div>
@@ -188,7 +189,7 @@ export default function DriverTracking({
           </span>
           {eta && (
             <span className="text-muted-foreground">
-              · {eta.distanceKm.toFixed(1)} km · 约{eta.durationMin}分钟
+              · {eta.distanceMi.toFixed(1)} mi · 约{eta.durationMin}分钟
             </span>
           )}
         </div>
