@@ -36,7 +36,7 @@ export default function DriverTracking({
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
-  const [eta, setEta] = useState<{ distanceMi: number; durationMin: number } | null>(null);
+  const [eta, setEta] = useState<{ distanceKm: number; durationMin: number } | null>(null);
   const [phase, setPhase] = useState<Phase>("pickup");
   const watchIdRef = useRef<number | null>(null);
   const lastBroadcast = useRef(0);
