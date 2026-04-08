@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { MapPin, Navigation, Loader2, Send, DollarSign, Map, X, Route, ExternalLink } from "lucide-react";
+import { MapPin, Navigation, Loader2, Send, DollarSign, Map, X, Route } from "lucide-react";
 import MapGL, { Marker, MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
@@ -14,14 +14,6 @@ interface LocationState {
   coords?: { lat: number; lng: number };
 }
 
-function openNavigation(coords: { lat: number; lng: number }, label: string) {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS) {
-    window.open(`maps://maps.apple.com/?q=${encodeURIComponent(label)}&ll=${coords.lat},${coords.lng}`, "_blank");
-  } else {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`, "_blank");
-  }
-}
 
 export default function TripSharePanel({ onSend, sending }: TripSharePanelProps) {
   const [from, setFrom] = useState<LocationState>({ text: "" });
