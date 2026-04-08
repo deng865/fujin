@@ -1032,7 +1032,19 @@ export default function ChatRoom() {
                     ) : parseTripRatingMessage(msg.content) ? (
                       <TripRatingDisplay content={msg.content} isMe={isMe} currentUserId={userId || undefined} />
                     ) : parseTripAcceptNotify(msg.content) ? (
-                      <TripMessage content={msg.content} isMe={isMe} isCancelled={(() => { const nd = parseTripAcceptNotify(msg.content); if (!nd) return false; return messages.some(m => { const cd = parseTripCancelMessage(m.content); return cd !== null; }); })()} isCompleted={(() => { return messages.some(m => { try { return JSON.parse(m.content)?.type === "trip_complete"; } catch { return false; } }); })()} />
+                      (() => {
+                        // Find the corresponding trip_accept message to determine status
+                        // Look for the most recent trip_accept before this notify
+                        const notifyIdx = messages.indexOf(msg);
+                        let matchedAcceptContent: string | null = null;
+                        for (let j = notifyIdx - 1; j >= 0; j--) {
+                          const ad = parseTripAcceptMessage(messages[j].content);
+                          if (ad) { matchedAcceptContent = messages[j].content; break; }
+                        }
+                        const notifyCancelled = matchedAcceptContent ? isCancelledForAccept(matchedAcceptContent) : false;
+                        const notifyCompleted = matchedAcceptContent ? isCompletedForAccept(matchedAcceptContent) : false;
+                        return <TripMessage content={msg.content} isMe={isMe} isCancelled={notifyCancelled} isCompleted={notifyCompleted} />;
+                      })()
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content) || (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })()) ? (
                       <>
                         <TripMessage content={msg.content} isMe={isMe} isActive={isActiveForTrip(msg.content)} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} />

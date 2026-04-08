@@ -617,7 +617,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
           {trip.price && (
             <div className={`flex items-center gap-1.5 text-xs ${trip.fromCoords && trip.toCoords ? "mt-1" : "mt-2 pt-2 border-t"} ${!(trip.fromCoords && trip.toCoords) && (isMe ? "border-primary-foreground/20" : "border-border/50")}`}>
               <DollarSign className="h-3.5 w-3.5 shrink-0" />
-              <span className="font-medium">期望价格: ${trip.price}</span>
+              <span className="font-medium">出价: ${trip.price}</span>
             </div>
           )}
           {/* Accept & Counter buttons for the other party */}

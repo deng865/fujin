@@ -364,7 +364,7 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
           <input
             value={price}
             onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ""))}
-            placeholder="期望价格（必填）"
+            placeholder="出价（必填）"
             inputMode="decimal"
             className={`flex-1 min-w-0 bg-muted rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30 ${!price.trim() && from.text.trim() && to.text.trim() ? "ring-2 ring-destructive/30" : ""}`}
           />
