@@ -1328,6 +1328,17 @@ export default function ChatRoom() {
       sendingLocation={sendingLocation}
     />
 
+    {showLiveMap && userId && otherUserId && conversationId && (
+      <LiveLocationMap
+        conversationId={conversationId}
+        userId={userId}
+        otherUserId={otherUserId}
+        myName={myName || "我"}
+        otherName={otherUser?.name || "对方"}
+        onClose={() => setShowLiveMap(false)}
+      />
+    )}
+
     <AlertDialog open={!!pendingCancelTrip} onOpenChange={(open) => { if (!open) setPendingCancelTrip(null); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
