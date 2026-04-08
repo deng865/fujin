@@ -121,7 +121,7 @@ export default function DriverTracking({
     const fetchRoute = async () => {
       try {
         const res = await fetch(
-          `https://api.mapbox.com/directions/v5/mapbox/driving/${driverLocation.lng},${driverLocation.lat};${currentTarget.lng},${currentTarget.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`
+          `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${driverLocation.lng},${driverLocation.lat};${currentTarget.lng},${currentTarget.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`
         );
         const data = await res.json();
         if (!cancelled && data.routes?.[0]) {
@@ -131,10 +131,19 @@ export default function DriverTracking({
             properties: {},
             geometry: route.geometry,
           });
-          const km = route.distance / 1000;
+          // route.distance is in meters, route.duration is in seconds
+          const miles = (route.distance / 1000) * 0.621371;
+          const minutes = Math.round(route.duration / 60);
+          console.log("[DriverTracking] Route:", { 
+            distanceMeters: route.distance, 
+            durationSeconds: route.duration,
+            miles, 
+            minutes,
+            profile: "driving-traffic"
+          });
           setEta({
-            distanceMi: km * 0.621371,
-            durationMin: Math.round(route.duration / 60),
+            distanceMi: miles,
+            durationMin: minutes,
           });
         }
       } catch {}
