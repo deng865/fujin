@@ -9,17 +9,28 @@ interface VoiceCallProps {
   userId: string;
   userName: string;
   otherUserName: string;
+  isCaller: boolean;
   onClose: (duration?: number) => void;
 }
+
+const ICE_SERVERS: RTCConfiguration = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ],
+};
 
 export default function VoiceCall({
   conversationId,
   userId,
   userName,
   otherUserName,
+  isCaller,
   onClose,
 }: VoiceCallProps) {
-  const [status, setStatus] = useState<"connecting" | "connected" | "ended">("connecting");
+  const [status, setStatus] = useState<"ringing" | "connecting" | "connected" | "ended">(
+    isCaller ? "ringing" : "connecting"
+  );
   const [muted, setMuted] = useState(false);
   const [speakerOff, setSpeakerOff] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -27,67 +38,86 @@ export default function VoiceCall({
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
-  const wsRef = useRef<WebSocket | null>(null);
+  const channelRef = useRef<any>(null);
+  const ringCtxRef = useRef<AudioContext | null>(null);
+  const ringPlayingRef = useRef(true);
 
   const cleanup = useCallback(() => {
     clearInterval(timerRef.current);
+    ringPlayingRef.current = false;
+    ringCtxRef.current?.close().catch(() => {});
+    ringCtxRef.current = null;
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     pcRef.current?.close();
-    wsRef.current?.close();
     pcRef.current = null;
     localStreamRef.current = null;
-    wsRef.current = null;
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
   }, []);
+
+  // Dialing tone for caller
+  useEffect(() => {
+    if (!isCaller || status !== "ringing") return;
+    const ctx = new AudioContext();
+    ringCtxRef.current = ctx;
+    ringPlayingRef.current = true;
+
+    const playRing = async () => {
+      while (ringPlayingRef.current) {
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 440;
+          gain.gain.value = 0.08;
+          osc.start();
+          osc.stop(ctx.currentTime + 0.8);
+          await new Promise((r) => setTimeout(r, 3000));
+        } catch {
+          break;
+        }
+      }
+    };
+    playRing();
+
+    return () => {
+      ringPlayingRef.current = false;
+      ctx.close().catch(() => {});
+    };
+  }, [isCaller, status]);
+
+  // Auto-cancel if no answer within 30s (caller only)
+  useEffect(() => {
+    if (!isCaller || status !== "ringing") return;
+    const timer = setTimeout(() => {
+      if (status === "ringing") {
+        const ch = channelRef.current;
+        ch?.send({ type: "broadcast", event: "hangup", payload: { from: userId } });
+        setStatus("ended");
+        cleanup();
+        onClose(undefined); // no duration = cancelled
+      }
+    }, 30000);
+    return () => clearTimeout(timer);
+  }, [isCaller, status, userId, cleanup, onClose]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const startCall = async () => {
+    const setup = async () => {
       try {
-        // Get LiveKit token
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error("请先登录");
-
-        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-        const res = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/generate-livekit-token`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              roomName: conversationId,
-              participantName: userName || userId,
-              roomType: "conversation",
-            }),
-          }
-        );
-
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "获取通话凭证失败");
-        }
-
-        const { token, url } = await res.json();
-        if (cancelled) return;
-
-        // Connect to LiveKit via WebSocket
-        const wsUrl = url.replace(/^https?:\/\//, "wss://") + `/rtc?access_token=${token}`;
-        
-        // Get microphone
+        // Get microphone first
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         localStreamRef.current = stream;
 
         // Create peer connection
-        const pc = new RTCPeerConnection({
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-        });
+        const pc = new RTCPeerConnection(ICE_SERVERS);
         pcRef.current = pc;
 
-        // Add local audio track
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
         // Handle remote audio
@@ -98,19 +128,22 @@ export default function VoiceCall({
         };
 
         pc.onconnectionstatechange = () => {
-          if (pc.connectionState === "connected") {
+          const state = pc.connectionState;
+          if (state === "connected") {
+            ringPlayingRef.current = false;
+            ringCtxRef.current?.close().catch(() => {});
             setStatus("connected");
             timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
-          } else if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+          } else if (state === "disconnected" || state === "failed") {
             setStatus("ended");
             cleanup();
           }
         };
 
-        // For now, use a simpler approach - just establish the audio stream
-        // and signal via Supabase Realtime
-        const channel = supabase.channel(`call-${conversationId}`);
-        
+        // Signaling channel
+        const channel = supabase.channel(`call-signal-${conversationId}-${Date.now()}`);
+        channelRef.current = channel;
+
         pc.onicecandidate = (e) => {
           if (e.candidate) {
             channel.send({
@@ -123,24 +156,33 @@ export default function VoiceCall({
 
         channel
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
-            if (payload.from === userId) return;
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            channel.send({
-              type: "broadcast",
-              event: "answer",
-              payload: { sdp: answer, from: userId },
-            });
+            if (payload.from === userId || !pcRef.current) return;
+            try {
+              await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+              const answer = await pcRef.current.createAnswer();
+              await pcRef.current.setLocalDescription(answer);
+              channel.send({
+                type: "broadcast",
+                event: "answer",
+                payload: { sdp: answer, from: userId },
+              });
+            } catch (err) {
+              console.error("Error handling offer:", err);
+            }
           })
           .on("broadcast", { event: "answer" }, async ({ payload }) => {
-            if (payload.from === userId) return;
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            if (payload.from === userId || !pcRef.current) return;
+            try {
+              await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+              setStatus("connecting");
+            } catch (err) {
+              console.error("Error handling answer:", err);
+            }
           })
           .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
-            if (payload.from === userId) return;
+            if (payload.from === userId || !pcRef.current) return;
             try {
-              await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+              await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
             } catch {}
           })
           .on("broadcast", { event: "hangup" }, ({ payload }) => {
@@ -148,15 +190,33 @@ export default function VoiceCall({
               setStatus("ended");
               cleanup();
               toast({ title: "通话已结束", description: "对方已挂断" });
+              setTimeout(() => onClose(duration > 0 ? duration : undefined), 500);
             }
           })
           .subscribe(async (subStatus) => {
-            if (subStatus === "SUBSCRIBED") {
-              // Notify the other user about incoming call
-              channel.send({
-                type: "broadcast",
-                event: "call-invite",
-                payload: { from: userId, callerName: userName },
+            if (subStatus !== "SUBSCRIBED" || cancelled) return;
+
+            if (isCaller) {
+              // Caller: send invite via the shared call channel, then create offer
+              const inviteChannel = supabase.channel(`call-${conversationId}`);
+              await new Promise<void>((resolve) => {
+                inviteChannel.subscribe((s) => {
+                  if (s === "SUBSCRIBED") {
+                    inviteChannel.send({
+                      type: "broadcast",
+                      event: "call-invite",
+                      payload: {
+                        from: userId,
+                        callerName: userName,
+                        signalChannel: channel.topic,
+                      },
+                    });
+                    setTimeout(() => {
+                      supabase.removeChannel(inviteChannel);
+                      resolve();
+                    }, 500);
+                  }
+                });
               });
 
               // Create and send offer
@@ -167,30 +227,32 @@ export default function VoiceCall({
                 event: "offer",
                 payload: { sdp: offer, from: userId },
               });
-              setStatus("connected");
-              timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
             }
+            // Callee: just wait for the offer to arrive (handled in .on("offer") above)
           });
-
-        // Store channel ref for cleanup
-        (pcRef.current as any).__channel = channel;
 
       } catch (err: any) {
         if (!cancelled) {
-          toast({ title: "通话失败", description: err.message || "无法建立连接", variant: "destructive" });
+          toast({
+            title: "通话失败",
+            description: err.message || "无法建立连接",
+            variant: "destructive",
+          });
           setStatus("ended");
           cleanup();
         }
       }
     };
 
-    startCall();
-    return () => { cancelled = true; cleanup(); };
-  }, [conversationId, userId, userName, cleanup]);
+    setup();
+    return () => {
+      cancelled = true;
+      cleanup();
+    };
+  }, [conversationId, userId, userName, isCaller, cleanup, onClose]);
 
   const hangup = () => {
-    const channel = (pcRef.current as any)?.__channel;
-    channel?.send({
+    channelRef.current?.send({
       type: "broadcast",
       event: "hangup",
       payload: { from: userId },
@@ -198,7 +260,7 @@ export default function VoiceCall({
     setStatus("ended");
     const finalDuration = duration;
     cleanup();
-    setTimeout(() => onClose(finalDuration), 500);
+    setTimeout(() => onClose(finalDuration > 0 ? finalDuration : undefined), 500);
   };
 
   const toggleMute = () => {
@@ -228,10 +290,11 @@ export default function VoiceCall({
 
       <div className="text-center mb-12">
         <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-          <Phone className="h-8 w-8 text-primary" />
+          <Phone className={`h-8 w-8 text-primary ${status === "ringing" ? "animate-pulse" : ""}`} />
         </div>
         <h2 className="text-xl font-semibold">{otherUserName}</h2>
         <p className="text-sm text-muted-foreground mt-1">
+          {status === "ringing" && "正在呼叫..."}
           {status === "connecting" && "正在连接..."}
           {status === "connected" && formatDuration(duration)}
           {status === "ended" && "通话已结束"}
@@ -244,6 +307,7 @@ export default function VoiceCall({
           size="icon"
           className="h-14 w-14 rounded-full"
           onClick={toggleMute}
+          disabled={status !== "connected"}
         >
           {muted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
         </Button>
@@ -262,6 +326,7 @@ export default function VoiceCall({
           size="icon"
           className="h-14 w-14 rounded-full"
           onClick={toggleSpeaker}
+          disabled={status !== "connected"}
         >
           {speakerOff ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
         </Button>
