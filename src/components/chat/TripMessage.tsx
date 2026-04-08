@@ -295,6 +295,7 @@ interface TripMessageProps {
   onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
   onCancel?: (trip: { from: string; to: string; price?: string }) => void;
   onComplete?: (trip: { from: string; to: string; price?: string }) => void;
+  onCounterOpen?: () => void;
   hasRated?: boolean;
   isCancelled?: boolean;
   isCompleted?: boolean;
@@ -303,7 +304,7 @@ interface TripMessageProps {
   cancellingTrip?: boolean;
 }
 
-export default function TripMessage({ content, isMe, isActive, onAccept, onCounter, onRate, onCancel, onComplete, hasRated, isCancelled, isCompleted, acceptingTrip, completingTrip, cancellingTrip }: TripMessageProps) {
+export default function TripMessage({ content, isMe, isActive, onAccept, onCounter, onRate, onCancel, onComplete, onCounterOpen, hasRated, isCancelled, isCompleted, acceptingTrip, completingTrip, cancellingTrip }: TripMessageProps) {
   const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
   const [showCounterInput, setShowCounterInput] = useState(false);
   const [counterPrice, setCounterPrice] = useState("");
@@ -461,7 +462,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
               </button>
               {onCounter && (
                 <button
-                  onClick={() => { setShowCounterInput(true); setCounterPrice(""); }}
+                  onClick={() => { setShowCounterInput(true); setCounterPrice(""); onCounterOpen?.(); }}
                   disabled={acceptingTrip}
                   className="flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors disabled:opacity-50"
                 >
@@ -616,7 +617,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
               </button>
               {trip.price && onCounter && (
                 <button
-                  onClick={() => { setShowCounterInput(true); setCounterPrice(""); }}
+                  onClick={() => { setShowCounterInput(true); setCounterPrice(""); onCounterOpen?.(); }}
                   disabled={acceptingTrip}
                   className="flex-1 flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors disabled:opacity-50"
                 >
