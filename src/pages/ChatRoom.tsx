@@ -688,17 +688,22 @@ export default function ChatRoom() {
     const trip = pendingCompleteTrip;
     setPendingCompleteTrip(null);
     if (!trip || !userId || !conversationId) return;
-    const completeContent = JSON.stringify({ type: "trip_complete", from: trip.from, to: trip.to, price: trip.price, completedBy: userId });
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: userId,
-      content: completeContent,
-    });
-    if (!error) {
-      await supabase.from("conversations").update({
-        last_message: "✅ 订单已完成",
-        updated_at: new Date().toISOString(),
-      }).eq("id", conversationId);
+    setCompletingTrip(true);
+    try {
+      const completeContent = JSON.stringify({ type: "trip_complete", from: trip.from, to: trip.to, price: trip.price, completedBy: userId });
+      const { error } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: completeContent,
+      });
+      if (!error) {
+        await supabase.from("conversations").update({
+          last_message: "✅ 订单已完成",
+          updated_at: new Date().toISOString(),
+        }).eq("id", conversationId);
+      }
+    } finally {
+      setCompletingTrip(false);
     }
   };
 
