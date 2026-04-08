@@ -1179,7 +1179,9 @@ export default function ChatRoom() {
                         </button>
                       </div>
                     )}
-                    {parseLocationMessage(msg.content) ? (
+                    {parseLiveLocationMessage(msg.content) ? (
+                      <LiveLocationMessage content={msg.content} isMe={isMe} onOpen={() => setShowLiveMap(true)} />
+                    ) : parseLocationMessage(msg.content) ? (
                       <LocationMessage content={msg.content} isMe={isMe} />
                     ) : parseMediaMessage(msg.content) ? (
                       <MediaMessage content={msg.content} isMe={isMe} />
