@@ -9,7 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle, Check, DollarSign, Star } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
@@ -54,6 +54,7 @@ interface OtherUser {
 
 export default function ChatRoom() {
   const { id: conversationId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -358,6 +359,16 @@ export default function ChatRoom() {
       setStartingCall(false);
     }
   };
+  // Auto-start call if navigated with callSession param (accepted from Messages page)
+  useEffect(() => {
+    const sessionId = searchParams.get("callSession");
+    if (sessionId && userId && !inCall) {
+      setCallSessionId(sessionId);
+      setIsCallCaller(false);
+      setInCall(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, userId, inCall, setSearchParams]);
 
 
   const handleRecall = async (msg: Message) => {

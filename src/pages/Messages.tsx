@@ -5,6 +5,7 @@ import { ArrowLeft, MessageCircle, PhoneMissed, Bell, ChevronRight, Pin, Trash2,
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { toast } from "sonner";
+import IncomingCall from "@/components/chat/IncomingCall";
 
 interface Conversation {
   id: string;
@@ -145,6 +146,7 @@ export default function Messages() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [showNotifBanner, setShowNotifBanner] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ callerName: string; callerId: string; sessionId: string; conversationId: string } | null>(null);
 
   useEffect(() => {
     // Check if notification permission is not granted
@@ -188,6 +190,34 @@ export default function Messages() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+  }, [userId]);
+
+  // Listen for incoming calls globally
+  useEffect(() => {
+    if (!userId) return;
+    const ch = supabase.channel("global-incoming-calls")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "call_sessions",
+      }, async (payload) => {
+        const session = payload.new as any;
+        if (session.receiver_id === userId && session.status === "ringing") {
+          const { data: callerProfile } = await supabase
+            .from("public_profiles")
+            .select("name")
+            .eq("id", session.caller_id)
+            .single();
+          setIncomingCall({
+            callerName: callerProfile?.name || "用户",
+            callerId: session.caller_id,
+            sessionId: session.id,
+            conversationId: session.conversation_id,
+          });
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, [userId]);
 
   const fetchConversations = async (uid: string) => {
@@ -253,6 +283,21 @@ export default function Messages() {
   }
 
   return (
+    <>
+    {incomingCall && (
+      <IncomingCall
+        callerName={incomingCall.callerName}
+        onAccept={async () => {
+          await supabase.from("call_sessions").update({ status: "answered" } as any).eq("id", incomingCall.sessionId);
+          setIncomingCall(null);
+          navigate(`/chat/${incomingCall.conversationId}?callSession=${incomingCall.sessionId}`);
+        }}
+        onDecline={async () => {
+          await supabase.from("call_sessions").update({ status: "ended", ended_at: new Date().toISOString() } as any).eq("id", incomingCall.sessionId);
+          setIncomingCall(null);
+        }}
+      />
+    )}
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
@@ -309,5 +354,6 @@ export default function Messages() {
         )}
       </div>
     </div>
+    </>
   );
 }
