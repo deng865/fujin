@@ -84,6 +84,8 @@ export default function ChatRoom() {
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [liveShare, setLiveShare] = useState<{ duration: number; startedAt: number } | null>(null);
   const [showLiveMap, setShowLiveMap] = useState(false);
+  const [selectedLiveLocation, setSelectedLiveLocation] = useState<{ myPos?: { lat: number; lng: number }; otherPos?: { lat: number; lng: number } } | null>(null);
+  const [cachedMyPos, setCachedMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [isDriver, setIsDriver] = useState(false);
   const [acceptingTrip, setAcceptingTrip] = useState(false);
@@ -236,17 +238,30 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId]);
 
-  // Listen for live-location-stop broadcast from the other party
+  // Listen for live-location-stop broadcast — same channel as Banner
   useEffect(() => {
     if (!conversationId || !userId) return;
-    const ch = supabase.channel(`live-loc-listen-${conversationId}`);
+    const ch = supabase.channel(`live-loc-stop-listen-${conversationId}`);
     ch.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
       if (payload?.payload?.userId !== userId) {
         setLiveShare(null);
         toast({ title: "位置共享已结束", description: "对方已停止共享位置" });
       }
-    }).subscribe();
-    return () => { supabase.removeChannel(ch); };
+    });
+    // Also listen on the main broadcast channel
+    const mainCh = supabase.channel(`live-loc-${conversationId}`);
+    mainCh.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
+      if (payload?.payload?.userId !== userId) {
+        setLiveShare(null);
+        toast({ title: "位置共享已结束", description: "对方已停止共享位置" });
+      }
+    });
+    ch.subscribe();
+    mainCh.subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+      supabase.removeChannel(mainCh);
+    };
   }, [conversationId, userId]);
 
   const saveCallRecord = useCallback(async (status: "missed" | "declined" | "completed" | "cancelled", callerId: string, duration?: number) => {
@@ -1024,6 +1039,7 @@ export default function ChatRoom() {
           durationMinutes={liveShare.duration}
           startedAt={liveShare.startedAt}
           onStop={() => setLiveShare(null)}
+          onPositionUpdate={(pos) => setCachedMyPos(pos)}
         />
       )}
 
@@ -1180,7 +1196,18 @@ export default function ChatRoom() {
                       </div>
                     )}
                     {parseLiveLocationMessage(msg.content) ? (
-                      <LiveLocationMessage content={msg.content} isMe={isMe} onOpen={() => setShowLiveMap(true)} />
+                      <LiveLocationMessage content={msg.content} isMe={isMe} onOpen={() => {
+                        const liveData = parseLiveLocationMessage(msg.content);
+                        if (liveData) {
+                          const coords = { lat: liveData.lat, lng: liveData.lng };
+                          const isMeSender = liveData.sharedBy === userId;
+                          setSelectedLiveLocation({
+                            myPos: isMeSender ? coords : cachedMyPos || undefined,
+                            otherPos: isMeSender ? undefined : coords,
+                          });
+                        }
+                        setShowLiveMap(true);
+                      }} />
                     ) : parseLocationMessage(msg.content) ? (
                       <LocationMessage content={msg.content} isMe={isMe} senderName={isMe ? myName : otherUser?.name} />
                     ) : parseMediaMessage(msg.content) ? (
@@ -1335,7 +1362,9 @@ export default function ChatRoom() {
         otherUserId={otherUserId}
         myName={myName || "我"}
         otherName={otherUser?.name || "对方"}
-        onClose={() => setShowLiveMap(false)}
+        initialMyPos={selectedLiveLocation?.myPos || cachedMyPos}
+        initialOtherPos={selectedLiveLocation?.otherPos}
+        onClose={() => { setShowLiveMap(false); setSelectedLiveLocation(null); }}
       />
     )}
 
