@@ -54,6 +54,7 @@ interface OtherUser {
 
 export default function ChatRoom() {
   const { id: conversationId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
