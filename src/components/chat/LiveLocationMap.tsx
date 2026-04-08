@@ -2,16 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { X, Navigation, Radio, Loader2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
-
-function haversineDistance(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 3958.8; // miles
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const sinLat = Math.sin(dLat / 2);
-  const sinLng = Math.sin(dLng / 2);
-  const h = sinLat * sinLat + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * sinLng * sinLng;
-  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
+import { hasMeaningfulPositionChange, haversineMiles, LiveLocationPosition } from "@/lib/liveLocation";
 
 interface LiveLocationMapProps {
   conversationId: string;
@@ -21,6 +12,7 @@ interface LiveLocationMapProps {
   otherName: string;
   initialMyPos?: { lat: number; lng: number } | null;
   initialOtherPos?: { lat: number; lng: number } | null;
+  myLocationError?: string | null;
   onClose: () => void;
 }
 
@@ -32,91 +24,93 @@ export default function LiveLocationMap({
   otherName,
   initialMyPos,
   initialOtherPos,
+  myLocationError,
   onClose,
 }: LiveLocationMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const myMarkerRef = useRef<any>(null);
   const otherMarkerRef = useRef<any>(null);
-  const mapInitedRef = useRef(false);
   const mapboxRef = useRef<any>(null);
-  const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(initialMyPos || null);
-  const [otherPos, setOtherPos] = useState<{ lat: number; lng: number } | null>(initialOtherPos || null);
-  const [geoError, setGeoError] = useState<string | null>(null);
+  const hasAutoFitRef = useRef(false);
+  const [myPos, setMyPos] = useState<LiveLocationPosition | null>(initialMyPos || null);
+  const [otherPos, setOtherPos] = useState<LiveLocationPosition | null>(initialOtherPos || null);
+  const [otherStopped, setOtherStopped] = useState(false);
 
-  // Subscribe to channel — receive-only, no broadcasting (Banner handles that)
+  const updateMyPos = useCallback((next: LiveLocationPosition) => {
+    setMyPos((current) => {
+      if (current && !hasMeaningfulPositionChange(current, next, 5)) return current;
+      return next;
+    });
+  }, []);
+
+  const updateOtherPos = useCallback((next: LiveLocationPosition) => {
+    setOtherStopped(false);
+    setOtherPos((current) => {
+      if (current && !hasMeaningfulPositionChange(current, next, 5)) return current;
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
-    const ch = supabase.channel(`live-loc-map-view-${conversationId}`);
+    if (initialMyPos) {
+      updateMyPos(initialMyPos);
+    }
+  }, [initialMyPos, updateMyPos]);
+
+  useEffect(() => {
+    if (initialOtherPos) {
+      updateOtherPos(initialOtherPos);
+    }
+  }, [initialOtherPos, updateOtherPos]);
+
+  useEffect(() => {
+    const ch = supabase.channel(`live-loc-${conversationId}`);
 
     ch.on("broadcast", { event: "live-location" }, (payload: any) => {
       const p = payload?.payload;
-      if (!p) return;
+      if (!p || typeof p.lat !== "number" || typeof p.lng !== "number") return;
+
+      const next = { lat: p.lat, lng: p.lng };
+
       if (p.userId === otherUserId) {
-        setOtherPos({ lat: p.lat, lng: p.lng });
+        updateOtherPos(next);
       } else if (p.userId === userId) {
-        setMyPos({ lat: p.lat, lng: p.lng });
+        updateMyPos(next);
       }
     });
 
     ch.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
-      if (payload?.payload?.userId === otherUserId) {
-        setOtherPos(null);
-      }
-    });
+      const stoppedUserId = payload?.payload?.userId;
 
-    // Also subscribe to the same channel as Banner to receive broadcasts
-    const mainCh = supabase.channel(`live-loc-${conversationId}`);
-    mainCh.on("broadcast", { event: "live-location" }, (payload: any) => {
-      const p = payload?.payload;
-      if (!p) return;
-      if (p.userId === otherUserId) {
-        setOtherPos({ lat: p.lat, lng: p.lng });
-      } else if (p.userId === userId) {
-        setMyPos({ lat: p.lat, lng: p.lng });
-      }
-    });
-    mainCh.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
-      if (payload?.payload?.userId === otherUserId) {
+      if (stoppedUserId === otherUserId) {
         setOtherPos(null);
+        setOtherStopped(true);
+      }
+
+      if (stoppedUserId === userId) {
+        setMyPos(null);
       }
     });
 
     ch.subscribe();
-    mainCh.subscribe();
 
     return () => {
       supabase.removeChannel(ch);
-      supabase.removeChannel(mainCh);
     };
-  }, [conversationId, userId, otherUserId]);
-
-  // Also get own GPS to keep myPos updated (in case Banner hasn't started yet or we opened map independently)
-  useEffect(() => {
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        setMyPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setGeoError(null);
-      },
-      (err) => {
-        if (err.code === 1) setGeoError("定位权限被拒绝");
-        else if (err.code === 3) setGeoError("定位超时");
-        else setGeoError("无法获取定位");
-      },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
-    );
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+  }, [conversationId, otherUserId, updateMyPos, updateOtherPos, userId]);
 
   // First available center for map init
   const firstCenter = useMemo(() => myPos || otherPos, [myPos, otherPos]);
 
-  // Init map when first center is available
+  // Init map only once after we get the first usable coordinate.
   useEffect(() => {
-    if (!firstCenter || mapInitedRef.current || !mapContainerRef.current || !MAPBOX_TOKEN) return;
-    mapInitedRef.current = true;
+    if (!firstCenter || mapRef.current || !mapContainerRef.current || !MAPBOX_TOKEN) return;
+
+    let cancelled = false;
 
     import("mapbox-gl").then((mapboxgl) => {
-      if (!mapContainerRef.current) return;
+      if (cancelled || !mapContainerRef.current || mapRef.current) return;
       (mapboxgl as any).accessToken = MAPBOX_TOKEN;
       mapboxRef.current = mapboxgl;
 
@@ -131,15 +125,33 @@ export default function LiveLocationMap({
     });
 
     return () => {
-      mapRef.current?.remove();
-      mapRef.current = null;
-      mapInitedRef.current = false;
+      cancelled = true;
     };
   }, [firstCenter]);
 
+  useEffect(() => {
+    return () => {
+      myMarkerRef.current?.remove();
+      otherMarkerRef.current?.remove();
+      mapRef.current?.remove();
+      myMarkerRef.current = null;
+      otherMarkerRef.current = null;
+      mapRef.current = null;
+      mapboxRef.current = null;
+      hasAutoFitRef.current = false;
+    };
+  }, []);
+
   // Create / update my marker
   useEffect(() => {
-    if (!myPos || !mapRef.current || !mapboxRef.current) return;
+    if (!mapRef.current || !mapboxRef.current) return;
+
+    if (!myPos) {
+      myMarkerRef.current?.remove();
+      myMarkerRef.current = null;
+      return;
+    }
+
     const mapboxgl = mapboxRef.current;
     if (!myMarkerRef.current) {
       const el = document.createElement("div");
@@ -154,7 +166,14 @@ export default function LiveLocationMap({
 
   // Create / update other marker
   useEffect(() => {
-    if (!otherPos || !mapRef.current || !mapboxRef.current) return;
+    if (!mapRef.current || !mapboxRef.current) return;
+
+    if (!otherPos) {
+      otherMarkerRef.current?.remove();
+      otherMarkerRef.current = null;
+      return;
+    }
+
     const mapboxgl = mapboxRef.current;
     if (!otherMarkerRef.current) {
       const initial = (otherName || "对").charAt(0);
@@ -163,18 +182,10 @@ export default function LiveLocationMap({
       otherMarkerRef.current = new mapboxgl.Marker({ element: el })
         .setLngLat([otherPos.lng, otherPos.lat])
         .addTo(mapRef.current);
-
-      // Fit bounds if both available
-      if (myPos) {
-        const bounds = new mapboxgl.LngLatBounds();
-        bounds.extend([myPos.lng, myPos.lat]);
-        bounds.extend([otherPos.lng, otherPos.lat]);
-        mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 16 });
-      }
     } else {
       otherMarkerRef.current.setLngLat([otherPos.lng, otherPos.lat]);
     }
-  }, [otherPos, otherName, myPos]);
+  }, [otherName, otherPos]);
 
   const fitBounds = useCallback(() => {
     if (!mapRef.current || !mapboxRef.current || !myPos || !otherPos) return;
@@ -185,9 +196,20 @@ export default function LiveLocationMap({
     mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 16 });
   }, [myPos, otherPos]);
 
+  useEffect(() => {
+    if (!myPos || !otherPos || hasAutoFitRef.current) return;
+
+    hasAutoFitRef.current = true;
+    const timeoutId = window.setTimeout(() => {
+      fitBounds();
+    }, 150);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fitBounds, myPos, otherPos]);
+
   const distance = useMemo(() => {
     if (!myPos || !otherPos) return null;
-    return haversineDistance(myPos, otherPos);
+    return haversineMiles(myPos, otherPos);
   }, [myPos, otherPos]);
 
   return (
@@ -210,7 +232,7 @@ export default function LiveLocationMap({
       {distance !== null && (
         <div className="shrink-0 bg-primary/10 px-4 py-1.5 text-center">
           <span className="text-sm font-medium text-primary">
-            距离: {distance < 0.1 ? `${Math.round(distance * 5280)} ft` : `${distance.toFixed(1)} mi`}
+            距离: {distance.toFixed(distance < 1 ? 2 : 1)} mi
           </span>
         </div>
       )}
@@ -220,28 +242,15 @@ export default function LiveLocationMap({
         {!firstCenter && (
           <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
             <div className="flex flex-col items-center gap-2">
-              {geoError ? (
+              {myLocationError ? (
                 <>
                   <AlertTriangle className="h-6 w-6 text-destructive" />
-                  <span className="text-sm text-destructive">{geoError}</span>
-                  <button
-                    onClick={() => {
-                      setGeoError(null);
-                      navigator.geolocation.getCurrentPosition(
-                        (pos) => setMyPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                        () => setGeoError("定位失败"),
-                        { enableHighAccuracy: true, timeout: 10000 }
-                      );
-                    }}
-                    className="text-xs text-primary underline mt-1"
-                  >
-                    重试
-                  </button>
+                  <span className="text-sm text-destructive">{myLocationError}</span>
                 </>
               ) : (
                 <>
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">正在获取位置...</span>
+                  <span className="text-sm text-muted-foreground">正在同步实时位置...</span>
                 </>
               )}
             </div>
@@ -254,12 +263,14 @@ export default function LiveLocationMap({
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-blue-500" />
           <span className="text-sm text-muted-foreground">{myName || "我"}</span>
-          {!myPos && !geoError && <span className="text-xs text-muted-foreground/60">(定位中...)</span>}
+          {!myPos && !myLocationError && <span className="text-xs text-muted-foreground/60">(定位中...)</span>}
+          {!myPos && myLocationError && <span className="text-xs text-destructive">({myLocationError})</span>}
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-green-500" />
           <span className="text-sm text-muted-foreground">{otherName || "对方"}</span>
-          {!otherPos && <span className="text-xs text-muted-foreground/60">(等待中...)</span>}
+          {!otherPos && !otherStopped && <span className="text-xs text-muted-foreground/60">(等待中...)</span>}
+          {!otherPos && otherStopped && <span className="text-xs text-muted-foreground/60">(已结束)</span>}
         </div>
       </div>
     </div>

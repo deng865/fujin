@@ -1,14 +1,20 @@
-import { useState, useEffect, useRef } from "react";
-import { Radio, StopCircle } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Loader2, Radio, StopCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  hasMeaningfulPositionChange,
+  LIVE_LOCATION_HEARTBEAT_MS,
+  LiveLocationPosition,
+} from "@/lib/liveLocation";
 
 interface LiveLocationBannerProps {
   conversationId: string;
   userId: string;
   durationMinutes: number;
   startedAt: number;
-  onStop: () => void;
+  onStop: (reason: "manual" | "expired") => void | Promise<void>;
   onPositionUpdate?: (pos: { lat: number; lng: number }) => void;
+  onError?: (message: string | null) => void;
 }
 
 export default function LiveLocationBanner({
@@ -18,10 +24,60 @@ export default function LiveLocationBanner({
   startedAt,
   onStop,
   onPositionUpdate,
+  onError,
 }: LiveLocationBannerProps) {
   const [remaining, setRemaining] = useState("");
+  const [isStopping, setIsStopping] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const channelRef = useRef<any>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const latestCoordsRef = useRef<LiveLocationPosition | null>(null);
+  const lastBroadcastRef = useRef<LiveLocationPosition | null>(null);
+  const lastBroadcastAtRef = useRef(0);
+  const watchStartedRef = useRef(false);
+  const stopTriggeredRef = useRef(false);
+
+  const broadcastPosition = useCallback((coords: LiveLocationPosition, force = false) => {
+    latestCoordsRef.current = coords;
+    onPositionUpdate?.(coords);
+    onError?.(null);
+
+    const channel = channelRef.current;
+    if (!channel) return;
+
+    const now = Date.now();
+    const movedEnough = hasMeaningfulPositionChange(lastBroadcastRef.current, coords);
+    const heartbeatElapsed = now - lastBroadcastAtRef.current >= LIVE_LOCATION_HEARTBEAT_MS;
+
+    if (!force && !movedEnough && !heartbeatElapsed) return;
+
+    lastBroadcastRef.current = coords;
+    lastBroadcastAtRef.current = now;
+
+    void channel.send({
+      type: "broadcast",
+      event: "live-location",
+      payload: {
+        userId,
+        lat: coords.lat,
+        lng: coords.lng,
+        timestamp: now,
+      },
+    });
+  }, [onError, onPositionUpdate, userId]);
+
+  const handleStop = useCallback(async (reason: "manual" | "expired") => {
+    if (stopTriggeredRef.current) return;
+    stopTriggeredRef.current = true;
+    setIsStopping(true);
+
+    try {
+      await onStop(reason);
+    } catch {
+      stopTriggeredRef.current = false;
+      setIsStopping(false);
+    }
+  }, [onStop]);
 
   // Countdown timer
   useEffect(() => {
@@ -29,7 +85,7 @@ export default function LiveLocationBanner({
     const tick = () => {
       const left = endTime - Date.now();
       if (left <= 0) {
-        onStop();
+        void handleStop("expired");
         return;
       }
       const min = Math.floor(left / 60000);
@@ -39,50 +95,82 @@ export default function LiveLocationBanner({
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [startedAt, durationMinutes, onStop]);
+  }, [durationMinutes, handleStop, startedAt]);
 
   // Watch position and broadcast — wait for SUBSCRIBED before starting GPS
   useEffect(() => {
     const ch = supabase.channel(`live-loc-${conversationId}`);
     channelRef.current = ch;
 
+    const handleGeoError = (error: GeolocationPositionError) => {
+      if (error.code === 1) onError?.("定位权限被拒绝");
+      else if (error.code === 2) onError?.("定位不可用");
+      else if (error.code === 3) onError?.("定位超时");
+      else onError?.("无法获取定位");
+    };
+
+    const handleGeoSuccess = (pos: GeolocationPosition) => {
+      broadcastPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+    };
+
     ch.subscribe((status: string) => {
-      if (status === "SUBSCRIBED") {
-        watchIdRef.current = navigator.geolocation.watchPosition(
-          (pos) => {
-            const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            onPositionUpdate?.(coords);
-            ch.send({
-              type: "broadcast",
-              event: "live-location",
-              payload: {
-                userId,
-                lat: coords.lat,
-                lng: coords.lng,
-                timestamp: Date.now(),
-              },
-            });
-          },
-          () => {},
-          { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+      if (status === "SUBSCRIBED" && !watchStartedRef.current) {
+        watchStartedRef.current = true;
+
+        if (!navigator.geolocation) {
+          onError?.("当前设备不支持定位");
+          return;
+        }
+
+        const geoOptions = { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 };
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => broadcastPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude }, true),
+          handleGeoError,
+          geoOptions,
         );
+
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          handleGeoSuccess,
+          handleGeoError,
+          geoOptions,
+        );
+
+        heartbeatRef.current = setInterval(() => {
+          if (latestCoordsRef.current) {
+            broadcastPosition(latestCoordsRef.current, true);
+          }
+        }, LIVE_LOCATION_HEARTBEAT_MS);
       }
     });
 
     return () => {
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
+
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
+
       if (channelRef.current) {
-        channelRef.current.send({
+        void channelRef.current.send({
           type: "broadcast",
           event: "live-location-stop",
           payload: { userId },
         });
         supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
       }
+
+      watchStartedRef.current = false;
+      latestCoordsRef.current = null;
+      lastBroadcastRef.current = null;
+      lastBroadcastAtRef.current = 0;
     };
-  }, [conversationId, userId]);
+  }, [broadcastPosition, conversationId, onError, userId]);
 
   return (
     <div className="shrink-0 bg-green-500/10 border-b border-green-500/20 max-w-lg mx-auto w-full">
@@ -94,11 +182,12 @@ export default function LiveLocationBanner({
           </span>
         </div>
         <button
-          onClick={onStop}
-          className="ml-3 px-4 py-1.5 bg-destructive text-destructive-foreground rounded-full text-xs font-semibold hover:bg-destructive/90 transition-colors shrink-0 flex items-center gap-1.5"
+          onClick={() => void handleStop("manual")}
+          disabled={isStopping}
+          className="ml-3 px-4 py-1.5 bg-destructive text-destructive-foreground rounded-full text-xs font-semibold hover:bg-destructive/90 transition-colors shrink-0 flex items-center gap-1.5 disabled:opacity-60"
         >
-          <StopCircle className="h-3.5 w-3.5" />
-          结束共享
+          {isStopping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StopCircle className="h-3.5 w-3.5" />}
+          {isStopping ? "结束中..." : "结束共享"}
         </button>
       </div>
     </div>
