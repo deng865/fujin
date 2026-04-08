@@ -187,10 +187,10 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
 
   return (
     <div className={`rounded-2xl overflow-hidden w-[260px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
-      <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+      <div className={`px-3 py-2.5 ${isCompleted || isCancelled ? "bg-muted/60 text-muted-foreground" : isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
         <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
-          <Check className="h-3.5 w-3.5" />
-          {isCompleted ? "✅ 订单已完成" : isCancelled ? "行程已结束" : "已接受行程"}
+          {isCompleted ? <Check className="h-3.5 w-3.5" /> : isCancelled ? <XCircle className="h-3.5 w-3.5" /> : <Car className="h-3.5 w-3.5" />}
+          {isCompleted ? "✅ 订单已完成" : isCancelled ? "已结束预约" : "🚗 行程进行中"}
         </div>
         <div className="space-y-1 text-xs">
           <div className="flex items-start gap-2">
@@ -255,12 +255,6 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
               </button>
             )}
           </div>
-        )}
-        {/* Auto-show rating when completed/cancelled and not yet rated */}
-        {(isCancelled || isCompleted) && onRate && !hasRated && (
-          <TripRatingInput onSubmit={(rating, comment) => {
-            onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price }, rating, comment);
-          }} />
         )}
         {hasRated && (
           <div className={`flex items-center justify-center gap-1 text-xs mt-2 pt-2 border-t opacity-60 ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
