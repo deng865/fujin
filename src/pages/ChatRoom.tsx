@@ -1097,32 +1097,6 @@ export default function ChatRoom() {
             </div>
           );
         })}
-        {/* Rating panel at the very bottom of the chat */}
-        {(() => {
-          const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
-          for (const acceptMsg of accepts) {
-            if ((isCancelledForAccept(acceptMsg.content) || isCompletedForAccept(acceptMsg.content)) && !hasRatedForAccept(acceptMsg.content)) {
-              const ad = parseTripAcceptMessage(acceptMsg.content);
-              if (!ad) continue;
-              return (
-                <div className="flex justify-center px-4 py-3">
-                  <div className="w-[280px] rounded-2xl overflow-hidden border border-border/50">
-                    <div className="px-3 py-2.5 bg-muted text-foreground">
-                      <div className="flex items-center gap-1.5 text-xs font-medium mb-1">
-                        <Star className="h-3.5 w-3.5" />
-                        请对本次行程评价
-                      </div>
-                      <TripRatingInput onSubmit={(rating, comment) => {
-                        handleRateTrip({ from: ad.from, to: ad.to, price: ad.price }, rating, comment);
-                      }} />
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-          }
-          return null;
-        })()}
         <div ref={messagesEndRef} />
       </div>
 
