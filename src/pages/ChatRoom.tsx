@@ -1265,11 +1265,11 @@ export default function ChatRoom() {
                 </div>
                 <span className="text-[11px] text-muted-foreground">位置</span>
               </button>
-              <button onClick={() => { setIsCallCaller(true); setInCall(true); setShowContactMenu(false); }} className="flex flex-col items-center gap-1.5">
+              <button onClick={() => { handleStartCall(); setShowContactMenu(false); }} disabled={startingCall} className="flex flex-col items-center gap-1.5">
                 <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
-                  <Phone className="h-6 w-6 text-muted-foreground" />
+                  {startingCall ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <Phone className="h-6 w-6 text-muted-foreground" />}
                 </div>
-                <span className="text-[11px] text-muted-foreground">语音通话</span>
+                <span className="text-[11px] text-muted-foreground">{startingCall ? "呼叫中..." : "语音通话"}</span>
               </button>
               {myPhone && (
                 <button onClick={() => { handleSendContact("phone"); setShowContactMenu(false); }} className="flex flex-col items-center gap-1.5">
