@@ -295,6 +295,7 @@ interface TripMessageProps {
   onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
   onCancel?: (trip: { from: string; to: string; price?: string }) => void;
   onComplete?: (trip: { from: string; to: string; price?: string }) => void;
+  onCounterOpen?: () => void;
   hasRated?: boolean;
   isCancelled?: boolean;
   isCompleted?: boolean;
@@ -303,7 +304,7 @@ interface TripMessageProps {
   cancellingTrip?: boolean;
 }
 
-export default function TripMessage({ content, isMe, isActive, onAccept, onCounter, onRate, onCancel, onComplete, hasRated, isCancelled, isCompleted, acceptingTrip, completingTrip, cancellingTrip }: TripMessageProps) {
+export default function TripMessage({ content, isMe, isActive, onAccept, onCounter, onRate, onCancel, onComplete, onCounterOpen, hasRated, isCancelled, isCompleted, acceptingTrip, completingTrip, cancellingTrip }: TripMessageProps) {
   const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
   const [showCounterInput, setShowCounterInput] = useState(false);
   const [counterPrice, setCounterPrice] = useState("");
