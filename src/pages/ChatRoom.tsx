@@ -959,6 +959,7 @@ export default function ChatRoom() {
             userId={userId}
             isDriver={isDriver}
             passengerLocation={td.fromCoords}
+            destinationLocation={td.toCoords}
           />
         );
       })()}
