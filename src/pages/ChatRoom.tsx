@@ -1039,6 +1039,7 @@ export default function ChatRoom() {
           durationMinutes={liveShare.duration}
           startedAt={liveShare.startedAt}
           onStop={() => setLiveShare(null)}
+          onPositionUpdate={(pos) => setCachedMyPos(pos)}
         />
       )}
 
