@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -593,7 +593,7 @@ export default function ChatRoom() {
             const driverLat = pos.coords.latitude;
             const driverLng = pos.coords.longitude;
             const res = await fetch(
-              `https://api.mapbox.com/directions/v5/mapbox/driving/${driverLng},${driverLat};${trip.fromCoords.lng},${trip.fromCoords.lat}?access_token=${MAPBOX_TOKEN}&overview=false`
+              `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${driverLng},${driverLat};${trip.fromCoords.lng},${trip.fromCoords.lat}?access_token=${MAPBOX_TOKEN}&overview=false`
             );
             const data = await res.json();
             if (data.routes?.[0]) {
