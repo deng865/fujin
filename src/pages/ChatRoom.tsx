@@ -922,16 +922,18 @@ export default function ChatRoom() {
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => handleCompleteTrip(trip)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                  disabled={completingTrip || cancellingTrip}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
                 >
-                  <Check className="h-3.5 w-3.5" />
+                  {completingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                   订单已完成
                 </button>
                 <button
                   onClick={() => handleCancelTrip(trip)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors"
+                  disabled={completingTrip || cancellingTrip}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors disabled:opacity-50"
                 >
-                  <XCircle className="h-3.5 w-3.5" />
+                  {cancellingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
                   结束预约
                 </button>
               </div>
