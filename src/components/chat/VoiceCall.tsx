@@ -44,7 +44,9 @@ export default function VoiceCall({
   const ringCtxRef = useRef<AudioContext | null>(null);
   const ringPlayingRef = useRef(true);
   const statusRef = useRef(status);
+  const durationRef = useRef(duration);
   statusRef.current = status;
+  durationRef.current = duration;
 
   const cleanup = useCallback(() => {
     clearInterval(timerRef.current);
@@ -93,7 +95,7 @@ export default function VoiceCall({
     };
   }, [isCaller, status]);
 
-  // Auto-cancel: caller waits 30s, then marks session as missed
+  // Auto-cancel: caller waits 30s
   useEffect(() => {
     if (!isCaller || status !== "ringing") return;
     const timer = setTimeout(async () => {
@@ -107,7 +109,7 @@ export default function VoiceCall({
     return () => clearTimeout(timer);
   }, [isCaller, status, callSessionId, cleanup, onClose]);
 
-  // Watch call_session status changes (for caller: detect answered/ended; for callee: detect ended)
+  // Watch call_session status changes
   useEffect(() => {
     const ch = supabase.channel(`call-session-watch-${callSessionId}`)
       .on("postgres_changes", {
@@ -122,14 +124,14 @@ export default function VoiceCall({
             setStatus("ended");
             cleanup();
             toast({ title: "通话已结束", description: "对方已挂断" });
-            setTimeout(() => onClose(duration > 0 ? duration : undefined), 500);
+            setTimeout(() => onClose(durationRef.current > 0 ? durationRef.current : undefined), 500);
           }
         }
       })
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
-  }, [callSessionId, cleanup, onClose, duration]);
+  }, [callSessionId, cleanup, onClose]);
 
   // Main WebRTC setup
   useEffect(() => {
@@ -164,10 +166,26 @@ export default function VoiceCall({
           }
         };
 
-        // Signaling channel using callSessionId for uniqueness
         const channelName = `call-signal-${callSessionId}`;
         const channel = supabase.channel(channelName);
         channelRef.current = channel;
+
+        // Helper: caller creates and sends offer
+        const sendOffer = async () => {
+          if (!pcRef.current || cancelled) return;
+          try {
+            const offer = await pcRef.current.createOffer();
+            await pcRef.current.setLocalDescription(offer);
+            channel.send({
+              type: "broadcast",
+              event: "offer",
+              payload: { sdp: offer, from: userId },
+            });
+            console.log("[VoiceCall] Offer sent");
+          } catch (err) {
+            console.error("[VoiceCall] Error creating offer:", err);
+          }
+        };
 
         pc.onicecandidate = (e) => {
           if (e.candidate) {
@@ -182,6 +200,7 @@ export default function VoiceCall({
         channel
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.from === userId || !pcRef.current) return;
+            console.log("[VoiceCall] Received offer");
             try {
               await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
               const answer = await pcRef.current.createAnswer();
@@ -191,17 +210,19 @@ export default function VoiceCall({
                 event: "answer",
                 payload: { sdp: answer, from: userId },
               });
+              console.log("[VoiceCall] Answer sent");
             } catch (err) {
-              console.error("Error handling offer:", err);
+              console.error("[VoiceCall] Error handling offer:", err);
             }
           })
           .on("broadcast", { event: "answer" }, async ({ payload }) => {
             if (payload.from === userId || !pcRef.current) return;
+            console.log("[VoiceCall] Received answer");
             try {
               await pcRef.current.setRemoteDescription(new RTCSessionDescription(payload.sdp));
               setStatus("connecting");
             } catch (err) {
-              console.error("Error handling answer:", err);
+              console.error("[VoiceCall] Error handling answer:", err);
             }
           })
           .on("broadcast", { event: "ice-candidate" }, async ({ payload }) => {
@@ -210,28 +231,42 @@ export default function VoiceCall({
               await pcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
             } catch {}
           })
+          // Callee sends "ready" after subscribing; caller responds with offer
+          .on("broadcast", { event: "ready" }, async ({ payload }) => {
+            if (payload.from === userId) return;
+            console.log("[VoiceCall] Received ready signal from callee");
+            if (isCaller) {
+              // Stop ringing tone
+              ringPlayingRef.current = false;
+              ringCtxRef.current?.close().catch(() => {});
+              setStatus("connecting");
+              await sendOffer();
+            }
+          })
           .on("broadcast", { event: "hangup" }, ({ payload }) => {
             if (payload.from !== userId) {
               setStatus("ended");
               cleanup();
               toast({ title: "通话已结束", description: "对方已挂断" });
-              setTimeout(() => onClose(duration > 0 ? duration : undefined), 500);
+              setTimeout(() => onClose(durationRef.current > 0 ? durationRef.current : undefined), 500);
             }
           })
           .subscribe(async (subStatus) => {
             if (subStatus !== "SUBSCRIBED" || cancelled) return;
+            console.log("[VoiceCall] Channel subscribed, isCaller:", isCaller);
 
-            if (isCaller) {
-              // Create and send offer
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
+            if (!isCaller) {
+              // Callee: announce ready so caller knows to send offer
+              // Small delay to ensure channel is fully ready
+              await new Promise((r) => setTimeout(r, 300));
               channel.send({
                 type: "broadcast",
-                event: "offer",
-                payload: { sdp: offer, from: userId },
+                event: "ready",
+                payload: { from: userId },
               });
+              console.log("[VoiceCall] Ready signal sent");
             }
-            // Callee waits for offer via broadcast above
+            // Caller waits for "ready" signal before sending offer
           });
 
       } catch (err: any) {
@@ -243,7 +278,6 @@ export default function VoiceCall({
           });
           setStatus("ended");
           cleanup();
-          // Mark session as ended
           await supabase.from("call_sessions").update({ status: "ended", ended_at: new Date().toISOString() } as any).eq("id", callSessionId);
           setTimeout(() => onClose(undefined), 500);
         }
@@ -264,7 +298,7 @@ export default function VoiceCall({
       payload: { from: userId },
     });
     setStatus("ended");
-    const finalDuration = duration;
+    const finalDuration = durationRef.current;
     cleanup();
     await supabase.from("call_sessions").update({ status: "ended", ended_at: new Date().toISOString() } as any).eq("id", callSessionId);
     setTimeout(() => onClose(finalDuration > 0 ? finalDuration : undefined), 500);
