@@ -141,7 +141,8 @@ export default function VoiceCall({
         };
 
         // Signaling channel
-        const channel = supabase.channel(`call-signal-${conversationId}-${Date.now()}`);
+        const channelName = `call-signal-${conversationId}`;
+        const channel = supabase.channel(channelName);
         channelRef.current = channel;
 
         pc.onicecandidate = (e) => {
