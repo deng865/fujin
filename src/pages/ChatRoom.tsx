@@ -65,7 +65,9 @@ export default function ChatRoom() {
   const [loading, setLoading] = useState(true);
   const [inCall, setInCall] = useState(false);
   const [isCallCaller, setIsCallCaller] = useState(true);
-  const [incomingCall, setIncomingCall] = useState<{ callerName: string; callerId: string; signalChannel?: string } | null>(null);
+  const [callSessionId, setCallSessionId] = useState<string | null>(null);
+  const [startingCall, setStartingCall] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ callerName: string; callerId: string; sessionId: string } | null>(null);
   const [myName, setMyName] = useState("");
   const [myPhone, setMyPhone] = useState<string | null>(null);
   const [myWechat, setMyWechat] = useState<string | null>(null);
@@ -260,29 +262,104 @@ export default function ChatRoom() {
       .eq("id", conversationId);
   }, [conversationId, userId]);
 
+  // Listen for incoming calls via DB realtime (call_sessions table)
   useEffect(() => {
     if (!conversationId || !userId) return;
 
-    const callChannel = supabase.channel(`call-${conversationId}`);
-    callChannel
-      .on("broadcast", { event: "call-invite" }, ({ payload }) => {
-        if (payload.from !== userId && !inCall) {
-          setIncomingCall({ callerName: payload.callerName || otherUser?.name || "用户", callerId: payload.from, signalChannel: payload.signalChannel });
-        }
-      })
-      .on("broadcast", { event: "hangup" }, ({ payload }) => {
-        if (payload.from !== userId) {
-          setIncomingCall(null);
+    const ch = supabase.channel(`call-sessions-${conversationId}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "call_sessions",
+        filter: `conversation_id=eq.${conversationId}`,
+      }, async (payload) => {
+        const session = payload.new as any;
+        if (session.receiver_id === userId && session.status === "ringing" && !inCall) {
+          // Fetch caller name
+          const { data: callerProfile } = await supabase
+            .from("public_profiles")
+            .select("name")
+            .eq("id", session.caller_id)
+            .single();
+          setIncomingCall({
+            callerName: callerProfile?.name || otherUser?.name || "用户",
+            callerId: session.caller_id,
+            sessionId: session.id,
+          });
         }
       })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(callChannel);
-    };
+    return () => { supabase.removeChannel(ch); };
   }, [conversationId, userId, inCall, otherUser?.name]);
 
-  // Recall message
+  // Also check for any active ringing session on mount
+  useEffect(() => {
+    if (!conversationId || !userId) return;
+    const checkActive = async () => {
+      const { data } = await supabase
+        .from("call_sessions")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .eq("receiver_id", userId)
+        .eq("status", "ringing")
+        .order("created_at", { ascending: false })
+        .limit(1) as any;
+      if (data && data.length > 0) {
+        const session = data[0];
+        const age = Date.now() - new Date(session.created_at).getTime();
+        if (age < 30000) {
+          const { data: callerProfile } = await supabase
+            .from("public_profiles")
+            .select("name")
+            .eq("id", session.caller_id)
+            .single();
+          setIncomingCall({
+            callerName: callerProfile?.name || otherUser?.name || "用户",
+            callerId: session.caller_id,
+            sessionId: session.id,
+          });
+        }
+      }
+    };
+    checkActive();
+  }, [conversationId, userId, otherUser?.name]);
+
+  // Start a call: create DB session, then enter call UI
+  const handleStartCall = async () => {
+    if (!userId || !conversationId || !otherUserId || startingCall) return;
+    setStartingCall(true);
+    try {
+      // Request mic permission early
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+
+      const { data, error } = await supabase.from("call_sessions").insert({
+        conversation_id: conversationId,
+        caller_id: userId,
+        receiver_id: otherUserId,
+        status: "ringing",
+      } as any).select().single();
+
+      if (error || !data) {
+        toast({ title: "呼叫失败", description: "请稍后重试", variant: "destructive" });
+        return;
+      }
+      setCallSessionId((data as any).id);
+      setIsCallCaller(true);
+      setInCall(true);
+    } catch (err: any) {
+      toast({
+        title: "呼叫失败",
+        description: err.message?.includes("Permission") ? "请允许麦克风权限后重试" : "无法发起通话",
+        variant: "destructive",
+      });
+    } finally {
+      setStartingCall(false);
+    }
+  };
+
+
   const handleRecall = async (msg: Message) => {
     setLongPressMsg(null);
     try {
@@ -853,9 +930,10 @@ export default function ChatRoom() {
   return (
     <>
     <div className="flex flex-col h-[100dvh] bg-background">
-      {inCall && userId && conversationId && (
+      {inCall && userId && conversationId && callSessionId && (
         <VoiceCall
           conversationId={conversationId}
+          callSessionId={callSessionId}
           userId={userId}
           userName={myName}
           otherUserName={otherUser?.name || "用户"}
@@ -863,6 +941,7 @@ export default function ChatRoom() {
           onClose={(callDuration?: number) => {
             setInCall(false);
             setIsCallCaller(true);
+            setCallSessionId(null);
             if (callDuration !== undefined && callDuration > 0) {
               saveCallRecord("completed", userId, callDuration);
             } else if (isCallCaller) {
@@ -874,18 +953,16 @@ export default function ChatRoom() {
       {incomingCall && !inCall && (
         <IncomingCall
           callerName={incomingCall.callerName}
-          onAccept={() => { setIsCallCaller(false); setIncomingCall(null); setInCall(true); }}
-          onDecline={() => {
-            // Send hangup to caller's signal channel
-            if (incomingCall.signalChannel) {
-              const ch = supabase.channel(incomingCall.signalChannel);
-              ch.subscribe((s) => {
-                if (s === "SUBSCRIBED") {
-                  ch.send({ type: "broadcast", event: "hangup", payload: { from: userId } });
-                  setTimeout(() => supabase.removeChannel(ch), 500);
-                }
-              });
-            }
+          onAccept={async () => {
+            // Mark session as answered
+            await supabase.from("call_sessions").update({ status: "answered" } as any).eq("id", incomingCall.sessionId);
+            setCallSessionId(incomingCall.sessionId);
+            setIsCallCaller(false);
+            setIncomingCall(null);
+            setInCall(true);
+          }}
+          onDecline={async () => {
+            await supabase.from("call_sessions").update({ status: "ended", ended_at: new Date().toISOString() } as any).eq("id", incomingCall.sessionId);
             saveCallRecord("declined", incomingCall.callerId);
             setIncomingCall(null);
           }}
@@ -1188,11 +1265,11 @@ export default function ChatRoom() {
                 </div>
                 <span className="text-[11px] text-muted-foreground">位置</span>
               </button>
-              <button onClick={() => { setIsCallCaller(true); setInCall(true); setShowContactMenu(false); }} className="flex flex-col items-center gap-1.5">
+              <button onClick={() => { handleStartCall(); setShowContactMenu(false); }} disabled={startingCall} className="flex flex-col items-center gap-1.5">
                 <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
-                  <Phone className="h-6 w-6 text-muted-foreground" />
+                  {startingCall ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <Phone className="h-6 w-6 text-muted-foreground" />}
                 </div>
-                <span className="text-[11px] text-muted-foreground">语音通话</span>
+                <span className="text-[11px] text-muted-foreground">{startingCall ? "呼叫中..." : "语音通话"}</span>
               </button>
               {myPhone && (
                 <button onClick={() => { handleSendContact("phone"); setShowContactMenu(false); }} className="flex flex-col items-center gap-1.5">
