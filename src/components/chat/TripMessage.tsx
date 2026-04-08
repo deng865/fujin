@@ -24,7 +24,7 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fr
     const padLng = Math.max((maxLng - minLng) * 0.3, 0.005);
     const padLat = Math.max((maxLat - minLat) * 0.3, 0.005);
     return [[minLng - padLng, minLat - padLat], [maxLng + padLng, maxLat + padLat]] as [[number, number], [number, number]];
-  }, [fromCoords, toCoords]);
+  }, [fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng]);
 
   // Fallback straight line
   const fallbackLine = useMemo(() => ({
@@ -39,18 +39,28 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fr
     let cancelled = false;
     setRouteError(false);
 
-    const timeout = setTimeout(() => {
-      if (!cancelled) { setRouteError(true); onRouteError?.(); }
+    const controller = new AbortController();
+    const failRoute = () => {
+      if (!cancelled) {
+        setRouteError(true);
+        onRouteError?.();
+      }
+    };
+
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+      failRoute();
     }, 10000);
 
     const fetchRoute = async () => {
       try {
         const res = await fetch(
-          `https://api.mapbox.com/directions/v5/mapbox/driving/${fromCoords.lng},${fromCoords.lat};${toCoords.lng},${toCoords.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`
+          `https://api.mapbox.com/directions/v5/mapbox/driving/${fromCoords.lng},${fromCoords.lat};${toCoords.lng},${toCoords.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`,
+          { signal: controller.signal }
         );
         const data = await res.json();
         if (!cancelled && data.routes?.[0]) {
-          clearTimeout(timeout);
+          window.clearTimeout(timeout);
           const route = data.routes[0];
           const coords = route.geometry.coordinates;
           setRouteGeoJson({
@@ -66,15 +76,20 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fr
             durationMin: Math.round(route.duration / 60),
           });
         } else if (!cancelled) {
-          setRouteError(true); onRouteError?.();
+          failRoute();
         }
-      } catch {
-        if (!cancelled) { setRouteError(true); onRouteError?.(); }
+      } catch (error) {
+        if ((error as DOMException)?.name === "AbortError") return;
+        failRoute();
       }
     };
     fetchRoute();
-    return () => { cancelled = true; clearTimeout(timeout); };
-  }, [fromCoords, toCoords]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng]);
 
   return (
     <div className="w-full h-[140px] rounded-lg mt-2 overflow-hidden">
@@ -184,10 +199,12 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
 }) {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [routeFailed, setRouteFailed] = useState(false);
+  const tripEnded = isCancelled || isCompleted;
+  const showRouteSection = !tripEnded && !!acceptData.fromCoords && !!acceptData.toCoords;
 
   return (
     <div className={`rounded-2xl overflow-hidden w-[260px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
-      <div className={`px-3 py-2.5 ${isCompleted || isCancelled ? "bg-muted/60 text-muted-foreground" : isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+      <div className={`px-3 py-2.5 ${tripEnded ? "bg-muted/60 text-muted-foreground" : isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
         <div className="flex items-center gap-1.5 text-xs font-medium mb-1.5">
           {isCompleted ? <Check className="h-3.5 w-3.5" /> : isCancelled ? <XCircle className="h-3.5 w-3.5" /> : <Car className="h-3.5 w-3.5" />}
           {isCompleted ? "✅ 订单已完成" : isCancelled ? "已结束预约" : "🚗 行程进行中"}
@@ -207,11 +224,11 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
           </div>
         </div>
         {/* Mini map for accept card */}
-        {acceptData.fromCoords && acceptData.toCoords && (
+        {showRouteSection && (
           <TripMiniMap fromCoords={acceptData.fromCoords} toCoords={acceptData.toCoords} onRouteLoaded={setRouteInfo} onRouteError={() => setRouteFailed(true)} />
         )}
         {/* Distance & ETA */}
-        {acceptData.fromCoords && acceptData.toCoords && (
+        {showRouteSection && (
           <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
             <Route className="h-3.5 w-3.5 shrink-0" />
             {routeInfo ? (
@@ -228,7 +245,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
           </div>
         )}
         {acceptData.price && (
-          <div className={`flex items-center gap-1.5 text-xs mt-1 ${!(acceptData.fromCoords && acceptData.toCoords) ? "mt-2 pt-2 border-t" : ""} ${!(acceptData.fromCoords && acceptData.toCoords) && (isMe ? "border-primary-foreground/20" : "border-border/50")}`}>
+          <div className={`flex items-center gap-1.5 text-xs ${showRouteSection ? "mt-1" : "mt-2 pt-2 border-t"} ${!showRouteSection && (isMe ? "border-primary-foreground/20" : "border-border/50")}`}>
             <DollarSign className="h-3.5 w-3.5 shrink-0" />
             <span className="font-medium">成交价: ${acceptData.price}</span>
           </div>
@@ -270,6 +287,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
 interface TripMessageProps {
   content: string;
   isMe: boolean;
+  isActive?: boolean;
   onAccept?: (trip: { from: string; to: string; price?: string }) => void;
   onCounter?: (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => void;
   onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
@@ -280,7 +298,7 @@ interface TripMessageProps {
   isCompleted?: boolean;
 }
 
-export default function TripMessage({ content, isMe, onAccept, onCounter, onRate, onCancel, onComplete, hasRated, isCancelled, isCompleted }: TripMessageProps) {
+export default function TripMessage({ content, isMe, isActive, onAccept, onCounter, onRate, onCancel, onComplete, hasRated, isCancelled, isCompleted }: TripMessageProps) {
   const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
   const [showCounterInput, setShowCounterInput] = useState(false);
   const [counterPrice, setCounterPrice] = useState("");
@@ -508,6 +526,21 @@ export default function TripMessage({ content, isMe, onAccept, onCounter, onRate
 
   const trip = parseTripMessage(content);
   if (!trip) return null;
+
+  if (isActive || isCancelled || isCompleted) {
+    return (
+      <AcceptTripCard
+        acceptData={trip}
+        isMe={isMe}
+        isCancelled={isCancelled}
+        isCompleted={isCompleted}
+        onCancel={onCancel}
+        onComplete={onComplete}
+        onRate={onRate}
+        hasRated={hasRated}
+      />
+    );
+  }
 
   const openNav = (target: "from" | "to", app: "apple" | "google") => {
     const query = target === "from" ? trip.from : trip.to;
