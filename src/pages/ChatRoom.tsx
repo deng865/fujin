@@ -238,17 +238,30 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId]);
 
-  // Listen for live-location-stop broadcast from the other party
+  // Listen for live-location-stop broadcast — same channel as Banner
   useEffect(() => {
     if (!conversationId || !userId) return;
-    const ch = supabase.channel(`live-loc-listen-${conversationId}`);
+    const ch = supabase.channel(`live-loc-stop-listen-${conversationId}`);
     ch.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
       if (payload?.payload?.userId !== userId) {
         setLiveShare(null);
         toast({ title: "位置共享已结束", description: "对方已停止共享位置" });
       }
-    }).subscribe();
-    return () => { supabase.removeChannel(ch); };
+    });
+    // Also listen on the main broadcast channel
+    const mainCh = supabase.channel(`live-loc-${conversationId}`);
+    mainCh.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
+      if (payload?.payload?.userId !== userId) {
+        setLiveShare(null);
+        toast({ title: "位置共享已结束", description: "对方已停止共享位置" });
+      }
+    });
+    ch.subscribe();
+    mainCh.subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+      supabase.removeChannel(mainCh);
+    };
   }, [conversationId, userId]);
 
   const saveCallRecord = useCallback(async (status: "missed" | "declined" | "completed" | "cancelled", callerId: string, duration?: number) => {
