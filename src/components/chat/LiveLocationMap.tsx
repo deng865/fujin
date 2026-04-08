@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, Navigation, Radio } from "lucide-react";
+import { X, Navigation, Radio, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 
@@ -24,6 +24,8 @@ export default function LiveLocationMap({
   const mapRef = useRef<any>(null);
   const myMarkerRef = useRef<any>(null);
   const otherMarkerRef = useRef<any>(null);
+  const mapInitedRef = useRef(false);
+  const mapboxRef = useRef<any>(null);
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [otherPos, setOtherPos] = useState<{ lat: number; lng: number } | null>(null);
   const watchIdRef = useRef<number | null>(null);
@@ -49,7 +51,6 @@ export default function LiveLocationMap({
 
     ch.subscribe((status: string) => {
       if (status === "SUBSCRIBED") {
-        // Start watching and broadcasting own position
         watchIdRef.current = navigator.geolocation.watchPosition(
           (pos) => {
             const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -79,21 +80,21 @@ export default function LiveLocationMap({
     };
   }, [conversationId, userId, otherUserId]);
 
-  // Init map
+  // Init map only after first GPS fix
   useEffect(() => {
-    if (!mapContainerRef.current || !MAPBOX_TOKEN) return;
-    let cancelled = false;
+    if (!myPos || mapInitedRef.current || !mapContainerRef.current || !MAPBOX_TOKEN) return;
+    mapInitedRef.current = true;
 
     import("mapbox-gl").then((mapboxgl) => {
-      if (cancelled || !mapContainerRef.current) return;
+      if (!mapContainerRef.current) return;
       (mapboxgl as any).accessToken = MAPBOX_TOKEN;
+      mapboxRef.current = mapboxgl;
 
-      const center = myPos || { lng: -118.25, lat: 34.05 };
       const map = new mapboxgl.Map({
         container: mapContainerRef.current!,
         style: "mapbox://styles/mapbox/streets-v12",
-        center: [center.lng, center.lat],
-        zoom: 14,
+        center: [myPos.lng, myPos.lat],
+        zoom: 15,
       });
 
       mapRef.current = map;
@@ -102,51 +103,58 @@ export default function LiveLocationMap({
       const myEl = document.createElement("div");
       myEl.innerHTML = `<div style="width:36px;height:36px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">我</div>`;
       myMarkerRef.current = new mapboxgl.Marker({ element: myEl })
-        .setLngLat([center.lng, center.lat])
-        .addTo(map);
-
-      // Other marker (green)
-      const otherEl = document.createElement("div");
-      const initial = (otherName || "对").charAt(0);
-      otherEl.innerHTML = `<div style="width:36px;height:36px;border-radius:50%;background:#22c55e;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">${initial}</div>`;
-      otherMarkerRef.current = new mapboxgl.Marker({ element: otherEl })
-        .setLngLat([center.lng, center.lat])
+        .setLngLat([myPos.lng, myPos.lat])
         .addTo(map);
     });
 
     return () => {
-      cancelled = true;
       mapRef.current?.remove();
+      mapRef.current = null;
+      mapInitedRef.current = false;
     };
-  }, []);
+  }, [myPos]);
 
-  // Update markers
+  // Update my marker position
   useEffect(() => {
     if (myPos && myMarkerRef.current) {
       myMarkerRef.current.setLngLat([myPos.lng, myPos.lat]);
     }
   }, [myPos]);
 
+  // Create or update other marker lazily
   useEffect(() => {
-    if (otherPos && otherMarkerRef.current) {
+    if (!otherPos || !mapRef.current || !mapboxRef.current) return;
+
+    if (!otherMarkerRef.current) {
+      const mapboxgl = mapboxRef.current;
+      const initial = (otherName || "对").charAt(0);
+      const otherEl = document.createElement("div");
+      otherEl.innerHTML = `<div style="width:36px;height:36px;border-radius:50%;background:#22c55e;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">${initial}</div>`;
+      otherMarkerRef.current = new mapboxgl.Marker({ element: otherEl })
+        .setLngLat([otherPos.lng, otherPos.lat])
+        .addTo(mapRef.current);
+
+      // Fit bounds on first appearance
+      if (myPos) {
+        const bounds = new mapboxgl.LngLatBounds();
+        bounds.extend([myPos.lng, myPos.lat]);
+        bounds.extend([otherPos.lng, otherPos.lat]);
+        mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 16 });
+      }
+    } else {
       otherMarkerRef.current.setLngLat([otherPos.lng, otherPos.lat]);
     }
-  }, [otherPos]);
+  }, [otherPos, otherName, myPos]);
 
   // Fit both markers
   const fitBounds = useCallback(() => {
-    if (!mapRef.current || !myPos || !otherPos) return;
-    import("mapbox-gl").then((mapboxgl) => {
-      const bounds = new mapboxgl.LngLatBounds();
-      bounds.extend([myPos.lng, myPos.lat]);
-      bounds.extend([otherPos.lng, otherPos.lat]);
-      mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 16 });
-    });
+    if (!mapRef.current || !mapboxRef.current || !myPos || !otherPos) return;
+    const mapboxgl = mapboxRef.current;
+    const bounds = new mapboxgl.LngLatBounds();
+    bounds.extend([myPos.lng, myPos.lat]);
+    bounds.extend([otherPos.lng, otherPos.lat]);
+    mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 16 });
   }, [myPos, otherPos]);
-
-  useEffect(() => {
-    if (myPos && otherPos) fitBounds();
-  }, [!!otherPos]);
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -165,7 +173,16 @@ export default function LiveLocationMap({
       </div>
 
       {/* Map */}
-      <div ref={mapContainerRef} className="flex-1" />
+      <div ref={mapContainerRef} className="flex-1 relative">
+        {!myPos && (
+          <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">正在获取位置...</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Legend */}
       <div className="shrink-0 px-4 py-3 border-t border-border bg-background flex items-center gap-6">
