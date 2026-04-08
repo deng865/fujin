@@ -155,7 +155,7 @@ export default function DriverTracking({
           </span>
           {eta && (
             <span className="text-muted-foreground">
-              · {eta.distanceMi.toFixed(1)} mi · 约{eta.durationMin}分钟
+              · {eta.distanceKm.toFixed(1)} km · 约{eta.durationMin}分钟
             </span>
           )}
         </div>
@@ -188,7 +188,7 @@ export default function DriverTracking({
           </span>
           {eta && (
             <span className="text-muted-foreground">
-              · {eta.distanceMi.toFixed(1)} mi · 约{eta.durationMin}分钟
+              · {eta.distanceKm.toFixed(1)} km · 约{eta.durationMin}分钟
             </span>
           )}
         </div>
