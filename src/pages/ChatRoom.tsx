@@ -254,7 +254,7 @@ export default function ChatRoom() {
     callChannel
       .on("broadcast", { event: "call-invite" }, ({ payload }) => {
         if (payload.from !== userId && !inCall) {
-          setIncomingCall({ callerName: payload.callerName || otherUser?.name || "用户", callerId: payload.from });
+          setIncomingCall({ callerName: payload.callerName || otherUser?.name || "用户", callerId: payload.from, signalChannel: payload.signalChannel });
         }
       })
       .on("broadcast", { event: "hangup" }, ({ payload }) => {
@@ -846,10 +846,14 @@ export default function ChatRoom() {
           userId={userId}
           userName={myName}
           otherUserName={otherUser?.name || "用户"}
+          isCaller={isCallCaller}
           onClose={(callDuration?: number) => {
             setInCall(false);
+            setIsCallCaller(true);
             if (callDuration !== undefined && callDuration > 0) {
               saveCallRecord("completed", userId, callDuration);
+            } else if (isCallCaller) {
+              saveCallRecord("cancelled", userId);
             }
           }}
         />
@@ -857,8 +861,21 @@ export default function ChatRoom() {
       {incomingCall && !inCall && (
         <IncomingCall
           callerName={incomingCall.callerName}
-          onAccept={() => { setIncomingCall(null); setInCall(true); }}
-          onDecline={() => { saveCallRecord("missed", incomingCall.callerId); setIncomingCall(null); }}
+          onAccept={() => { setIsCallCaller(false); setIncomingCall(null); setInCall(true); }}
+          onDecline={() => {
+            // Send hangup to caller's signal channel
+            if (incomingCall.signalChannel) {
+              const ch = supabase.channel(incomingCall.signalChannel);
+              ch.subscribe((s) => {
+                if (s === "SUBSCRIBED") {
+                  ch.send({ type: "broadcast", event: "hangup", payload: { from: userId } });
+                  setTimeout(() => supabase.removeChannel(ch), 500);
+                }
+              });
+            }
+            saveCallRecord("declined", incomingCall.callerId);
+            setIncomingCall(null);
+          }}
         />
       )}
 
@@ -1158,7 +1175,7 @@ export default function ChatRoom() {
                 </div>
                 <span className="text-[11px] text-muted-foreground">位置</span>
               </button>
-              <button onClick={() => setInCall(true)} className="flex flex-col items-center gap-1.5">
+              <button onClick={() => { setIsCallCaller(true); setInCall(true); setShowContactMenu(false); }} className="flex flex-col items-center gap-1.5">
                 <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
                   <Phone className="h-6 w-6 text-muted-foreground" />
                 </div>
