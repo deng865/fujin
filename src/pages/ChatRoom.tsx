@@ -1361,7 +1361,9 @@ export default function ChatRoom() {
         otherUserId={otherUserId}
         myName={myName || "我"}
         otherName={otherUser?.name || "对方"}
-        onClose={() => setShowLiveMap(false)}
+        initialMyPos={selectedLiveLocation?.myPos || cachedMyPos}
+        initialOtherPos={selectedLiveLocation?.otherPos}
+        onClose={() => { setShowLiveMap(false); setSelectedLiveLocation(null); }}
       />
     )}
 
