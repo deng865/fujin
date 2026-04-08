@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
 import Map, { Marker, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
@@ -15,6 +15,12 @@ function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng:
   return R * 2 * Math.atan2(Math.sqrt(sin2), Math.sqrt(1 - sin2));
 }
 
+/** Minimum displacement (meters) before we update state / broadcast */
+const MIN_MOVE_THRESHOLD = 20;
+
+/** Minimum interval (ms) between route API calls */
+const ROUTE_DEBOUNCE_MS = 5000;
+
 type Phase = "pickup" | "destination";
 
 interface DriverTrackingProps {
@@ -25,6 +31,44 @@ interface DriverTrackingProps {
   destinationLocation?: { lat: number; lng: number };
   onClose?: () => void;
 }
+
+/* ── Memoised sub-components to prevent full re-renders ── */
+
+const DriverMarker = memo(({ lng, lat }: { lng: number; lat: number }) => (
+  <Marker longitude={lng} latitude={lat} anchor="center">
+    <div className="relative">
+      <div className="w-8 h-8 rounded-full bg-blue-500 border-3 border-white shadow-lg flex items-center justify-center">
+        <span className="text-white text-xs">🚗</span>
+      </div>
+      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full animate-ping" />
+    </div>
+  </Marker>
+));
+DriverMarker.displayName = "DriverMarker";
+
+const TargetMarker = memo(({ lng, lat, phase }: { lng: number; lat: number; phase: Phase }) => (
+  <Marker longitude={lng} latitude={lat} anchor="center">
+    <div
+      className="w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center"
+      style={{ backgroundColor: phase === "pickup" ? "#22c55e" : "#ef4444" }}
+    >
+      <MapPin className="h-3 w-3 text-white" />
+    </div>
+  </Marker>
+));
+TargetMarker.displayName = "TargetMarker";
+
+const PickupGhostMarker = memo(({ lng, lat }: { lng: number; lat: number }) => (
+  <Marker longitude={lng} latitude={lat} anchor="center">
+    <div className="w-4 h-4 rounded-full bg-green-400/50 border border-white/50" />
+  </Marker>
+));
+PickupGhostMarker.displayName = "PickupGhostMarker";
+
+/* ── Route line paint objects (stable references) ── */
+const PICKUP_PAINT = { "line-color": "#3b82f6", "line-width": 4, "line-opacity": 0.8 } as const;
+const DEST_PAINT = { "line-color": "#10b981", "line-width": 4, "line-opacity": 0.8 } as const;
+const LINE_LAYOUT = { "line-cap": "round" as const, "line-join": "round" as const };
 
 export default function DriverTracking({
   conversationId,
@@ -38,9 +82,16 @@ export default function DriverTracking({
   const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
   const [eta, setEta] = useState<{ distanceMi: number; durationMin: number } | null>(null);
   const [phase, setPhase] = useState<Phase>("pickup");
+
   const watchIdRef = useRef<number | null>(null);
   const lastBroadcast = useRef(0);
   const channelRef = useRef<any>(null);
+  /** Last location that was committed to state (for threshold gating) */
+  const lastCommittedLoc = useRef<{ lat: number; lng: number } | null>(null);
+  /** Last location used for route fetch (for debounce) */
+  const lastRouteFetchLoc = useRef<{ lat: number; lng: number } | null>(null);
+  const lastRouteFetchTime = useRef(0);
+  const routeFetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Determine current target based on phase
   const currentTarget = phase === "pickup" ? passengerLocation : (destinationLocation ?? passengerLocation);
@@ -58,8 +109,19 @@ export default function DriverTracking({
       setPhase("destination");
       setRouteGeoJson(null);
       setEta(null);
+      // Reset route tracking refs for new phase
+      lastRouteFetchLoc.current = null;
+      lastRouteFetchTime.current = 0;
     }
   }, [driverLocation, passengerLocation, destinationLocation, phase]);
+
+  // ── Shared handler: only update state if moved > threshold ──
+  const handleNewLocation = useCallback((loc: { lat: number; lng: number }) => {
+    const prev = lastCommittedLoc.current;
+    if (prev && haversineMeters(prev, loc) < MIN_MOVE_THRESHOLD) return; // skip tiny movements
+    lastCommittedLoc.current = loc;
+    setDriverLocation(loc);
+  }, []);
 
   // Driver: watch position and broadcast
   useEffect(() => {
@@ -72,7 +134,11 @@ export default function DriverTracking({
         const id = navigator.geolocation.watchPosition(
           (pos) => {
             const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            setDriverLocation(loc);
+
+            // Gate state update on movement threshold
+            handleNewLocation(loc);
+
+            // Broadcast at most every 3 seconds
             const now = Date.now();
             if (now - lastBroadcast.current > 3000) {
               lastBroadcast.current = now;
@@ -95,16 +161,16 @@ export default function DriverTracking({
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [isDriver, conversationId]);
+  }, [isDriver, conversationId, handleNewLocation]);
 
-  // Passenger: listen for driver location broadcasts
+  // Passenger: listen for driver location broadcasts (with threshold gating)
   useEffect(() => {
     if (isDriver) return;
     const channel = supabase
       .channel(`trip-track-${conversationId}`)
       .on("broadcast", { event: "driver-location" }, ({ payload }) => {
         if (payload?.lat && payload?.lng) {
-          setDriverLocation(payload);
+          handleNewLocation(payload);
         }
       })
       .subscribe();
@@ -112,45 +178,89 @@ export default function DriverTracking({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isDriver, conversationId]);
+  }, [isDriver, conversationId, handleNewLocation]);
 
-  // Fetch route when driver location or target updates
+  // ── Debounced route fetch ──
+  const doFetchRoute = useCallback(async (
+    driverLoc: { lat: number; lng: number },
+    target: { lat: number; lng: number },
+    currentPhase: Phase,
+  ) => {
+    try {
+      const res = await fetch(
+        `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${driverLoc.lng},${driverLoc.lat};${target.lng},${target.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`
+      );
+      const data = await res.json();
+      if (data.routes?.[0]) {
+        const route = data.routes[0];
+        setRouteGeoJson({
+          type: "Feature",
+          properties: {},
+          geometry: route.geometry,
+        });
+        const miles = (route.distance / 1000) * 0.621371;
+        const minutes = Math.round(route.duration / 60);
+        setEta({ distanceMi: miles, durationMin: minutes });
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
   useEffect(() => {
     if (!driverLocation) return;
-    let cancelled = false;
-    const fetchRoute = async () => {
-      try {
-        const res = await fetch(
-          `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${driverLocation.lng},${driverLocation.lat};${currentTarget.lng},${currentTarget.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`
-        );
-        const data = await res.json();
-        if (!cancelled && data.routes?.[0]) {
-          const route = data.routes[0];
-          setRouteGeoJson({
-            type: "Feature",
-            properties: {},
-            geometry: route.geometry,
-          });
-          // route.distance is in meters, route.duration is in seconds
-          const miles = (route.distance / 1000) * 0.621371;
-          const minutes = Math.round(route.duration / 60);
-          console.log("[DriverTracking] Route:", { 
-            distanceMeters: route.distance, 
-            durationSeconds: route.duration,
-            miles, 
-            minutes,
-            profile: "driving-traffic"
-          });
-          setEta({
-            distanceMi: miles,
-            durationMin: minutes,
-          });
+
+    const now = Date.now();
+    const elapsed = now - lastRouteFetchTime.current;
+
+    // If we recently fetched AND driver hasn't moved much, skip
+    const prevRouteLoc = lastRouteFetchLoc.current;
+    if (prevRouteLoc && elapsed < ROUTE_DEBOUNCE_MS) {
+      const moved = haversineMeters(prevRouteLoc, driverLocation);
+      if (moved < 50) {
+        // Schedule a deferred fetch if not already scheduled
+        if (!routeFetchTimer.current) {
+          routeFetchTimer.current = setTimeout(() => {
+            routeFetchTimer.current = null;
+            lastRouteFetchLoc.current = driverLocation;
+            lastRouteFetchTime.current = Date.now();
+            doFetchRoute(driverLocation, currentTarget, phase);
+          }, ROUTE_DEBOUNCE_MS - elapsed);
         }
-      } catch {}
+        return;
+      }
+    }
+
+    // Clear any pending timer
+    if (routeFetchTimer.current) {
+      clearTimeout(routeFetchTimer.current);
+      routeFetchTimer.current = null;
+    }
+
+    lastRouteFetchLoc.current = driverLocation;
+    lastRouteFetchTime.current = now;
+    doFetchRoute(driverLocation, currentTarget, phase);
+
+    return () => {
+      if (routeFetchTimer.current) {
+        clearTimeout(routeFetchTimer.current);
+        routeFetchTimer.current = null;
+      }
     };
-    fetchRoute();
-    return () => { cancelled = true; };
-  }, [driverLocation?.lat, driverLocation?.lng, currentTarget.lat, currentTarget.lng]);
+  }, [driverLocation, currentTarget.lat, currentTarget.lng, phase, doFetchRoute]);
+
+  // ── Stable paint reference based on phase ──
+  const linePaint = phase === "pickup" ? PICKUP_PAINT : DEST_PAINT;
+
+  const bounds = useMemo(() => {
+    if (!driverLocation) return null;
+    return {
+      minLng: Math.min(driverLocation.lng, currentTarget.lng),
+      maxLng: Math.max(driverLocation.lng, currentTarget.lng),
+      minLat: Math.min(driverLocation.lat, currentTarget.lat),
+      maxLat: Math.max(driverLocation.lat, currentTarget.lat),
+    };
+  }, [driverLocation?.lng, driverLocation?.lat, currentTarget.lng, currentTarget.lat]);
 
   if (!expanded) {
     return (
@@ -173,17 +283,6 @@ export default function DriverTracking({
       </button>
     );
   }
-
-  const allPoints = [currentTarget];
-  if (driverLocation) allPoints.push(driverLocation);
-  const bounds = driverLocation
-    ? {
-        minLng: Math.min(driverLocation.lng, currentTarget.lng),
-        maxLng: Math.max(driverLocation.lng, currentTarget.lng),
-        minLat: Math.min(driverLocation.lat, currentTarget.lat),
-        maxLat: Math.max(driverLocation.lat, currentTarget.lat),
-      }
-    : null;
 
   return (
     <div className="shrink-0 border-b border-primary/20">
@@ -231,36 +330,15 @@ export default function DriverTracking({
                 <Layer
                   id="tracking-route-layer"
                   type="line"
-                  paint={{
-                    "line-color": phase === "pickup" ? "#3b82f6" : "#10b981",
-                    "line-width": 4,
-                    "line-opacity": 0.8,
-                  }}
-                  layout={{ "line-cap": "round", "line-join": "round" }}
+                  paint={linePaint as any}
+                  layout={LINE_LAYOUT}
                 />
               </Source>
             )}
-            {/* Driver marker */}
-            <Marker longitude={driverLocation.lng} latitude={driverLocation.lat} anchor="center">
-              <div className="relative">
-                <div className="w-8 h-8 rounded-full bg-blue-500 border-3 border-white shadow-lg flex items-center justify-center">
-                  <span className="text-white text-xs">🚗</span>
-                </div>
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full animate-ping" />
-              </div>
-            </Marker>
-            {/* Target marker */}
-            <Marker longitude={currentTarget.lng} latitude={currentTarget.lat} anchor="center">
-              <div className="w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center"
-                style={{ backgroundColor: phase === "pickup" ? "#22c55e" : "#ef4444" }}>
-                <MapPin className="h-3 w-3 text-white" />
-              </div>
-            </Marker>
-            {/* In destination phase, also show passenger pickup point as a subtle marker */}
+            <DriverMarker lng={driverLocation.lng} lat={driverLocation.lat} />
+            <TargetMarker lng={currentTarget.lng} lat={currentTarget.lat} phase={phase} />
             {phase === "destination" && (
-              <Marker longitude={passengerLocation.lng} latitude={passengerLocation.lat} anchor="center">
-                <div className="w-4 h-4 rounded-full bg-green-400/50 border border-white/50" />
-              </Marker>
+              <PickupGhostMarker lng={passengerLocation.lng} lat={passengerLocation.lat} />
             )}
           </Map>
         ) : (
