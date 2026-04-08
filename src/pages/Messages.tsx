@@ -6,6 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { toast } from "sonner";
 import IncomingCall from "@/components/chat/IncomingCall";
+import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
 
 interface Conversation {
   id: string;
@@ -155,6 +156,10 @@ export default function Messages() {
     }
   }, []);
 
+  useEffect(() => {
+    primeAudioNotifications();
+  }, []);
+
   const handleEnableNotif = useCallback(async () => {
     if ("Notification" in window) {
       const perm = await Notification.requestPermission();
@@ -185,7 +190,11 @@ export default function Messages() {
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => {
         fetchConversations(userId);
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const newMessage = payload.new as { sender_id?: string };
+        if (newMessage.sender_id !== userId) {
+          void playMessageNotificationTone();
+        }
         fetchConversations(userId);
       })
       .subscribe();
@@ -216,9 +225,20 @@ export default function Messages() {
           });
         }
       })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "call_sessions",
+      }, (payload) => {
+        const session = payload.new as any;
+        if (session.receiver_id !== userId) return;
+        if (incomingCall?.sessionId === session.id && session.status !== "ringing") {
+          setIncomingCall(null);
+        }
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [userId]);
+  }, [userId, incomingCall?.sessionId]);
 
   const fetchConversations = async (uid: string) => {
     const { data } = await supabase
