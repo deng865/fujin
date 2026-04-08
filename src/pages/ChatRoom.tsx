@@ -359,6 +359,16 @@ export default function ChatRoom() {
       setStartingCall(false);
     }
   };
+  // Auto-start call if navigated with callSession param (accepted from Messages page)
+  useEffect(() => {
+    const sessionId = searchParams.get("callSession");
+    if (sessionId && userId && !inCall) {
+      setCallSessionId(sessionId);
+      setIsCallCaller(false);
+      setInCall(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, userId, inCall, setSearchParams]);
 
 
   const handleRecall = async (msg: Message) => {
