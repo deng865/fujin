@@ -197,6 +197,19 @@ export default function ChatRoom() {
             return [...prev, newMsg];
           });
           if (newMsg.sender_id !== userId) {
+            // Play notification sound
+            try {
+              const ctx = new AudioContext();
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.frequency.value = 800;
+              gain.gain.value = 0.1;
+              osc.start();
+              osc.stop(ctx.currentTime + 0.15);
+              setTimeout(() => ctx.close(), 300);
+            } catch {}
             await supabase
               .from("messages")
               .update({ read_at: new Date().toISOString() })
