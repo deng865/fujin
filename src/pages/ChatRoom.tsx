@@ -1050,8 +1050,6 @@ export default function ChatRoom() {
                       <TripRatingDisplay content={msg.content} isMe={isMe} currentUserId={userId || undefined} />
                     ) : parseTripAcceptNotify(msg.content) ? (
                       (() => {
-                        // Find the corresponding trip_accept message to determine status
-                        // Look for the most recent trip_accept before this notify
                         const notifyIdx = messages.indexOf(msg);
                         let matchedAcceptContent: string | null = null;
                         for (let j = notifyIdx - 1; j >= 0; j--) {
@@ -1060,6 +1058,8 @@ export default function ChatRoom() {
                         }
                         const notifyCancelled = matchedAcceptContent ? isCancelledForAccept(matchedAcceptContent) : false;
                         const notifyCompleted = matchedAcceptContent ? isCompletedForAccept(matchedAcceptContent) : false;
+                        // Hide entirely when trip ended — no avatar, no timestamp
+                        if (notifyCancelled || notifyCompleted) return <span className="hidden" />;
                         return <TripMessage content={msg.content} isMe={isMe} isCancelled={notifyCancelled} isCompleted={notifyCompleted} />;
                       })()
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content) || (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })()) ? (
