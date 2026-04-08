@@ -146,6 +146,7 @@ export default function Messages() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [showNotifBanner, setShowNotifBanner] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ callerName: string; callerId: string; sessionId: string; conversationId: string } | null>(null);
 
   useEffect(() => {
     // Check if notification permission is not granted
