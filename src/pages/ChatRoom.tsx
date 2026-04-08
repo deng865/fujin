@@ -1060,26 +1060,7 @@ export default function ChatRoom() {
                         return <TripMessage content={msg.content} isMe={isMe} isCancelled={notifyCancelled} isCompleted={notifyCompleted} />;
                       })()
                     ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content) || (() => { try { return JSON.parse(msg.content)?.type === "trip_complete"; } catch { return false; } })()) ? (
-                      <>
                         <TripMessage content={msg.content} isMe={isMe} isActive={isActiveForTrip(msg.content)} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onCounterOpen={scrollToBottom} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} acceptingTrip={acceptingTrip} completingTrip={completingTrip} cancellingTrip={cancellingTrip} />
-                        {parseTripAcceptMessage(msg.content) && (isCancelledForAccept(msg.content) || isCompletedForAccept(msg.content)) && !hasRatedForAccept(msg.content) && (() => {
-                          const ad = parseTripAcceptMessage(msg.content);
-                          if (!ad) return null;
-                          return (
-                            <div className={`mt-2 w-[260px] rounded-2xl overflow-hidden ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
-                              <div className={`px-3 py-2.5 ${isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
-                                <div className="flex items-center gap-1.5 text-xs font-medium mb-1">
-                                  <Star className="h-3.5 w-3.5" />
-                                  请对本次行程评价
-                                </div>
-                                <TripRatingInput onSubmit={(rating, comment) => {
-                                  handleRateTrip({ from: ad.from, to: ad.to, price: ad.price }, rating, comment);
-                                }} />
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </>
                     ) : (() => {
                       try {
                         const parsed = JSON.parse(msg.content);
@@ -1116,6 +1097,32 @@ export default function ChatRoom() {
             </div>
           );
         })}
+        {/* Rating panel at the very bottom of the chat */}
+        {(() => {
+          const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
+          for (const acceptMsg of accepts) {
+            if ((isCancelledForAccept(acceptMsg.content) || isCompletedForAccept(acceptMsg.content)) && !hasRatedForAccept(acceptMsg.content)) {
+              const ad = parseTripAcceptMessage(acceptMsg.content);
+              if (!ad) continue;
+              return (
+                <div className="flex justify-center px-4 py-3">
+                  <div className="w-[280px] rounded-2xl overflow-hidden border border-border/50">
+                    <div className="px-3 py-2.5 bg-muted text-foreground">
+                      <div className="flex items-center gap-1.5 text-xs font-medium mb-1">
+                        <Star className="h-3.5 w-3.5" />
+                        请对本次行程评价
+                      </div>
+                      <TripRatingInput onSubmit={(rating, comment) => {
+                        handleRateTrip({ from: ad.from, to: ad.to, price: ad.price }, rating, comment);
+                      }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+          }
+          return null;
+        })()}
         <div ref={messagesEndRef} />
       </div>
 

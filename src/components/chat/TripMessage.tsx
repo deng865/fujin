@@ -197,91 +197,156 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
 }) {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [routeFailed, setRouteFailed] = useState(false);
+  const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
   const tripEnded = isCancelled || isCompleted;
   const showRouteSection = !tripEnded && !!acceptData.fromCoords && !!acceptData.toCoords;
   const buttonsDisabled = completingTrip || cancellingTrip;
 
+  const getNavUrl = (target: "from" | "to", app: "apple" | "google") => {
+    const query = target === "from" ? acceptData.from : acceptData.to;
+    const coords = target === "from" ? acceptData.fromCoords : acceptData.toCoords;
+    if (app === "apple") {
+      return coords
+        ? `https://maps.apple.com/?daddr=${coords.lat},${coords.lng}&q=${encodeURIComponent(query)}`
+        : `https://maps.apple.com/?daddr=${encodeURIComponent(query)}`;
+    }
+    return coords
+      ? `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`
+      : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
+  };
+
   return (
-    <div className={`rounded-2xl overflow-hidden w-[260px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
-      <div className={`px-3 py-2.5 ${tripEnded ? "bg-muted/60 text-muted-foreground" : isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
-        <TripStatusBadge isCancelled={isCancelled} isCompleted={isCompleted} />
-        <div className="space-y-1 text-xs">
-          <div className="flex items-start gap-2">
-            <div className="flex items-center gap-1 shrink-0 mt-0.5">
-              <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+    <div className="relative">
+      <div className={`rounded-2xl overflow-hidden w-[260px] ${isMe ? "rounded-br-md" : "rounded-bl-md"}`}>
+        <div className={`px-3 py-2.5 ${tripEnded ? "bg-muted/60 text-muted-foreground" : isMe ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+          <TripStatusBadge isCancelled={isCancelled} isCompleted={isCompleted} />
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 shrink-0">
+                <div className="w-3 h-3 rounded-full bg-green-500/30 flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                </div>
+                <span className="text-[10px] font-medium text-green-600">出发地</span>
               </div>
-              <span className="text-[10px] font-medium text-green-600">出发地</span>
+              <span className="break-words flex-1 min-w-0">{acceptData.from}</span>
+              {!tripEnded && (
+                <button
+                  onClick={() => setNavTarget(navTarget === "from" ? null : "from")}
+                  className={`p-1 rounded-md shrink-0 transition-colors ${isMe ? "hover:bg-primary-foreground/20" : "hover:bg-accent"}`}
+                  title="导航到出发地"
+                >
+                  <Navigation className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
-            <span className="break-words">{acceptData.from}</span>
-          </div>
-          <div className="flex items-start gap-2">
-            <div className="flex items-center gap-1 shrink-0 mt-0.5">
-              <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 shrink-0">
+                <div className="w-3 h-3 rounded-full bg-red-500/30 flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                </div>
+                <span className="text-[10px] font-medium text-red-500">目的地</span>
               </div>
-              <span className="text-[10px] font-medium text-red-500">目的地</span>
+              <span className="break-words flex-1 min-w-0">{acceptData.to}</span>
+              {!tripEnded && (
+                <button
+                  onClick={() => setNavTarget(navTarget === "to" ? null : "to")}
+                  className={`p-1 rounded-md shrink-0 transition-colors ${isMe ? "hover:bg-primary-foreground/20" : "hover:bg-accent"}`}
+                  title="导航到目的地"
+                >
+                  <Navigation className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
-            <span className="break-words">{acceptData.to}</span>
           </div>
+          {showRouteSection && (
+            <TripMiniMap fromCoords={acceptData.fromCoords!} toCoords={acceptData.toCoords!} onRouteLoaded={setRouteInfo} onRouteError={() => setRouteFailed(true)} />
+          )}
+          {showRouteSection && (
+            <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
+              <Route className="h-3.5 w-3.5 shrink-0" />
+              {routeInfo ? (
+                <span className="font-medium">
+                  {routeInfo.distanceKm.toFixed(1)} km ({routeInfo.distanceMi.toFixed(1)} mi) · 约 {routeInfo.durationMin} 分钟
+                </span>
+              ) : routeFailed ? (
+                <span className="text-muted-foreground">无法获取路线信息</span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> 计算路线...
+                </span>
+              )}
+            </div>
+          )}
+          {acceptData.price && (
+            <div className={`flex items-center gap-1.5 text-xs ${showRouteSection ? "mt-1" : "mt-2 pt-2 border-t"} ${!showRouteSection && (isMe ? "border-primary-foreground/20" : "border-border/50")}`}>
+              <DollarSign className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium">成交价: ${acceptData.price}</span>
+            </div>
+          )}
+          {/* Action buttons */}
+          {!isCancelled && !isCompleted && (onCancel || onComplete) && (
+            <div className="flex gap-2 mt-2">
+              {onComplete && (
+                <button
+                  onClick={() => !buttonsDisabled && onComplete({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                  disabled={buttonsDisabled}
+                  className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
+                >
+                  {completingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  订单已完成
+                </button>
+              )}
+              {onCancel && (
+                <button
+                  onClick={() => !buttonsDisabled && onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                  disabled={buttonsDisabled}
+                  className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50 text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
+                >
+                  {cancellingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
+                  结束预约
+                </button>
+              )}
+            </div>
+          )}
+          {hasRated && (
+            <div className={`flex items-center justify-center gap-1 text-xs mt-2 pt-2 border-t opacity-60 ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
+              <Check className="h-3 w-3" />
+              已评价
+            </div>
+          )}
         </div>
-        {showRouteSection && (
-          <TripMiniMap fromCoords={acceptData.fromCoords!} toCoords={acceptData.toCoords!} onRouteLoaded={setRouteInfo} onRouteError={() => setRouteFailed(true)} />
-        )}
-        {showRouteSection && (
-          <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
-            <Route className="h-3.5 w-3.5 shrink-0" />
-            {routeInfo ? (
-              <span className="font-medium">
-                {routeInfo.distanceKm.toFixed(1)} km ({routeInfo.distanceMi.toFixed(1)} mi) · 约 {routeInfo.durationMin} 分钟
-              </span>
-            ) : routeFailed ? (
-              <span className="text-muted-foreground">无法获取路线信息</span>
-            ) : (
-              <span className="flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" /> 计算路线...
-              </span>
-            )}
-          </div>
-        )}
-        {acceptData.price && (
-          <div className={`flex items-center gap-1.5 text-xs ${showRouteSection ? "mt-1" : "mt-2 pt-2 border-t"} ${!showRouteSection && (isMe ? "border-primary-foreground/20" : "border-border/50")}`}>
-            <DollarSign className="h-3.5 w-3.5 shrink-0" />
-            <span className="font-medium">成交价: ${acceptData.price}</span>
-          </div>
-        )}
-        {/* Action buttons - with loading/disabled states */}
-        {!isCancelled && !isCompleted && (onCancel || onComplete) && (
-          <div className="flex gap-2 mt-2">
-            {onComplete && (
-              <button
-                onClick={() => !buttonsDisabled && onComplete({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
-                disabled={buttonsDisabled}
-                className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
-              >
-                {completingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                订单已完成
-              </button>
-            )}
-            {onCancel && (
-              <button
-                onClick={() => !buttonsDisabled && onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
-                disabled={buttonsDisabled}
-                className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50 text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
-              >
-                {cancellingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
-                结束预约
-              </button>
-            )}
-          </div>
-        )}
-        {hasRated && (
-          <div className={`flex items-center justify-center gap-1 text-xs mt-2 pt-2 border-t opacity-60 ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
-            <Check className="h-3 w-3" />
-            已评价
-          </div>
-        )}
       </div>
+
+      {navTarget && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setNavTarget(null)} />
+          <div className={`absolute z-50 top-0 ${isMe ? "right-full mr-1" : "left-full ml-1"} bg-background border border-border rounded-xl shadow-lg overflow-hidden min-w-[160px]`}>
+            <div className="px-3 py-1.5 text-[11px] text-muted-foreground border-b border-border/50">
+              {navTarget === "from" ? "导航到出发地" : "导航到目的地"}
+            </div>
+            <a
+              href={getNavUrl(navTarget, "apple")}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setNavTarget(null)}
+              className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2 transition-colors"
+            >
+              <Navigation className="h-4 w-4" />
+              Apple Maps
+            </a>
+            <a
+              href={getNavUrl(navTarget, "google")}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setNavTarget(null)}
+              className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2 border-t border-border/50 transition-colors"
+            >
+              <Navigation className="h-4 w-4" />
+              Google Maps
+            </a>
+          </div>
+        </>
+      )}
     </div>
   );
 }
