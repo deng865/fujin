@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface VoiceCallProps {
   conversationId: string;
+  callSessionId: string;
   userId: string;
   userName: string;
   otherUserName: string;
@@ -22,6 +23,7 @@ const ICE_SERVERS: RTCConfiguration = {
 
 export default function VoiceCall({
   conversationId,
+  callSessionId,
   userId,
   userName,
   otherUserName,
@@ -41,6 +43,8 @@ export default function VoiceCall({
   const channelRef = useRef<any>(null);
   const ringCtxRef = useRef<AudioContext | null>(null);
   const ringPlayingRef = useRef(true);
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
   const cleanup = useCallback(() => {
     clearInterval(timerRef.current);
@@ -89,38 +93,58 @@ export default function VoiceCall({
     };
   }, [isCaller, status]);
 
-  // Auto-cancel if no answer within 30s (caller only)
+  // Auto-cancel: caller waits 30s, then marks session as missed
   useEffect(() => {
     if (!isCaller || status !== "ringing") return;
-    const timer = setTimeout(() => {
-      if (status === "ringing") {
-        const ch = channelRef.current;
-        ch?.send({ type: "broadcast", event: "hangup", payload: { from: userId } });
+    const timer = setTimeout(async () => {
+      if (statusRef.current === "ringing") {
+        await supabase.from("call_sessions").update({ status: "missed", ended_at: new Date().toISOString() } as any).eq("id", callSessionId);
         setStatus("ended");
         cleanup();
-        onClose(undefined); // no duration = cancelled
+        onClose(undefined);
       }
     }, 30000);
     return () => clearTimeout(timer);
-  }, [isCaller, status, userId, cleanup, onClose]);
+  }, [isCaller, status, callSessionId, cleanup, onClose]);
 
+  // Watch call_session status changes (for caller: detect answered/ended; for callee: detect ended)
+  useEffect(() => {
+    const ch = supabase.channel(`call-session-watch-${callSessionId}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "call_sessions",
+        filter: `id=eq.${callSessionId}`,
+      }, (payload) => {
+        const newStatus = (payload.new as any).status;
+        if (newStatus === "ended" || newStatus === "missed") {
+          if (statusRef.current !== "ended") {
+            setStatus("ended");
+            cleanup();
+            toast({ title: "通话已结束", description: "对方已挂断" });
+            setTimeout(() => onClose(duration > 0 ? duration : undefined), 500);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(ch); };
+  }, [callSessionId, cleanup, onClose, duration]);
+
+  // Main WebRTC setup
   useEffect(() => {
     let cancelled = false;
 
     const setup = async () => {
       try {
-        // Get microphone first
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         localStreamRef.current = stream;
 
-        // Create peer connection
         const pc = new RTCPeerConnection(ICE_SERVERS);
         pcRef.current = pc;
-
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-        // Handle remote audio
         pc.ontrack = (event) => {
           if (remoteAudioRef.current && event.streams[0]) {
             remoteAudioRef.current.srcObject = event.streams[0];
@@ -140,8 +164,8 @@ export default function VoiceCall({
           }
         };
 
-        // Signaling channel
-        const channelName = `call-signal-${conversationId}`;
+        // Signaling channel using callSessionId for uniqueness
+        const channelName = `call-signal-${callSessionId}`;
         const channel = supabase.channel(channelName);
         channelRef.current = channel;
 
@@ -198,28 +222,6 @@ export default function VoiceCall({
             if (subStatus !== "SUBSCRIBED" || cancelled) return;
 
             if (isCaller) {
-              // Caller: send invite via the shared call channel, then create offer
-              const inviteChannel = supabase.channel(`call-${conversationId}`);
-              await new Promise<void>((resolve) => {
-                inviteChannel.subscribe((s) => {
-                  if (s === "SUBSCRIBED") {
-                    inviteChannel.send({
-                      type: "broadcast",
-                      event: "call-invite",
-                      payload: {
-                        from: userId,
-                        callerName: userName,
-                        signalChannel: channel.topic,
-                      },
-                    });
-                    setTimeout(() => {
-                      supabase.removeChannel(inviteChannel);
-                      resolve();
-                    }, 500);
-                  }
-                });
-              });
-
               // Create and send offer
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
@@ -229,18 +231,21 @@ export default function VoiceCall({
                 payload: { sdp: offer, from: userId },
               });
             }
-            // Callee: just wait for the offer to arrive (handled in .on("offer") above)
+            // Callee waits for offer via broadcast above
           });
 
       } catch (err: any) {
         if (!cancelled) {
           toast({
             title: "通话失败",
-            description: err.message || "无法建立连接",
+            description: err.message?.includes("Permission") ? "请允许麦克风权限后重试" : (err.message || "无法建立连接"),
             variant: "destructive",
           });
           setStatus("ended");
           cleanup();
+          // Mark session as ended
+          await supabase.from("call_sessions").update({ status: "ended", ended_at: new Date().toISOString() } as any).eq("id", callSessionId);
+          setTimeout(() => onClose(undefined), 500);
         }
       }
     };
@@ -250,9 +255,9 @@ export default function VoiceCall({
       cancelled = true;
       cleanup();
     };
-  }, [conversationId, userId, userName, isCaller, cleanup, onClose]);
+  }, [callSessionId, userId, isCaller, cleanup, onClose]);
 
-  const hangup = () => {
+  const hangup = async () => {
     channelRef.current?.send({
       type: "broadcast",
       event: "hangup",
@@ -261,6 +266,7 @@ export default function VoiceCall({
     setStatus("ended");
     const finalDuration = duration;
     cleanup();
+    await supabase.from("call_sessions").update({ status: "ended", ended_at: new Date().toISOString() } as any).eq("id", callSessionId);
     setTimeout(() => onClose(finalDuration > 0 ? finalDuration : undefined), 500);
   };
 
