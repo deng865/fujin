@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { MapPin, Navigation, Loader2, Send, DollarSign, Map, X, Route, ExternalLink } from "lucide-react";
+import { MapPin, Navigation, Loader2, Send, DollarSign, Map, X, Route } from "lucide-react";
 import MapGL, { Marker, MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
@@ -14,14 +14,6 @@ interface LocationState {
   coords?: { lat: number; lng: number };
 }
 
-function openNavigation(coords: { lat: number; lng: number }, label: string) {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  if (isIOS) {
-    window.open(`maps://maps.apple.com/?q=${encodeURIComponent(label)}&ll=${coords.lat},${coords.lng}`, "_blank");
-  } else {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`, "_blank");
-  }
-}
 
 export default function TripSharePanel({ onSend, sending }: TripSharePanelProps) {
   const [from, setFrom] = useState<LocationState>({ text: "" });
@@ -255,15 +247,6 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
             >
               <Map className="h-4 w-4" />
             </button>
-            {from.coords && (
-              <button
-                onClick={() => openNavigation(from.coords!, from.text)}
-                className="p-2 rounded-lg bg-muted hover:bg-accent text-green-600 shrink-0"
-                title="导航到出发地"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </button>
-            )}
           </div>
           {activeField === "from" && suggestions.length > 0 && (
             <div className="absolute left-7 right-0 top-full mt-1 bg-background border border-border rounded-xl shadow-xl z-20 max-h-40 overflow-y-auto">
@@ -312,15 +295,6 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
             >
               <Map className="h-4 w-4" />
             </button>
-            {to.coords && (
-              <button
-                onClick={() => openNavigation(to.coords!, to.text)}
-                className="p-2 rounded-lg bg-muted hover:bg-accent text-red-500 shrink-0"
-                title="导航到终点"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </button>
-            )}
           </div>
           {activeField === "to" && suggestions.length > 0 && (
             <div className="absolute left-7 right-0 top-full mt-1 bg-background border border-border rounded-xl shadow-xl z-20 max-h-40 overflow-y-auto">
