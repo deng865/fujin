@@ -131,9 +131,8 @@ export default function DriverTracking({
             properties: {},
             geometry: route.geometry,
           });
-          const km = route.distance / 1000;
           setEta({
-            distanceMi: km * 0.621371,
+            distanceKm: route.distance / 1000,
             durationMin: Math.round(route.duration / 60),
           });
         }
