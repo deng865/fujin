@@ -83,6 +83,7 @@ export default function ChatRoom() {
   const [isRideChat, setIsRideChat] = useState(false);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [liveShare, setLiveShare] = useState<{ duration: number; startedAt: number } | null>(null);
+  const [showLiveMap, setShowLiveMap] = useState(false);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [isDriver, setIsDriver] = useState(false);
   const [acceptingTrip, setAcceptingTrip] = useState(false);
