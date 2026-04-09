@@ -83,7 +83,7 @@ export default function PostDetail() {
       if (data) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("name, avatar_url")
+          .select("name, avatar_url, average_rating, total_ratings")
           .eq("id", data.user_id)
           .single();
 
@@ -277,7 +277,10 @@ export default function PostDetail() {
                 )}
               </div>
               <div className="flex-1">
-                <p className="font-medium text-sm">{post.profiles?.name || "匿名用户"}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-medium text-sm">{post.profiles?.name || "匿名用户"}</p>
+                  <CreditBadge averageRating={post.profiles?.average_rating ?? null} totalRatings={post.profiles?.total_ratings ?? null} />
+                </div>
                 <p className="text-xs text-muted-foreground">发布者 / Publisher</p>
               </div>
             </div>
