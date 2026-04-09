@@ -145,18 +145,19 @@ export default function LiveLocationBanner({
           return;
         }
 
-        const geoOptions = { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 };
+        const fastOptions = { enableHighAccuracy: false, maximumAge: 60000, timeout: 5000 };
+        const preciseOptions = { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 };
 
         navigator.geolocation.getCurrentPosition(
           (pos) => broadcastPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude }, true),
           handleGeoError,
-          geoOptions,
+          fastOptions,
         );
 
         watchIdRef.current = navigator.geolocation.watchPosition(
           handleGeoSuccess,
           handleGeoError,
-          geoOptions,
+          preciseOptions,
         );
 
         heartbeatRef.current = setInterval(() => {
