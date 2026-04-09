@@ -71,6 +71,14 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
       setState("half");
     }
   }, [selectedCategory]);
+
+  // Collapse when map is tapped
+  useEffect(() => {
+    if (mapTapped > 0) {
+      setState("peek");
+    }
+  }, [mapTapped]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const dragRef = useRef({ startY: 0, startState: state as SheetState });
