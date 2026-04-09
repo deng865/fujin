@@ -1,54 +1,34 @@
 
 
-# 实时位置共享地图：添加"我的位置"按钮 + 驾车路程信息
+# 修复：实时位置共享看不到对方位置
 
-## 需求
-1. 在地图右下角添加一个定位按钮（类似主页的 Crosshair 圆圈），点击后地图飞到自己的位置
-2. 距离信息栏改为显示**驾车路程**（距离 + 预计时间），类似主页导航标注，使用 Mapbox Directions API 获取驾车距离和 ETA
-3. 同时在地图上绘制两人之间的驾车路线
+## 根因
+
+`LiveLocationBanner`（line 102）和 `ChatRoom`（line 248）都订阅了同名频道 `live-loc-${conversationId}`。Supabase 不允许同一个客户端重复订阅同名频道，导致 ChatRoom 的监听器静默失败，永远收不到对方的坐标广播。
+
+## 修复方案
+
+**核心思路**：Banner 已经成功订阅了频道，让 Banner 同时监听对方的广播，通过回调传给 ChatRoom，不再在 ChatRoom 中重复订阅。
+
+### Step 1: LiveLocationBanner 增加监听对方位置
+
+**文件**: `src/components/chat/LiveLocationBanner.tsx`
+
+- 新增 `onOtherPositionUpdate` prop：`(pos: { lat: number; lng: number }) => void`
+- 新增 `otherUserId` prop
+- 在频道订阅的回调中（`ch.subscribe` 之前），添加 `ch.on("broadcast", { event: "live-location" }, ...)` 监听
+- 收到广播时，如果 `payload.userId !== userId`（即来自对方），调用 `onOtherPositionUpdate`
+
+### Step 2: ChatRoom 移除重复频道订阅
+
+**文件**: `src/pages/ChatRoom.tsx`
+
+- **删除** line 246-258 的 `useEffect`（`live-loc-${conversationId}` 监听器）
+- 在渲染 `LiveLocationBanner` 时传入新 props：
+  - `otherUserId={otherUserId}`
+  - `onOtherPositionUpdate={(pos) => setOtherCachedPos(pos)}`
 
 ## 修改文件
-
-### `src/components/chat/LiveLocationMap.tsx`
-
-**1. 添加"我的位置"按钮**
-- 在地图区域右下角叠加一个圆形按钮，图标用 `Crosshair`（与主页一致）
-- 点击后调用 `mapRef.current.flyTo({ center: [myPos.lng, myPos.lat], zoom: 16 })`
-- 样式：半透明白底、圆角、阴影，与主页 `MapControls` 风格一致
-
-**2. 驾车路线和路程信息**
-- 新增 `routeInfo` state：`{ distance: string; duration: string } | null`
-- 新增 `useEffect`：当 `myPos` 和 `otherPos` 都存在时，调用 Mapbox Directions API：
-  ```
-  https://api.mapbox.com/directions/v5/mapbox/driving/{myLng},{myLat};{otherLng},{otherLat}?access_token=...
-  ```
-- 设置 5 秒防抖，避免频繁请求
-- 解析返回的 `routes[0].distance`（米→公里/英里）和 `routes[0].duration`（秒→分钟）
-- 在地图上用 GeoJSON source + line layer 绘制路线（蓝色虚线）
-- 距离栏改为显示：`驾车 X.X mi · 约 XX 分钟`
-
-**3. 路线图层管理**
-- 地图 `load` 事件后添加 `route` source 和 `route-line` layer
-- 每次路线更新时用 `map.getSource('route').setData(...)` 更新
-- 组件卸载时自动清理（map.remove 已处理）
-
-## UI 布局
-
-```text
-┌─────────────────────────────┐
-│  ✕   🟢 实时位置共享   结束共享 │  ← header
-├─────────────────────────────┤
-│  🚗 驾车 2.3 mi · 约 8 分钟   │  ← 路程信息栏
-├─────────────────────────────┤
-│                             │
-│     [地图 + 路线]            │
-│                             │
-│                        [⊕]  │  ← 我的位置按钮（右下角）
-├─────────────────────────────┤
-│  🔵我  🟢对方               │  ← legend
-└─────────────────────────────┘
-```
-
-## 只修改一个文件
-- `src/components/chat/LiveLocationMap.tsx`
+- `src/components/chat/LiveLocationBanner.tsx` — 增加对方位置监听 + 2个新 props
+- `src/pages/ChatRoom.tsx` — 删除重复频道订阅，传递新 props
 
