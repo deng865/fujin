@@ -103,7 +103,6 @@ export default function CreatePost() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Apply fuzzy offset for approximate location
       let finalLat = location.lat;
       let finalLng = location.lng;
       if (locationType === "approximate") {
@@ -111,7 +110,6 @@ export default function CreatePost() {
         finalLng += (Math.random() - 0.5) * 0.01;
       }
 
-      // Build description with extra fields
       let desc = formData.description;
       const extras: string[] = [];
       if (category === "housing") {
@@ -130,8 +128,7 @@ export default function CreatePost() {
         desc = (desc ? desc + "\n\n" : "") + extras.join(" | ");
       }
 
-      const { error } = await supabase.from("posts").insert({
-        user_id: user.id,
+      const postPayload = {
         title: formData.title.trim(),
         description: desc?.trim() || null,
         category,
@@ -141,27 +138,41 @@ export default function CreatePost() {
         image_urls: formData.imageUrls.length > 0 ? formData.imageUrls : null,
         contact_phone: formData.phone.trim() || null,
         contact_wechat: formData.wechatId.trim() || null,
-      });
+      };
 
-      if (error) throw error;
-      toast.success("发布成功！ / Posted successfully!");
-      navigate("/");
+      if (editId) {
+        const { error } = await supabase.from("posts").update(postPayload).eq("id", editId);
+        if (error) throw error;
+        toast.success("修改成功！ / Updated successfully!");
+      } else {
+        const { error } = await supabase.from("posts").insert({ ...postPayload, user_id: user.id });
+        if (error) throw error;
+        toast.success("发布成功！ / Posted successfully!");
+      }
+      navigate(editId ? "/profile" : "/");
     } catch (err: any) {
-      toast.error(err.message || "发布失败");
+      toast.error(err.message || "操作失败");
     } finally {
       setLoading(false);
     }
   };
 
+  if (initialLoading) {
+    return (
+      <div className="fixed inset-0 bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-background flex flex-col">
-      {/* Header */}
       <div className="flex-shrink-0 z-20 bg-background/90 backdrop-blur-xl border-b border-border/50">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-accent rounded-xl active:scale-95">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-base font-bold">发布信息</h1>
+          <h1 className="text-base font-bold">{editId ? "编辑信息" : "发布信息"}</h1>
           <div className="w-9" />
         </div>
       </div>
