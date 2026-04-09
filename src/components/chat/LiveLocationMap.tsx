@@ -52,20 +52,35 @@ export default function LiveLocationMap({
     });
   }, []);
 
+  // Seed from initial props
   useEffect(() => {
-    if (initialMyPos) {
-      updateMyPos(initialMyPos);
-    }
+    if (initialMyPos) updateMyPos(initialMyPos);
   }, [initialMyPos, updateMyPos]);
 
   useEffect(() => {
-    if (initialOtherPos) {
-      updateOtherPos(initialOtherPos);
-    }
+    if (initialOtherPos) updateOtherPos(initialOtherPos);
   }, [initialOtherPos, updateOtherPos]);
 
+  // Fallback: get own GPS position directly if no initialMyPos
   useEffect(() => {
-    const ch = supabase.channel(`live-loc-${conversationId}`);
+    if (initialMyPos || myPos) return; // already have position
+    if (!navigator.geolocation) return;
+
+    let cancelled = false;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (!cancelled) {
+          updateMyPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        }
+      },
+      () => {}, // errors handled by banner
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+    );
+    return () => { cancelled = true; };
+  }, [initialMyPos, myPos, updateMyPos]);
+
+  useEffect(() => {
+    const ch = supabase.channel(`live-loc-${conversationId}`, { config: { broadcast: { self: true } } });
 
     ch.on("broadcast", { event: "live-location" }, (payload: any) => {
       const p = payload?.payload;
