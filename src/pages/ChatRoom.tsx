@@ -1045,11 +1045,39 @@ export default function ChatRoom() {
                   </span>
                 )}
               </div>
-              <span className="font-semibold text-sm">{otherUser?.name || "用户"}</span>
+              <div className="flex flex-col">
+                <span className="font-semibold text-sm">{otherUser?.name || "用户"}</span>
+                <CreditBadge averageRating={otherUserCredit?.average_rating ?? null} totalRatings={otherUserCredit?.total_ratings ?? null} size="sm" />
+              </div>
             </div>
           </div>
+          <button
+            onClick={() => setShowReviewDialog(true)}
+            className="p-2 -mr-2 hover:bg-accent rounded-xl text-primary"
+            title="评价对方"
+          >
+            <Star className="h-5 w-5" />
+          </button>
         </div>
       </div>
+
+      {/* Review Dialog */}
+      {userId && otherUserId && (
+        <ReviewDialog
+          open={showReviewDialog}
+          onOpenChange={setShowReviewDialog}
+          senderId={userId}
+          receiverId={otherUserId}
+          postId={conversationId || ""}
+          receiverName={otherUser?.name}
+          onReviewSubmitted={() => {
+            // Refresh other user credit
+            supabase.from("profiles").select("average_rating, total_ratings").eq("id", otherUserId).single().then(({ data }) => {
+              if (data) setOtherUserCredit(data as any);
+            });
+          }}
+        />
+      )}
 
       {/* Live location sharing banner */}
       {liveShare && userId && conversationId && otherUserId && (
