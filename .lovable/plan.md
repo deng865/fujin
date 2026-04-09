@@ -1,83 +1,72 @@
 
 
-# Plan: Fix Location Terminology & Add Live Share Accept Flow
+# 修复实时位置共享：显示"已结束"和看不到双方位置
 
-## Problem Summary
+## 问题根因
 
-1. **"发送我的位置"** shows "共享位置" as fallback — should say "{name}的位置", because it's a one-way send, not a mutual share.
-2. **"实时位置共享"** currently auto-starts for both parties when one sends it. It should require the other party to **accept** before mutual tracking begins. Either party can end it.
+1. **频道冲突**：`LiveLocationMap` 在第 142 行创建了一个与 `LiveLocationBanner` 同名的 Supabase 频道 (`live-loc-${conversationId}`)。Supabase 客户端不允许同名频道重复订阅，导致其中一个静默失败 → 收不到对方坐标。
+2. **第一个频道无用**：Map 的第一个频道 `live-loc-map-${conversationId}-${Date.now()}` 名称唯一，但没有人向它广播，所以永远收不到数据。
+3. **Banner 清理发 stop**：`LiveLocationBanner` 的 `useEffect` cleanup 会在组件卸载时发送 `live-location-stop`，如果 React 重渲染或用户短暂离开页面，会误触发"已结束"。
+4. **ChatRoom 的 stop 监听** (line 247) 只要收到 stop 广播就立刻 `setLiveShare(null)`，不区分是主动结束还是组件重载。
 
----
+## 修复方案
 
-## Changes
+### 核心思路：Map 不再自建频道，改为纯显示组件
 
-### Step 1: Fix Static Location Label
-**File**: `src/components/chat/LocationMessage.tsx`
+ChatRoom 统一监听广播，维护 `otherPos` 状态，通过 props 传给 Map。Map 只负责自身 GPS 定位和地图渲染。
 
-Change fallback label from `"共享位置"` to `"位置信息"` (neutral, since it's one-way). Keep the `"{name}的位置"` display when senderName is available.
+### Step 1: ChatRoom 新增对方位置状态
 
-### Step 2: Add Accept/Reject to Live Location Message
-**File**: `src/components/chat/LiveLocationMessage.tsx`
+**文件**: `src/pages/ChatRoom.tsx`
 
-- Add `status` field to the live location data: `"pending"` | `"accepted"` | `"ended"`
-- When the message is `pending` and `!isMe`, show an **"接受"** (Accept) button
-- When `pending` and `isMe`, show "等待对方接受..." text
-- When `accepted`, show current "点击查看" behavior
-- When `ended`, show "位置共享已结束"
-- Add `onAccept` callback prop
+- 新增 `otherCachedPos` state
+- 在现有的 `live-loc-stop-listen` 频道上同时监听 `live-location` 事件，当收到 `otherUserId` 的坐标时更新 `otherCachedPos`
+- 传递 `cachedMyPos` 和 `otherCachedPos` 给 `LiveLocationMap`
+- 删除 stop 监听里"任何 stop 就清除 liveShare"的逻辑；改为只在 DB UPDATE 事件（`status === "ended"`）时才清除
 
-### Step 3: Update ChatRoom Live Share Flow
-**File**: `src/pages/ChatRoom.tsx`
+### Step 2: 简化 LiveLocationMap
 
-- When initiating live share, set message status to `"pending"` — do NOT start `LiveLocationBanner` yet
-- Add `handleAcceptLiveShare` function:
-  - Update the message content in DB to set `status: "accepted"`
-  - Start `LiveLocationBanner` for both parties (receiver starts on accept; sender starts when they detect the status change via realtime)
-- Listen for message updates: when a `live_location` message changes to `accepted`, the sender also starts their banner
-- On stop (either party): update message status to `"ended"`, send a system notification message "实时位置共享已结束", broadcast stop event
+**文件**: `src/components/chat/LiveLocationMap.tsx`
 
-### Step 4: Add End Notification Message
-**File**: `src/pages/ChatRoom.tsx`
+- **删除两个 Supabase 频道订阅**（line 104-138, 141-170），Map 不再订阅任何频道
+- `otherPos` 完全依赖 props (`initialOtherPos`) 的实时更新，用 `useEffect` 同步
+- 保留自身 GPS `watchPosition` 逻辑不变
+- 新增 `onStopShare` prop，地图顶部显示"结束共享"按钮
 
-When either party ends live sharing (manual or expired):
-- Insert a system message: `{ type: "system", text: "实时位置共享已结束" }`
-- Update conversation's `last_message`
-- Clean up banner and map state
+### Step 3: 修复 Banner 误发 stop
 
-### Step 5: Update LiveLocationBanner Stop Handler
-**File**: `src/components/chat/LiveLocationBanner.tsx`
+**文件**: `src/components/chat/LiveLocationBanner.tsx`
 
-- The `onStop` callback already exists; ensure it propagates the reason back to ChatRoom
-- ChatRoom's stop handler will handle the DB update and notification message
+- cleanup 中不再发送 `live-location-stop` 广播。Stop 信号只通过 `handleStop` → ChatRoom 的 `handleStopLiveShare` 来处理（更新 DB status → 触发 realtime UPDATE）
+- 这样组件卸载（如重渲染）不会误发 stop
 
----
+### Step 4: 地图显示"结束共享"按钮
 
-## Technical Details
+**文件**: `src/components/chat/LiveLocationMap.tsx`
 
-**Message content schema change for live_location:**
-```json
-{
-  "type": "live_location",
-  "lat": 34.05,
-  "lng": -118.25,
-  "durationMinutes": 15,
-  "sharedBy": "user-id",
-  "status": "pending" | "accepted" | "ended"
-}
+- 在地图头部右侧区域添加"结束共享"红色按钮
+- 点击调用 `onStopShare` 回调（由 ChatRoom 传入 `handleStopLiveShare`）
+- 结束后自动关闭地图
+
+## 数据流（修复后）
+
+```text
+User A (Banner)                     User B (Banner)
+    │                                   │
+    ├─broadcast→ live-loc-{convId} ←broadcast─┤
+    │                                   │
+ChatRoom A                         ChatRoom B
+    │ listen live-location event       │
+    ├─ update otherCachedPos           ├─ update otherCachedPos
+    │                                   │
+    └─ props → Map A                   └─ props → Map B
+         ├─ myPos (own GPS)                 ├─ myPos (own GPS)
+         └─ otherPos (from props)           └─ otherPos (from props)
 ```
 
-**Accept flow:**
-1. User A sends live_location message with `status: "pending"`
-2. User B sees message with "接受" button
-3. User B clicks accept → message content updated to `status: "accepted"` in DB
-4. Both parties detect the accepted status (B immediately, A via realtime UPDATE) → both start `LiveLocationBanner`
-5. Either party clicks end → message updated to `status: "ended"`, system message inserted, broadcast stop event
+## 修改文件清单
 
-**Realtime subscription:** Need to listen for UPDATE events on the messages table (already have INSERT listener), specifically for `live_location` type messages changing status.
-
-**Files to modify:**
-- `src/components/chat/LocationMessage.tsx` — fix fallback label
-- `src/components/chat/LiveLocationMessage.tsx` — add pending/accepted/ended states with accept button
-- `src/pages/ChatRoom.tsx` — accept flow, stop notification, status tracking
-- `src/components/chat/LiveLocationBanner.tsx` — minor: ensure clean stop callback
+- `src/pages/ChatRoom.tsx` — 新增 otherCachedPos，统一位置监听，移除误触 stop 逻辑
+- `src/components/chat/LiveLocationMap.tsx` — 移除频道订阅，改为纯 props 驱动，加结束按钮
+- `src/components/chat/LiveLocationBanner.tsx` — cleanup 不再发 stop 广播
 
