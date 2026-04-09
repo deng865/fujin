@@ -177,7 +177,7 @@ export default function LiveLocationBanner({
       lastBroadcastRef.current = null;
       lastBroadcastAtRef.current = 0;
     };
-  }, [broadcastPosition, conversationId, onError, userId]);
+  }, [broadcastPosition, conversationId, onError, onOtherPositionUpdate, otherUserId, userId]);
 
   return (
     <div className="shrink-0 bg-green-500/10 border-b border-green-500/20 max-w-lg mx-auto w-full">
