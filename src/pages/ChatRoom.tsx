@@ -1236,7 +1236,7 @@ export default function ChatRoom() {
                         }
                       }} />
                     ) : parseLocationMessage(msg.content) ? (
-                      <LocationMessage content={msg.content} isMe={isMe} senderName={isMe ? myName : otherUser?.name} myAvatarUrl={myAvatarUrl} />
+                      <LocationMessage content={msg.content} isMe={isMe} senderName={isMe ? myName : otherUser?.name} senderAvatarUrl={isMe ? myAvatarUrl : otherUser?.avatar_url} />
                     ) : parseMediaMessage(msg.content) ? (
                       <MediaMessage content={msg.content} isMe={isMe} />
                     ) : parseVoiceMessage(msg.content) ? (
