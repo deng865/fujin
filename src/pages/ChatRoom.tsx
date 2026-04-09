@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle, Check, DollarSign, Star, Camera, Image as ImageIcon, FolderOpen } from "lucide-react";
+import { ArrowLeft, Phone, Send, MapPin, Loader2, ImagePlus, UserCircle, MessageSquareShare, Undo2, PlusCircle, Smile, Route, XCircle, Check, DollarSign, Star } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { Button } from "@/components/ui/button";
 import { chatMessageSchema } from "@/lib/validation";
@@ -95,7 +95,7 @@ export default function ChatRoom() {
   const [cancellingTrip, setCancellingTrip] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
