@@ -74,6 +74,12 @@ export default function PostDetail() {
   };
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setCurrentUserId(user.id);
+    });
+  }, []);
+
+  useEffect(() => {
     if (!id) return;
     (async () => {
       const { data } = await supabase
