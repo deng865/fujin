@@ -2,9 +2,10 @@ import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import CreditBadge from "@/components/reviews/CreditBadge";
 
 interface Props {
-  profile: { name: string; avatar_url: string | null } | null;
+  profile: { name: string; avatar_url: string | null; average_rating?: number | null; total_ratings?: number | null } | null;
   userId: string;
   email: string;
   onAvatarUpdated: (url: string) => void;
@@ -83,7 +84,10 @@ export default function ProfileHeader({ profile, userId, email, onAvatarUpdated 
           <input ref={inputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-lg truncate">{profile?.name || "未设置"}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-lg truncate">{profile?.name || "未设置"}</p>
+            <CreditBadge averageRating={profile?.average_rating ?? null} totalRatings={profile?.total_ratings ?? null} />
+          </div>
           <p className="text-sm text-muted-foreground truncate">{email}</p>
           <p className="text-xs text-muted-foreground/60 mt-0.5 font-mono">ID: {userId.slice(0, 8)}</p>
         </div>
