@@ -1,70 +1,83 @@
 
-目标
 
-1. 在实时位置共享地图上实时显示双方距离
-2. 修复实时位置共享地图一直卡在“正在获取位置...”
+# Plan: Fix Location Terminology & Add Live Share Accept Flow
 
-问题定位
+## Problem Summary
 
-- `LiveLocationBanner.tsx` 里定位广播在频道刚创建时就开始了，没有等频道进入 `SUBSCRIBED`；首个坐标很容易发丢，导致对方一直“等待中”。
-- `LiveLocationMap.tsx` 又自己启动了一套 `watchPosition`，但地图是否渲染完全依赖 `myPos`。如果新的定位回调迟迟不来，就会一直全屏 loading。
-- 地图没有复用 live message 里已经带上的初始坐标，也没有复用共享中已拿到的本机坐标，所以即使共享已经开始，打开地图仍可能卡住。
-- `ChatRoom.tsx` 目前只用 `showLiveMap` 布尔值打开地图，没有保存“当前打开的是哪一条实时位置消息”，无法把这条消息的初始坐标传给地图。
-- 另外 `live-location-stop` 的监听频道和广播频道不一致，也会让共享状态清理不稳定。
+1. **"发送我的位置"** shows "共享位置" as fallback — should say "{name}的位置", because it's a one-way send, not a mutual share.
+2. **"实时位置共享"** currently auto-starts for both parties when one sends it. It should require the other party to **accept** before mutual tracking begins. Either party can end it.
 
-实施方案
+---
 
-1. `ChatRoom.tsx`：保存当前打开的实时位置消息
-   - 新增 `selectedLiveLocation` 状态，点击某条实时位置消息时保存其 parsed 数据、发送者身份、初始坐标，再打开地图
-   - 同时在父层缓存“我当前最新坐标”，供地图直接使用
+## Changes
 
-2. `LiveLocationBanner.tsx`：作为唯一的定位/广播来源
-   - 改成先等待频道 `SUBSCRIBED`，再启动 `watchPosition`
-   - 首次拿到坐标后立即 broadcast，并通过回调把最新本机坐标传回 `ChatRoom`
-   - 增加 geolocation error 处理；权限拒绝、浏览器不支持、超时都要回传明确状态，不能静默失败
+### Step 1: Fix Static Location Label
+**File**: `src/components/chat/LocationMessage.tsx`
 
-3. `LiveLocationMap.tsx`：只负责显示，不再自己开第二套定位广播
-   - 初始化时优先使用：
-     - 当前点击的 live message 里的初始坐标
-     - 父层缓存的本机最新坐标
-   - 只要已知“任意一方”的坐标就先渲染地图，不再整屏卡住
-   - 地图继续订阅 `live-loc-${conversationId}`，只接收并更新对方位置
-   - loading 逻辑改为分状态展示：
-     - 我的位置定位中
-     - 等待对方位置更新
-     - 权限被拒绝 / 设备不支持定位
-   - 即使我方定位还没完成，只要对方初始坐标已知，也先显示对方位置
+Change fallback label from `"共享位置"` to `"位置信息"` (neutral, since it's one-way). Keep the `"{name}的位置"` display when senderName is available.
 
-4. 距离显示
-   - 在 `LiveLocationMap.tsx` 里复用项目现有 Haversine 计算思路（可参考 `DriverTracking.tsx`）
-   - 当 `myPos` 和 `otherPos` 都存在时，显示双方实时直线距离
-   - 单位按项目现有规范使用 `mi`
-   - 距离放在地图顶部信息条或底部 legend 上方，实时更新
+### Step 2: Add Accept/Reject to Live Location Message
+**File**: `src/components/chat/LiveLocationMessage.tsx`
 
-5. 修正同链路状态清理
-   - `ChatRoom.tsx` 中 `live-location-stop` 的监听频道改为和广播一致的 `live-loc-${conversationId}`
-   - 对方结束共享后，地图和 banner 都能及时退出“共享中/等待中”状态
+- Add `status` field to the live location data: `"pending"` | `"accepted"` | `"ended"`
+- When the message is `pending` and `!isMe`, show an **"接受"** (Accept) button
+- When `pending` and `isMe`, show "等待对方接受..." text
+- When `accepted`, show current "点击查看" behavior
+- When `ended`, show "位置共享已结束"
+- Add `onAccept` callback prop
 
-涉及文件
+### Step 3: Update ChatRoom Live Share Flow
+**File**: `src/pages/ChatRoom.tsx`
 
-- `src/pages/ChatRoom.tsx`
-- `src/components/chat/LiveLocationBanner.tsx`
-- `src/components/chat/LiveLocationMap.tsx`
-- 参考复用：`src/components/chat/DriverTracking.tsx`
+- When initiating live share, set message status to `"pending"` — do NOT start `LiveLocationBanner` yet
+- Add `handleAcceptLiveShare` function:
+  - Update the message content in DB to set `status: "accepted"`
+  - Start `LiveLocationBanner` for both parties (receiver starts on accept; sender starts when they detect the status change via realtime)
+- Listen for message updates: when a `live_location` message changes to `accepted`, the sender also starts their banner
+- On stop (either party): update message status to `"ended"`, send a system notification message "实时位置共享已结束", broadcast stop event
 
-Technical details
+### Step 4: Add End Notification Message
+**File**: `src/pages/ChatRoom.tsx`
 
-- 不需要改数据库或后端，只是前端实时位置流和 UI 状态调整
-- 距离建议显示为“直线距离”，这样无需额外调用路线 API，更新更快也更稳定
-- 地图初始化中心点使用“已知的第一组有效坐标”，而不是强依赖 `myPos`
-- 如果当前 live message 是我发出的，就把消息里的初始坐标先当作 `myPos`
-- 如果当前 live message 是对方发出的，就把消息里的初始坐标先当作 `otherPos`
-- 浏览器定位失败时，显示明确错误提示和重试入口，避免无限转圈
+When either party ends live sharing (manual or expired):
+- Insert a system message: `{ type: "system", text: "实时位置共享已结束" }`
+- Update conversation's `last_message`
+- Clean up banner and map state
 
-验证重点
+### Step 5: Update LiveLocationBanner Stop Handler
+**File**: `src/components/chat/LiveLocationBanner.tsx`
 
-1. 两台设备测试：发起实时共享后，双方打开地图都不应再整屏卡在“正在获取位置...”
-2. 双方静止不动时，也应该先看到消息里的初始位置点
-3. 一方移动后，对方地图位置持续更新
-4. 双方位置都可用时，距离数值实时变化
-5. 拒绝定位权限 / 浏览器不支持定位时，显示错误状态，而不是一直 loading
+- The `onStop` callback already exists; ensure it propagates the reason back to ChatRoom
+- ChatRoom's stop handler will handle the DB update and notification message
+
+---
+
+## Technical Details
+
+**Message content schema change for live_location:**
+```json
+{
+  "type": "live_location",
+  "lat": 34.05,
+  "lng": -118.25,
+  "durationMinutes": 15,
+  "sharedBy": "user-id",
+  "status": "pending" | "accepted" | "ended"
+}
+```
+
+**Accept flow:**
+1. User A sends live_location message with `status: "pending"`
+2. User B sees message with "接受" button
+3. User B clicks accept → message content updated to `status: "accepted"` in DB
+4. Both parties detect the accepted status (B immediately, A via realtime UPDATE) → both start `LiveLocationBanner`
+5. Either party clicks end → message updated to `status: "ended"`, system message inserted, broadcast stop event
+
+**Realtime subscription:** Need to listen for UPDATE events on the messages table (already have INSERT listener), specifically for `live_location` type messages changing status.
+
+**Files to modify:**
+- `src/components/chat/LocationMessage.tsx` — fix fallback label
+- `src/components/chat/LiveLocationMessage.tsx` — add pending/accepted/ended states with accept button
+- `src/pages/ChatRoom.tsx` — accept flow, stop notification, status tracking
+- `src/components/chat/LiveLocationBanner.tsx` — minor: ensure clean stop callback
+
