@@ -41,10 +41,16 @@ export default function LiveLocationBanner({
   const watchStartedRef = useRef(false);
   const stopTriggeredRef = useRef(false);
 
+  // Store callbacks in ref to avoid effect re-runs
+  const callbacksRef = useRef({ onPositionUpdate, onOtherPositionUpdate, onError, otherUserId });
+  useEffect(() => {
+    callbacksRef.current = { onPositionUpdate, onOtherPositionUpdate, onError, otherUserId };
+  });
+
   const broadcastPosition = useCallback((coords: LiveLocationPosition, force = false) => {
     latestCoordsRef.current = coords;
-    onPositionUpdate?.(coords);
-    onError?.(null);
+    callbacksRef.current.onPositionUpdate?.(coords);
+    callbacksRef.current.onError?.(null);
 
     const channel = channelRef.current;
     if (!channel) return;
@@ -68,7 +74,7 @@ export default function LiveLocationBanner({
         timestamp: now,
       },
     });
-  }, [onError, onPositionUpdate, userId]);
+  }, [userId]);
 
   const handleStop = useCallback(async (reason: "manual" | "expired") => {
     if (stopTriggeredRef.current) return;
@@ -101,16 +107,16 @@ export default function LiveLocationBanner({
     return () => clearInterval(interval);
   }, [durationMinutes, handleStop, startedAt]);
 
-  // Watch position and broadcast — wait for SUBSCRIBED before starting GPS
+  // Watch position and broadcast — stable deps only
   useEffect(() => {
     const ch = supabase.channel(`live-loc-${conversationId}`);
     channelRef.current = ch;
 
     const handleGeoError = (error: GeolocationPositionError) => {
-      if (error.code === 1) onError?.("定位权限被拒绝");
-      else if (error.code === 2) onError?.("定位不可用");
-      else if (error.code === 3) onError?.("定位超时");
-      else onError?.("无法获取定位");
+      if (error.code === 1) callbacksRef.current.onError?.("定位权限被拒绝");
+      else if (error.code === 2) callbacksRef.current.onError?.("定位不可用");
+      else if (error.code === 3) callbacksRef.current.onError?.("定位超时");
+      else callbacksRef.current.onError?.("无法获取定位");
     };
 
     const handleGeoSuccess = (pos: GeolocationPosition) => {
@@ -120,8 +126,9 @@ export default function LiveLocationBanner({
     ch.on("broadcast", { event: "live-location" }, (msg: any) => {
       const p = msg?.payload;
       if (!p || typeof p.lat !== "number" || typeof p.lng !== "number") return;
-      if (otherUserId && p.userId === otherUserId) {
-        onOtherPositionUpdate?.({ lat: p.lat, lng: p.lng });
+      const { otherUserId: oid, onOtherPositionUpdate: cb } = callbacksRef.current;
+      if (oid && p.userId === oid) {
+        cb?.({ lat: p.lat, lng: p.lng });
       }
     });
 
@@ -130,7 +137,7 @@ export default function LiveLocationBanner({
         watchStartedRef.current = true;
 
         if (!navigator.geolocation) {
-          onError?.("当前设备不支持定位");
+          callbacksRef.current.onError?.("当前设备不支持定位");
           return;
         }
 
@@ -177,7 +184,7 @@ export default function LiveLocationBanner({
       lastBroadcastRef.current = null;
       lastBroadcastAtRef.current = 0;
     };
-  }, [broadcastPosition, conversationId, onError, onOtherPositionUpdate, otherUserId, userId]);
+  }, [broadcastPosition, conversationId, userId]);
 
   return (
     <div className="shrink-0 bg-green-500/10 border-b border-green-500/20 max-w-lg mx-auto w-full">
