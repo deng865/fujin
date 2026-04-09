@@ -1394,7 +1394,6 @@ export default function ChatRoom() {
 
     </div>
 
-    )}
 
     <LocationShareDialog
       open={showLocationDialog}
