@@ -309,13 +309,25 @@ export default function LiveLocationMap({
       {/* Legend */}
       <div className="shrink-0 px-4 py-3 border-t border-border bg-background flex items-center gap-6">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
+          <div className="w-6 h-6 rounded-full border-2 border-blue-500 overflow-hidden bg-blue-500 flex items-center justify-center shrink-0">
+            {myAvatarUrl ? (
+              <img src={myAvatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[10px] font-bold text-white">{(myName || "我").charAt(0)}</span>
+            )}
+          </div>
           <span className="text-sm text-muted-foreground">{myName || "我"}</span>
           {!myPos && !geoError && !myLocationError && <span className="text-xs text-muted-foreground/60">(定位中...)</span>}
           {!myPos && (geoError || myLocationError) && <span className="text-xs text-destructive">({geoError || myLocationError})</span>}
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500" />
+          <div className="w-6 h-6 rounded-full border-2 border-green-500 overflow-hidden bg-green-500 flex items-center justify-center shrink-0">
+            {otherAvatarUrl ? (
+              <img src={otherAvatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[10px] font-bold text-white">{(otherName || "对").charAt(0)}</span>
+            )}
+          </div>
           <span className="text-sm text-muted-foreground">{otherName || "对方"}</span>
           {!otherPos && <span className="text-xs text-muted-foreground/60">(等待中...)</span>}
         </div>
