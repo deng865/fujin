@@ -18,14 +18,36 @@ export default function VoiceRecorder({ conversationId, userId, disabled }: Voic
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const startTimeRef = useRef<number>(0);
 
+  const getSupportedMimeType = useCallback(() => {
+    const types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg", "audio/wav"];
+    for (const t of types) {
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return "";
+  }, []);
+
   const startRecording = useCallback(async () => {
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-          ? "audio/webm;codecs=opus"
-          : "audio/webm",
-      });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err: any) {
+      const name = err?.name || "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        toast({ title: "麦克风权限被拒绝", description: "请在系统设置中允许本应用使用麦克风", variant: "destructive" });
+      } else if (name === "NotFoundError") {
+        toast({ title: "未检测到麦克风", description: "请确认设备已连接麦克风", variant: "destructive" });
+      } else if (name === "NotReadableError") {
+        toast({ title: "麦克风被占用", description: "请关闭其他正在使用麦克风的应用", variant: "destructive" });
+      } else {
+        toast({ title: "无法录音", description: err?.message || "未知错误", variant: "destructive" });
+      }
+      return;
+    }
+
+    try {
+      const mimeType = getSupportedMimeType();
+      const options: MediaRecorderOptions = mimeType ? { mimeType } : {};
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -34,7 +56,7 @@ export default function VoiceRecorder({ conversationId, userId, disabled }: Voic
       };
 
       mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
+        stream!.getTracks().forEach((t) => t.stop());
         clearInterval(timerRef.current);
         const finalDuration = Math.round((Date.now() - startTimeRef.current) / 1000);
 
@@ -43,7 +65,9 @@ export default function VoiceRecorder({ conversationId, userId, disabled }: Voic
           return;
         }
 
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const actualMime = mediaRecorder.mimeType || mimeType || "audio/webm";
+        const ext = actualMime.includes("mp4") ? "m4a" : actualMime.includes("ogg") ? "ogg" : "webm";
+        const blob = new Blob(chunksRef.current, { type: actualMime });
         setUploading(true);
         setRecording(false);
 
@@ -52,7 +76,7 @@ export default function VoiceRecorder({ conversationId, userId, disabled }: Voic
           if (!session) throw new Error("请先登录");
 
           const formData = new FormData();
-          formData.append("file", new File([blob], `voice_${Date.now()}.webm`, { type: "audio/webm" }));
+          formData.append("file", new File([blob], `voice_${Date.now()}.${ext}`, { type: actualMime }));
 
           const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
           const res = await fetch(
@@ -91,10 +115,11 @@ export default function VoiceRecorder({ conversationId, userId, disabled }: Voic
       timerRef.current = setInterval(() => {
         setDuration(Math.round((Date.now() - startTimeRef.current) / 1000));
       }, 500);
-    } catch {
-      toast({ title: "无法录音", description: "请确保已授予麦克风权限", variant: "destructive" });
+    } catch (err: any) {
+      stream.getTracks().forEach((t) => t.stop());
+      toast({ title: "录音初始化失败", description: err?.message || "当前浏览器可能不支持录音", variant: "destructive" });
     }
-  }, [conversationId, userId]);
+  }, [conversationId, userId, getSupportedMimeType]);
 
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
