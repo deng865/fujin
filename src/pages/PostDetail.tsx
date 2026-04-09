@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation } from "lucide-react";
+import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation, Star } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
 import { zhCN } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
+import ReviewDialog from "@/components/reviews/ReviewDialog";
+import CreditBadge from "@/components/reviews/CreditBadge";
 
 interface PostDetailData {
   id: string;
@@ -26,6 +28,8 @@ interface PostDetailData {
   profiles?: {
     name: string;
     avatar_url: string | null;
+    average_rating: number | null;
+    total_ratings: number | null;
   } | null;
 }
 
@@ -56,6 +60,8 @@ export default function PostDetail() {
   const [startingChat, setStartingChat] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showNavChoice, setShowNavChoice] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [reporting, setReporting] = useState(false);
@@ -66,6 +72,12 @@ export default function PostDetail() {
     if (!favUserId) { navigate("/auth"); return; }
     if (post) await toggleFavorite(post.id);
   };
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setCurrentUserId(user.id);
+    });
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -79,7 +91,7 @@ export default function PostDetail() {
       if (data) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("name, avatar_url")
+          .select("name, avatar_url, average_rating, total_ratings")
           .eq("id", data.user_id)
           .single();
 
@@ -273,7 +285,10 @@ export default function PostDetail() {
                 )}
               </div>
               <div className="flex-1">
-                <p className="font-medium text-sm">{post.profiles?.name || "匿名用户"}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-medium text-sm">{post.profiles?.name || "匿名用户"}</p>
+                  <CreditBadge averageRating={post.profiles?.average_rating ?? null} totalRatings={post.profiles?.total_ratings ?? null} />
+                </div>
                 <p className="text-xs text-muted-foreground">发布者 / Publisher</p>
               </div>
             </div>
@@ -289,7 +304,18 @@ export default function PostDetail() {
             {startingChat ? "正在创建会话..." : "私聊 / Contact"}
           </Button>
 
-          {/* Contact Info Toggle */}
+          {/* Review Button */}
+          {currentUserId && post.user_id !== currentUserId && (
+            <Button
+              variant="outline"
+              onClick={() => setShowReview(true)}
+              className="w-full rounded-xl h-10 text-sm"
+            >
+              <Star className="h-4 w-4 mr-2" />
+              评价此发布者
+            </Button>
+          )}
+
           <Button
             variant="outline"
             onClick={() => setShowContact(!showContact)}
@@ -396,6 +422,17 @@ export default function PostDetail() {
           </div>
         </div>
       </div>
+      {/* Review Dialog */}
+      {currentUserId && post && (
+        <ReviewDialog
+          open={showReview}
+          onOpenChange={setShowReview}
+          senderId={currentUserId}
+          receiverId={post.user_id}
+          postId={post.id}
+          receiverName={post.profiles?.name}
+        />
+      )}
     </div>
   );
 }

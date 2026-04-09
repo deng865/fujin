@@ -799,6 +799,59 @@ export type Database = {
           },
         ]
       }
+      reviews: {
+        Row: {
+          admin_note: string | null
+          comment: string | null
+          created_at: string
+          dispute_reason: string | null
+          dispute_status: string
+          id: string
+          post_id: string | null
+          rating: number
+          receiver_id: string
+          sender_id: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          comment?: string | null
+          created_at?: string
+          dispute_reason?: string | null
+          dispute_status?: string
+          id?: string
+          post_id?: string | null
+          rating: number
+          receiver_id: string
+          sender_id: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          comment?: string | null
+          created_at?: string
+          dispute_reason?: string | null
+          dispute_status?: string
+          id?: string
+          post_id?: string | null
+          rating?: number
+          receiver_id?: string
+          sender_id?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rides: {
         Row: {
           created_at: string | null
