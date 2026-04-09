@@ -1382,6 +1382,49 @@ export default function ChatRoom() {
 
     </div>
 
+    {/* Media picker bottom sheet */}
+    {showMediaPicker && (
+      <div className="fixed inset-0 z-[9999]" onClick={() => setShowMediaPicker(false)}>
+        <div className="absolute inset-0 bg-black/40" />
+        <div
+          className="absolute bottom-0 left-0 right-0 bg-background rounded-t-2xl p-4 pb-6 animate-in slide-in-from-bottom duration-300"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
+          <p className="text-center text-sm font-medium text-muted-foreground mb-3">选择操作</p>
+          <div className="space-y-1">
+            <button
+              onClick={() => { cameraInputRef.current?.click(); setShowMediaPicker(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-accent transition-colors"
+            >
+              <Camera className="h-5 w-5 text-primary" />
+              <span className="text-sm font-medium">拍照</span>
+            </button>
+            <button
+              onClick={() => { mediaInputRef.current?.click(); setShowMediaPicker(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-accent transition-colors"
+            >
+              <ImageIcon className="h-5 w-5 text-primary" />
+              <span className="text-sm font-medium">相册</span>
+            </button>
+            <button
+              onClick={() => { fileInputRef.current?.click(); setShowMediaPicker(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-accent transition-colors"
+            >
+              <FolderOpen className="h-5 w-5 text-primary" />
+              <span className="text-sm font-medium">文件</span>
+            </button>
+          </div>
+          <button
+            onClick={() => setShowMediaPicker(false)}
+            className="w-full mt-3 py-3 rounded-xl bg-muted text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    )}
+
     <LocationShareDialog
       open={showLocationDialog}
       onClose={() => setShowLocationDialog(false)}
