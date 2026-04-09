@@ -137,6 +137,40 @@ export default function LiveLocationMap({
     };
   }, []);
 
+  // Helper to create avatar marker element
+  const createMarkerEl = useCallback((avatarUrl: string | null | undefined, fallbackChar: string, borderColor: string) => {
+    const el = document.createElement("div");
+    const size = 40;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.borderRadius = "50%";
+    el.style.border = `3px solid ${borderColor}`;
+    el.style.boxShadow = "0 2px 8px rgba(0,0,0,.3)";
+    el.style.overflow = "hidden";
+    el.style.background = avatarUrl ? "#e5e7eb" : borderColor;
+    el.style.display = "flex";
+    el.style.alignItems = "center";
+    el.style.justifyContent = "center";
+
+    if (avatarUrl) {
+      const img = document.createElement("img");
+      img.src = avatarUrl;
+      img.alt = fallbackChar;
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.objectFit = "cover";
+      img.onerror = () => {
+        img.remove();
+        el.style.background = borderColor;
+        el.innerHTML = `<span style="color:white;font-size:14px;font-weight:700;">${fallbackChar}</span>`;
+      };
+      el.appendChild(img);
+    } else {
+      el.innerHTML = `<span style="color:white;font-size:14px;font-weight:700;">${fallbackChar}</span>`;
+    }
+    return el;
+  }, []);
+
   // Create / update my marker
   useEffect(() => {
     if (!mapRef.current || !mapboxRef.current) return;
@@ -149,15 +183,14 @@ export default function LiveLocationMap({
 
     const mapboxgl = mapboxRef.current;
     if (!myMarkerRef.current) {
-      const el = document.createElement("div");
-      el.innerHTML = `<div style="width:36px;height:36px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">我</div>`;
+      const el = createMarkerEl(myAvatarUrl, (myName || "我").charAt(0), "#3b82f6");
       myMarkerRef.current = new mapboxgl.Marker({ element: el })
         .setLngLat([myPos.lng, myPos.lat])
         .addTo(mapRef.current);
     } else {
       myMarkerRef.current.setLngLat([myPos.lng, myPos.lat]);
     }
-  }, [myPos]);
+  }, [myPos, myAvatarUrl, myName, createMarkerEl]);
 
   // Create / update other marker
   useEffect(() => {
@@ -171,9 +204,7 @@ export default function LiveLocationMap({
 
     const mapboxgl = mapboxRef.current;
     if (!otherMarkerRef.current) {
-      const initial = (otherName || "对").charAt(0);
-      const el = document.createElement("div");
-      el.innerHTML = `<div style="width:36px;height:36px;border-radius:50%;background:#22c55e;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">${initial}</div>`;
+      const el = createMarkerEl(otherAvatarUrl, (otherName || "对").charAt(0), "#22c55e");
       otherMarkerRef.current = new mapboxgl.Marker({ element: el })
         .setLngLat([otherPos.lng, otherPos.lat])
         .addTo(mapRef.current);
