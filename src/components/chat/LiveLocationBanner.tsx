@@ -181,6 +181,7 @@ export default function LiveLocationBanner({
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
+        if (externalChannelRef) externalChannelRef.current = null;
       }
 
       watchStartedRef.current = false;
