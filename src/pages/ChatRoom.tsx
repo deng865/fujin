@@ -86,6 +86,7 @@ export default function ChatRoom() {
   const [showLiveMap, setShowLiveMap] = useState(false);
   const [selectedLiveLocation, setSelectedLiveLocation] = useState<{ myPos?: { lat: number; lng: number }; otherPos?: { lat: number; lng: number } } | null>(null);
   const [cachedMyPos, setCachedMyPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [otherCachedPos, setOtherCachedPos] = useState<{ lat: number; lng: number } | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [isDriver, setIsDriver] = useState(false);
   const [acceptingTrip, setAcceptingTrip] = useState(false);
@@ -241,19 +242,20 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId]);
 
-  // Listen for live-location-stop broadcast
+  // Listen for live-location broadcasts (other user's position updates)
   useEffect(() => {
-    if (!conversationId || !userId) return;
-    const ch = supabase.channel(`live-loc-stop-listen-${conversationId}`);
-    ch.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
-      if (payload?.payload?.userId !== userId) {
-        setLiveShare(null);
-        toast({ title: "位置共享已结束", description: "对方已停止共享位置" });
+    if (!conversationId || !userId || !otherUserId) return;
+    const ch = supabase.channel(`live-loc-listen-${conversationId}`, { config: { broadcast: { self: false } } });
+    ch.on("broadcast", { event: "live-location" }, (payload: any) => {
+      const p = payload?.payload;
+      if (!p || typeof p.lat !== "number" || typeof p.lng !== "number") return;
+      if (p.userId === otherUserId) {
+        setOtherCachedPos({ lat: p.lat, lng: p.lng });
       }
     });
     ch.subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [conversationId, userId]);
+  }, [conversationId, userId, otherUserId]);
 
   const saveCallRecord = useCallback(async (status: "missed" | "declined" | "completed" | "cancelled", callerId: string, duration?: number) => {
     if (!conversationId || !userId) return;
@@ -601,6 +603,7 @@ export default function ChatRoom() {
     await supabase.from("messages").insert({ conversation_id: conversationId, sender_id: userId, content: sysContent });
     await supabase.from("conversations").update({ last_message: "实时位置共享已结束", updated_at: new Date().toISOString() }).eq("id", conversationId);
     setLiveShare(null);
+    setOtherCachedPos(null);
   };
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1397,8 +1400,10 @@ export default function ChatRoom() {
         myName={myName || "我"}
         otherName={otherUser?.name || "对方"}
         initialMyPos={selectedLiveLocation?.myPos || cachedMyPos}
-        initialOtherPos={selectedLiveLocation?.otherPos}
+        initialOtherPos={selectedLiveLocation?.otherPos || otherCachedPos}
         onClose={() => { setShowLiveMap(false); setSelectedLiveLocation(null); }}
+        onStopShare={() => handleStopLiveShare("manual")}
+        isActive={!!liveShare}
       />
     )}
 

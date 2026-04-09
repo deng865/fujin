@@ -156,11 +156,6 @@ export default function LiveLocationBanner({
       }
 
       if (channelRef.current) {
-        void channelRef.current.send({
-          type: "broadcast",
-          event: "live-location-stop",
-          payload: { userId },
-        });
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
