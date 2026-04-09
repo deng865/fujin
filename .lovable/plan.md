@@ -1,28 +1,26 @@
 
 
-# 修复三个媒体选择按钮的行为
+# 去掉媒体选择弹窗，直接在"+"菜单中放三个按钮
 
 ## 问题
 
-当前的隐藏 input 配置不够准确，导致点击后仍可能弹出浏览器原生的英文选项面板。
+当前点击"照片"按钮后会弹出一个中间弹窗再选择，用户希望直接操作，不要额外弹窗。
 
-## 修改内容（`src/pages/ChatRoom.tsx`）
+## 方案（仅修改 `src/pages/ChatRoom.tsx`）
 
-### 修改三个隐藏 input 的 accept 和 capture 属性
+### 1. 将"照片"按钮拆分为三个独立按钮
 
-1. **拍照 input**（`cameraInputRef`）：
-   - `accept="image/*,video/*"` — 支持拍照和拍视频
-   - `capture="environment"` — 直接打开摄像头，不弹选项
+在 `+` 菜单面板（`showContactMenu`）中，把原来的一个"照片"按钮替换为三个：
 
-2. **相册 input**（`mediaInputRef`）：
-   - `accept="image/*,video/*"` — 照片和视频都可选
-   - `multiple` — 多选
-   - **不加** `capture` 属性 — 直接打开相册/图库
+- **拍照**（Camera 图标）→ 直接触发 `cameraInputRef.current?.click()`
+- **相册**（ImagePlus 图标）→ 直接触发 `mediaInputRef.current?.click()`
+- **文件**（File 图标）→ 直接触发 `fileInputRef.current?.click()`
 
-3. **文件 input**（`fileInputRef`）：
-   - `accept="*/*"` — 所有文件类型
-   - `multiple` — 多选
-   - **不加** `capture` 属性 — 直接打开文件管理器
+### 2. 删除媒体选择弹窗
 
-关键点：`capture` 属性会强制打开摄像头；不加 `capture` 时浏览器会根据 `accept` 类型直接跳到相册或文件管理器，避免弹出英文选项面板。
+移除 `showMediaPicker` state 和整个 `{showMediaPicker && (...)}` 弹窗 JSX 块，不再需要。
+
+### 3. 布局调整
+
+按钮从原来的 4 列变为 6 列（拍照、相册、文件、位置、语音通话、联系方式），保持紧凑排列。如果按钮过多，保持 `grid-cols-4` 自动换行即可。
 
