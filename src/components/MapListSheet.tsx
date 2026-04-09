@@ -19,9 +19,12 @@ interface Post {
 }
 
 const categoryLabels: Record<string, string> = {
-  housing: "🏠 房产", jobs: "💼 招工", auto: "🚗 汽车",
+  housing: "🏠 房产", jobs: "💼 求职招聘", auto: "🚗 汽车",
   food: "🍜 美食", education: "📚 教育", travel: "✈️ 旅游",
-  driver: "🚕 司机", legal: "⚖️ 法律",
+  driver: "🚕 司机", legal: "⚖️ 法律", rent: "🏠 房子出租",
+  beauty: "💅 美容美发", dating: "❤️ 约会", other: "⭐ 其他",
+  "second-hand goods": "🛍️ 二手商品", "home services": "🔧 家庭服务",
+  "medical services": "🏥 医疗服务", "law and accounting": "⚖️ 法律/会计",
 };
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
