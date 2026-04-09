@@ -19,6 +19,22 @@ export default function ControlBar({
   const [showDistance, setShowDistance] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const distanceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showDistance) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (distanceRef.current && !distanceRef.current.contains(e.target as Node)) {
+        setShowDistance(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [showDistance]);
 
   const fetchSuggestions = useCallback(async (text: string) => {
     if (text.length < 2) { setSuggestions([]); return; }
