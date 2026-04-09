@@ -97,6 +97,10 @@ export default function LiveLocationMap({
     };
   }, [sharedChannelRef, otherUserId]);
 
+  useEffect(() => {
+    if (initialMyPos) updateMyPos(initialMyPos);
+  }, [initialMyPos, updateMyPos]);
+
   // GPS watch
   useEffect(() => {
     if (!navigator.geolocation) {
