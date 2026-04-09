@@ -1,4 +1,5 @@
 import { MapPin, ExternalLink } from "lucide-react";
+import { useState } from "react";
 import AvatarMarker from "../AvatarMarker";
 
 interface LocationData {
@@ -28,17 +29,8 @@ export function parseLocationMessage(content: string): LocationData | null {
   return null;
 }
 
-function openInExternalMaps(lat: number, lng: number, address?: string) {
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (isIOS) {
-    const q = address ? encodeURIComponent(address) : `${lat},${lng}`;
-    window.open(`https://maps.apple.com/?ll=${lat},${lng}&q=${q}`, "_blank");
-  } else {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, "_blank");
-  }
-}
-
 export default function LocationMessage({ content, isMe, senderName, senderAvatarUrl }: LocationMessageProps) {
+  const [showPicker, setShowPicker] = useState(false);
   const loc = parseLocationMessage(content);
   if (!loc) return null;
 
@@ -46,6 +38,9 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
   const label = displayName ? `${displayName}的位置` : (loc.address || "位置信息");
 
   const mapPreviewUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${loc.lng},${loc.lat},14,0/280x160@2x?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || ""}`;
+
+  const googleUrl = `https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}`;
+  const appleUrl = `https://maps.apple.com/?ll=${loc.lat},${loc.lng}&q=${loc.address ? encodeURIComponent(loc.address) : `${loc.lat},${loc.lng}`}`;
 
   return (
     <div
@@ -67,7 +62,6 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
             <MapPin className="h-8 w-8 text-primary" />
           </div>
         )}
-        {/* Avatar marker centered on map */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <AvatarMarker
             avatarUrl={senderAvatarUrl}
@@ -90,9 +84,9 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
         )}
       </div>
 
-      {/* Open in external maps button */}
+      {/* Open in maps button */}
       <button
-        onClick={() => openInExternalMaps(loc.lat, loc.lng, loc.address)}
+        onClick={(e) => { e.stopPropagation(); setShowPicker(!showPicker); }}
         className={`w-full px-3 py-2 flex items-center justify-center gap-1.5 text-xs font-medium transition-colors ${
           isMe
             ? "bg-primary/90 text-primary-foreground hover:bg-primary/80"
@@ -102,6 +96,42 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
         <ExternalLink className="h-3.5 w-3.5" />
         <span>在地图中打开</span>
       </button>
+
+      {/* Map app picker */}
+      {showPicker && (
+        <div className={`flex flex-col text-xs ${
+          isMe ? "bg-primary/80" : "bg-muted/60"
+        }`}>
+          <a
+            href={googleUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`px-3 py-2.5 flex items-center gap-2 transition-colors ${
+              isMe
+                ? "text-primary-foreground hover:bg-primary/70"
+                : "text-foreground hover:bg-muted/40"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-base">🗺️</span>
+            <span>Google 地图</span>
+          </a>
+          <a
+            href={appleUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`px-3 py-2.5 flex items-center gap-2 transition-colors ${
+              isMe
+                ? "text-primary-foreground hover:bg-primary/70"
+                : "text-foreground hover:bg-muted/40"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-base">🍎</span>
+            <span>Apple 地图</span>
+          </a>
+        </div>
+      )}
     </div>
   );
 }
