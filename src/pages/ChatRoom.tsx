@@ -245,7 +245,7 @@ export default function ChatRoom() {
   // Listen for live-location broadcasts (other user's position updates)
   useEffect(() => {
     if (!conversationId || !userId || !otherUserId) return;
-    const ch = supabase.channel(`live-loc-listen-${conversationId}`, { config: { broadcast: { self: false } } });
+    const ch = supabase.channel(`live-loc-${conversationId}`, { config: { broadcast: { self: false } } });
     ch.on("broadcast", { event: "live-location" }, (payload: any) => {
       const p = payload?.payload;
       if (!p || typeof p.lat !== "number" || typeof p.lng !== "number") return;
