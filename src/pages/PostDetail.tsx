@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation } from "lucide-react";
+import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation, Star } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
 import { zhCN } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
+import ReviewDialog from "@/components/reviews/ReviewDialog";
+import CreditBadge from "@/components/reviews/CreditBadge";
 
 interface PostDetailData {
   id: string;
@@ -26,6 +28,8 @@ interface PostDetailData {
   profiles?: {
     name: string;
     avatar_url: string | null;
+    average_rating: number | null;
+    total_ratings: number | null;
   } | null;
 }
 
