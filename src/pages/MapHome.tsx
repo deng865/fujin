@@ -57,7 +57,7 @@ function radiusToZoom(radiusMi: number, lat: number): number {
 // Convert map bounds to an approximate visible radius from center
 function boundsToRadius(map: mapboxgl.Map): number {
   const bounds = map.getBounds();
-  if (!bounds) return 25;
+  if (!bounds) return 10;
   const center = map.getCenter();
   // Use half the shorter axis (lat or lng span) as radius
   const latRadius = haversine(bounds.getSouth(), center.lng, bounds.getNorth(), center.lng) / 2;
@@ -74,7 +74,7 @@ export default function MapHome() {
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [searchRadius, setSearchRadius] = useState(25);
+  const [searchRadius, setSearchRadius] = useState(10);
   const [mapType, setMapType] = useState("roadmap");
   const [user, setUser] = useState<any>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);

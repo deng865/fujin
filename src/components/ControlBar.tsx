@@ -65,7 +65,7 @@ export default function ControlBar({
               onClick={() => setShowDistance(!showDistance)}
               className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-1"
             >
-              {searchRadius}km
+              {searchRadius}mi
               <ChevronDown className="h-3 w-3" />
             </button>
             {showDistance && (
@@ -80,7 +80,7 @@ export default function ControlBar({
                   step={1}
                   className="w-full"
                 />
-                <p className="text-xs text-muted-foreground text-center mt-1.5">{searchRadius} km</p>
+                <p className="text-xs text-muted-foreground text-center mt-1.5">{searchRadius} mi</p>
               </div>
             )}
           </div>

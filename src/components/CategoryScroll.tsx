@@ -35,7 +35,7 @@ interface CategoryScrollProps {
 }
 
 export default function CategoryScroll({ selectedCategory, onSelectCategory }: CategoryScrollProps) {
-  const [categories, setCategories] = useState(fallbackCategories);
+  const [categories, setCategories] = useState<typeof fallbackCategories>([]);
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
