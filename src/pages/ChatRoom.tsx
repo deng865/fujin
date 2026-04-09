@@ -150,6 +150,14 @@ export default function ChatRoom() {
         phone: null,
       });
 
+      // Load credit info
+      const { data: creditData } = await supabase
+        .from("profiles")
+        .select("average_rating, total_ratings")
+        .eq("id", otherId)
+        .single();
+      if (creditData) setOtherUserCredit(creditData as any);
+
       // Check if the other user has driver-category posts (conversation initiated from driver listing)
       const { count: driverPostCount } = await supabase
         .from("posts")
