@@ -34,7 +34,7 @@ export default function LocationMessage({ content, isMe, senderName }: LocationM
   if (!loc) return null;
 
   const displayName = loc.senderName || senderName || "";
-  const label = displayName ? `${displayName}的位置` : (loc.address || "共享位置");
+  const label = displayName ? `${displayName}的位置` : (loc.address || "位置信息");
 
   const mapPreviewUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ef4444(${loc.lng},${loc.lat})/${loc.lng},${loc.lat},14,0/280x160@2x?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || ""}`;
 
