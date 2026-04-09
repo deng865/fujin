@@ -1377,6 +1377,49 @@ export default function ChatRoom() {
         <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
         <input ref={fileInputRef} type="file" multiple onChange={handleMediaUpload} className="hidden" />
 
+        {/* Media picker bottom sheet */}
+        {showMediaPicker && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowMediaPicker(false)}>
+            <div className="fixed inset-0 bg-black/40" />
+            <div
+              className="relative w-full max-w-lg bg-background rounded-t-2xl pb-[env(safe-area-inset-bottom)] animate-in slide-in-from-bottom duration-200 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col">
+                <button
+                  onClick={() => { cameraInputRef.current?.click(); setShowMediaPicker(false); }}
+                  className="flex items-center gap-3 px-6 py-4 hover:bg-accent transition-colors border-b border-border"
+                >
+                  <Camera className="h-5 w-5 text-primary" />
+                  <span className="text-base">拍照</span>
+                </button>
+                <button
+                  onClick={() => { mediaInputRef.current?.click(); setShowMediaPicker(false); }}
+                  className="flex items-center gap-3 px-6 py-4 hover:bg-accent transition-colors border-b border-border"
+                >
+                  <ImageIcon className="h-5 w-5 text-primary" />
+                  <span className="text-base">从相册选择</span>
+                </button>
+                <button
+                  onClick={() => { fileInputRef.current?.click(); setShowMediaPicker(false); }}
+                  className="flex items-center gap-3 px-6 py-4 hover:bg-accent transition-colors border-b border-border"
+                >
+                  <FolderOpen className="h-5 w-5 text-primary" />
+                  <span className="text-base">选择文件</span>
+                </button>
+              </div>
+              <div className="border-t border-border">
+                <button
+                  onClick={() => setShowMediaPicker(false)}
+                  className="w-full py-4 text-center text-muted-foreground hover:bg-accent transition-colors text-base font-medium"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
 
     </div>
