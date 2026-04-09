@@ -1379,10 +1379,10 @@ export default function ChatRoom() {
 
         {/* Media picker bottom sheet */}
         {showMediaPicker && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowMediaPicker(false)}>
+          <div className="fixed inset-0 z-50 flex items-end justify-center pb-8" onClick={() => setShowMediaPicker(false)}>
             <div className="fixed inset-0 bg-black/50" />
             <div
-              className="relative w-full max-w-lg bg-background rounded-t-2xl pb-safe animate-in slide-in-from-bottom duration-300"
+              className="relative w-full max-w-lg bg-background rounded-2xl mb-2 mx-4 pb-safe animate-in slide-in-from-bottom duration-300 overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex flex-col">
