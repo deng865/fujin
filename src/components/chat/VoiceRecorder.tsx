@@ -27,6 +27,7 @@ export default function VoiceRecorder({ conversationId, userId, disabled }: Voic
   }, []);
 
   const startRecording = useCallback(async () => {
+    // Pre-check permission status (Safari may not support this, so we catch)
     try {
       const permResult = await navigator.permissions.query({ name: "microphone" as PermissionName });
       if (permResult.state === "denied") {
@@ -135,34 +136,24 @@ export default function VoiceRecorder({ conversationId, userId, disabled }: Voic
     mediaRecorderRef.current?.stop();
   }, []);
 
-  const formatDuration = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return m > 0 ? `${m}:${sec.toString().padStart(2, "0")}` : `0:${sec.toString().padStart(2, "0")}`;
-  };
-
   if (uploading) {
     return (
-      <div className="flex items-center gap-2 shrink-0 px-2 py-1 rounded-full bg-muted">
-        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        <span className="text-xs text-muted-foreground">发送中...</span>
-      </div>
+      <button disabled className="p-2.5 rounded-full text-muted-foreground shrink-0">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </button>
     );
   }
 
   if (recording) {
     return (
-      <div className="flex items-center gap-2 shrink-0 pl-3 pr-1 py-1 rounded-full bg-destructive/10 border border-destructive/20">
-        <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-        <span className="text-xs text-destructive font-mono font-medium min-w-[36px]">
-          {formatDuration(duration)}
-        </span>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="text-xs text-destructive font-medium animate-pulse">{duration}″</span>
         <button
           onClick={stopRecording}
-          className="h-8 w-8 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+          className="p-2.5 hover:bg-destructive/10 rounded-full text-destructive transition-colors"
           title="停止录音"
         >
-          <Square className="h-3.5 w-3.5 fill-current" />
+          <Square className="h-5 w-5" />
         </button>
       </div>
     );
@@ -172,7 +163,7 @@ export default function VoiceRecorder({ conversationId, userId, disabled }: Voic
     <button
       onClick={startRecording}
       disabled={disabled}
-      className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0 disabled:opacity-50"
+      className="p-2.5 hover:bg-accent rounded-full text-muted-foreground hover:text-primary transition-colors shrink-0"
       title="发送语音"
     >
       <Mic className="h-5 w-5" />
