@@ -1,37 +1,36 @@
 
 
-# 所有场景中用头像代替位置标记点
+# 修复：实时位置共享看不到对方位置（频道不断重建）
 
-## 现状分析
+## 根因
 
-| 场景 | 当前效果 | 需要改动 |
-|------|---------|---------|
-| 主页地图 (MapHome) | Mapbox 默认蓝色圆点 (`GeolocateControl`) | ✅ 需要改 |
-| 发送位置/导航地图 (InAppNavMap) | 蓝色小圆圈 `Marker` | ✅ 需要改 |
-| 实时位置共享 (LiveLocationMap) | 已使用头像 | ❌ 不需要改 |
+`LiveLocationBanner` 的核心 `useEffect`（负责创建频道、广播 GPS、监听对方位置）的依赖数组包含了 `broadcastPosition`、`onOtherPositionUpdate`、`onError` 等回调函数。
 
-## 修改方案
+在 `ChatRoom.tsx` 中，这些回调都是**内联箭头函数**：
+```tsx
+onPositionUpdate={(pos) => setCachedMyPos(pos)}
+onOtherPositionUpdate={(pos) => setOtherCachedPos(pos)}
+```
 
-### 共享：创建头像 Marker 组件
-新建 `src/components/AvatarMarker.tsx`，封装用户头像圆形标记，带蓝色边框和阴影，可复用于所有地图场景。
+每次 ChatRoom 重新渲染（任何状态变化），这些箭头函数都会生成新的引用 → `broadcastPosition`（useCallback 依赖它们）也会变 → useEffect 的依赖变了 → **频道被拆除并重建**。
 
-### Step 1: MapHome — 用头像替代蓝点
-- 获取当前用户的 `avatar_url`（已有 `user` state，补充查询 profile）
-- 移除 `GeolocateControl` 的 `showUserLocation`，保留 `trackUserLocation` 用于获取坐标
-- 监听 `geolocate` 事件获取用户坐标，存入 state
-- 用 `<Marker>` + `<AvatarMarker>` 渲染头像到用户位置
+结果：频道在不断地 unsubscribe/subscribe 循环中，导致对方的广播几乎永远收不到。同时 "等待中..." 一直显示，因为 `otherCachedPos` 从未被更新。
 
-### Step 2: InAppNavMap — 用头像替代蓝圈
-- 传入 `myAvatarUrl` prop（从 ChatRoom 传递，已有 `myAvatarUrl` state）
-- 将第 93-95 行的蓝色圆点替换为 `<AvatarMarker>`
+## 修复方案
 
-### Step 3: LocationMessage — 传递 avatarUrl
-- 从 ChatRoom 向 LocationMessage/InAppNavMap 传递 `myAvatarUrl`
+**在 `LiveLocationBanner` 中使用 ref 存储回调**，避免回调变化导致 useEffect 重跑。
 
-## 修改文件清单
-- **新建** `src/components/AvatarMarker.tsx` — 可复用头像标记组件
-- `src/pages/MapHome.tsx` — 替换 GeolocateControl 蓝点为头像
-- `src/components/chat/InAppNavMap.tsx` — 接收 avatarUrl prop，替换蓝圈
-- `src/components/chat/LocationMessage.tsx` — 传递 avatarUrl 到 InAppNavMap
-- `src/pages/ChatRoom.tsx` — 向 LocationMessage 传递 myAvatarUrl
+### 文件: `src/components/chat/LiveLocationBanner.tsx`
+
+1. 添加 `callbacksRef = useRef({ onPositionUpdate, onOtherPositionUpdate, onError })`，每次 render 时更新 ref
+2. `broadcastPosition` 的 useCallback 改为从 ref 读取回调，依赖数组只保留 `userId`
+3. useEffect 依赖数组移除所有回调函数，只保留 `conversationId` 和 `userId`
+4. 频道监听器中通过 ref 读取最新的 `otherUserId` 和 `onOtherPositionUpdate`
+
+### 文件: `src/pages/ChatRoom.tsx`
+
+无需修改（内联箭头函数不再导致问题）。
+
+## 只修改一个文件
+- `src/components/chat/LiveLocationBanner.tsx`
 
