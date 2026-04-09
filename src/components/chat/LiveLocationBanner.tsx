@@ -114,6 +114,7 @@ export default function LiveLocationBanner({
   useEffect(() => {
     const ch = supabase.channel(`live-loc-${conversationId}`);
     channelRef.current = ch;
+    if (externalChannelRef) externalChannelRef.current = ch;
 
     const handleGeoError = (error: GeolocationPositionError) => {
       if (error.code === 1) callbacksRef.current.onError?.("定位权限被拒绝");
