@@ -1141,12 +1141,23 @@ export default function ChatRoom() {
           const showDate = i === 0 || new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString();
           const callData = parseCallMessage(msg.content);
 
-          // Skip trip_complete messages entirely (no wrapper, no avatar, no timestamp)
+          // Skip trip_complete and render system messages inline
           try {
             const parsed = JSON.parse(msg.content);
             if (parsed?.type === "trip_complete") return null;
+            if (parsed?.type === "system") {
+              return (
+                <div key={msg.id}>
+                  {showDate && (
+                    <div className="text-center text-[11px] text-muted-foreground py-2">
+                      {new Date(msg.created_at).toLocaleDateString("zh-CN", { month: "long", day: "numeric" })}
+                    </div>
+                  )}
+                  <div className="text-center text-[12px] text-muted-foreground py-1">{parsed.text}</div>
+                </div>
+              );
+            }
             if (parsed?.type === "trip_accept_notify") {
-              // Find the matching accept to check if trip ended
               for (let j = i - 1; j >= 0; j--) {
                 const ad = parseTripAcceptMessage(messages[j].content);
                 if (ad) {
