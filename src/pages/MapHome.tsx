@@ -123,16 +123,35 @@ export default function MapHome() {
     if (data) setPosts(data);
   }, []);
 
+  // Debounced move end: sync center, radius from bounds, and fetch
   const handleMoveEnd = useCallback(() => {
-    const map = mapRef.current?.getMap();
-    if (map) {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const map = mapRef.current?.getMap();
+      if (!map) return;
       const c = map.getCenter();
       setCenter({ lat: c.lat, lng: c.lng });
-    }
-    fetchPosts();
+
+      // Sync radius from zoom (skip if this move was triggered by radius change)
+      if (!isRadiusDriven.current) {
+        const visibleRadius = boundsToRadius(map);
+        if (visibleRadius >= 1 && visibleRadius <= 100) {
+          setSearchRadius(visibleRadius);
+        }
+      }
+      isRadiusDriven.current = false;
+
+      fetchPosts();
+    }, 300);
   }, [fetchPosts]);
 
-  const handleLocateMe = () => {
+  // Radius → Zoom: when user manually adjusts radius, fly to matching zoom
+  const handleRadiusChange = useCallback((radius: number) => {
+    setSearchRadius(radius);
+    isRadiusDriven.current = true;
+    const zoom = radiusToZoom(radius, center.lat);
+    mapRef.current?.flyTo({ center: [center.lng, center.lat], zoom, duration: 600 });
+  }, [center]);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
