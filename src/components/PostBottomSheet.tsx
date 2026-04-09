@@ -249,11 +249,11 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   {distanceKm != null ? (
                     <span className="text-sm text-foreground font-medium">
-                      距你 {distanceKm < 1 ? `${(distanceKm * 1000).toFixed(0)} m` : `${distanceKm.toFixed(1)} km`}
+                      距你 {(distanceKm * 0.621371) < 0.1 ? "附近" : `${(distanceKm * 0.621371).toFixed(1)} mi`}
                     </span>
                   ) : (
                     <span className="text-sm text-muted-foreground">
-                      {post.latitude.toFixed(3)}, {post.longitude.toFixed(3)}
+                      定位中...
                     </span>
                   )}
                 </div>
