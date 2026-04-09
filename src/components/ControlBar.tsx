@@ -76,7 +76,7 @@ export default function ControlBar({
             className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground min-w-0"
           />
           <div className="h-5 w-px bg-border/50 shrink-0" />
-          <div className="relative shrink-0">
+          <div className="relative shrink-0" ref={distanceRef}>
             <button
               onClick={() => setShowDistance(!showDistance)}
               className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-1"
