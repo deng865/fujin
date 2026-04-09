@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Search, ChevronDown } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
@@ -19,6 +19,22 @@ export default function ControlBar({
   const [showDistance, setShowDistance] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const distanceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showDistance) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (distanceRef.current && !distanceRef.current.contains(e.target as Node)) {
+        setShowDistance(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [showDistance]);
 
   const fetchSuggestions = useCallback(async (text: string) => {
     if (text.length < 2) { setSuggestions([]); return; }
@@ -60,7 +76,7 @@ export default function ControlBar({
             className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground min-w-0"
           />
           <div className="h-5 w-px bg-border/50 shrink-0" />
-          <div className="relative shrink-0">
+          <div className="relative shrink-0" ref={distanceRef}>
             <button
               onClick={() => setShowDistance(!showDistance)}
               className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-1"
