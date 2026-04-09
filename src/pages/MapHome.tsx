@@ -256,6 +256,7 @@ export default function MapHome() {
         onToggleFavorite={handleToggleFavorite}
         filters={filters}
         onFiltersChange={setFilters}
+        selectedCategory={selectedCategory}
       />
 
       <PostBottomSheet
