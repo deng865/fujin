@@ -1,12 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { LogOut, Package, Shield, Headphones, ChevronRight, Edit, Car } from "lucide-react";
+import { useAdmin } from "@/hooks/useAdmin";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { ArrowLeft, MapPin, LogOut, Trash2, Edit, User, Shield, Camera, Loader2, Car } from "lucide-react";
-import { useAdmin } from "@/hooks/useAdmin";
+import { Button } from "@/components/ui/button";
+import ProfileHeader from "@/components/profile/ProfileHeader";
+import LiveSharingBanner from "@/components/profile/LiveSharingBanner";
+import MyPostsList from "@/components/profile/MyPostsList";
+import PrivacySettings from "@/components/profile/PrivacySettings";
+
+const ADMIN_USER_ID = "a7c6d947-52ce-4eaf-83fd-914f87ac9669";
 
 interface UserPost {
   id: string;
@@ -28,22 +34,25 @@ interface Profile {
   user_type: string | null;
 }
 
+type SubPage = "main" | "posts" | "privacy" | "editProfile";
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<UserPost[]>([]);
-  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [subPage, setSubPage] = useState<SubPage>("main");
+  const [locationSharing, setLocationSharing] = useState(true);
+
+  // Edit form state
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [wechatId, setWechatId] = useState("");
   const [vehicleModel, setVehicleModel] = useState("");
   const [vehicleColor, setVehicleColor] = useState("");
   const [licensePlate, setLicensePlate] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -74,91 +83,64 @@ export default function ProfilePage() {
         .order("created_at", { ascending: false });
 
       setPosts(postsData || []);
+
+      // Load location sharing preference
+      const saved = localStorage.getItem("location_sharing_enabled");
+      if (saved !== null) setLocationSharing(saved === "true");
+
       setLoading(false);
     })();
   }, [navigate]);
 
   const handleSaveProfile = async () => {
     if (!user) return;
-    const updateData: any = { name, phone: phone || null, wechat_id: wechatId || null };
-    // Include vehicle fields
-    updateData.vehicle_model = vehicleModel || null;
-    updateData.vehicle_color = vehicleColor || null;
-    updateData.license_plate = licensePlate || null;
-    
-    const { error } = await supabase
-      .from("profiles")
-      .update(updateData)
-      .eq("id", user.id);
-
-    if (error) toast.error("更新失败");
-    else {
-      toast.success("资料已更新 / Profile updated");
-      setProfile({ ...profile!, name, phone: phone || null, wechat_id: wechatId || null, vehicle_model: vehicleModel || null, vehicle_color: vehicleColor || null, license_plate: licensePlate || null });
-      setEditing(false);
-    }
-  };
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("头像不能超过5MB"); return; }
-    setUploadingAvatar(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("请先登录");
-
-      const compressed = await new Promise<File>((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const size = 400;
-          const canvas = document.createElement("canvas");
-          canvas.width = size; canvas.height = size;
-          const ctx = canvas.getContext("2d")!;
-          const min = Math.min(img.width, img.height);
-          const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
-          ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
-          canvas.toBlob(
-            (blob) => resolve(new File([blob!], `avatar-${user.id}.jpg`, { type: "image/jpeg" })),
-            "image/jpeg", 0.85
-          );
-        };
-        img.src = URL.createObjectURL(file);
-      });
-
-      const formData = new FormData();
-      formData.append("file", compressed);
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/upload-to-r2`,
-        { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, body: formData }
-      );
-      if (!res.ok) throw new Error("上传失败");
-      const { url } = await res.json();
-
-      await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
-      setProfile((p) => p ? { ...p, avatar_url: url } : p);
-      toast.success("头像已更新");
-    } catch (err: any) {
-      toast.error(err.message || "上传失败");
-    } finally {
-      setUploadingAvatar(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = "";
-    }
-  };
-
-  const handleDeletePost = async (postId: string) => {
-    const { error } = await supabase.from("posts").delete().eq("id", postId);
-    if (error) toast.error("删除失败");
-    else {
-      setPosts(posts.filter((p) => p.id !== postId));
-      toast.success("已删除 / Deleted");
-    }
+    const updateData: any = {
+      name, phone: phone || null, wechat_id: wechatId || null,
+      vehicle_model: vehicleModel || null,
+      vehicle_color: vehicleColor || null,
+      license_plate: licensePlate || null,
+    };
+    const { error } = await supabase.from("profiles").update(updateData).eq("id", user.id);
+    if (error) { toast.error("更新失败"); return; }
+    toast.success("资料已更新");
+    setProfile({ ...profile!, ...updateData });
+    setSubPage("main");
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
+  };
+
+  const handleContactSupport = async () => {
+    if (!user) return;
+    // Find or create conversation with admin
+    const myId = user.id;
+    if (myId === ADMIN_USER_ID) { toast.info("您就是管理员"); return; }
+
+    const { data: existing } = await supabase
+      .from("conversations")
+      .select("id")
+      .or(`and(participant_1.eq.${myId},participant_2.eq.${ADMIN_USER_ID}),and(participant_1.eq.${ADMIN_USER_ID},participant_2.eq.${myId})`)
+      .maybeSingle();
+
+    if (existing) {
+      navigate(`/chat/${existing.id}`);
+    } else {
+      const { data: newConv, error } = await supabase
+        .from("conversations")
+        .insert({ participant_1: myId, participant_2: ADMIN_USER_ID })
+        .select("id")
+        .single();
+      if (error) { toast.error("无法创建对话"); return; }
+      navigate(`/chat/${newConv.id}`);
+    }
+  };
+
+  const handleLocationSharingChange = (val: boolean) => {
+    setLocationSharing(val);
+    localStorage.setItem("location_sharing_enabled", val.toString());
+    toast.success(val ? "位置共享已开启" : "位置共享已关闭");
   };
 
   if (loading) {
@@ -169,150 +151,167 @@ export default function ProfilePage() {
     );
   }
 
-  const categoryEmoji: Record<string, string> = {
-    housing: "🏠", jobs: "💼", auto: "🚗", food: "🍜",
-    education: "📚", travel: "✈️", driver: "🚕", legal: "⚖️",
-  };
+  // Sub-pages
+  if (subPage === "posts") {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
+          <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
+            <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
+              <ChevronRight className="h-5 w-5 rotate-180" />
+            </button>
+            <h1 className="text-lg font-semibold ml-2">我的发布</h1>
+            <span className="ml-auto text-sm text-muted-foreground">{posts.length} 条</span>
+          </div>
+        </div>
+        <div className="max-w-lg mx-auto px-4 py-4">
+          <MyPostsList posts={posts} onPostsChange={setPosts} />
+        </div>
+      </div>
+    );
+  }
 
+  if (subPage === "privacy") {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
+          <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
+            <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
+              <ChevronRight className="h-5 w-5 rotate-180" />
+            </button>
+            <h1 className="text-lg font-semibold ml-2">隐私设置</h1>
+          </div>
+        </div>
+        <div className="max-w-lg mx-auto px-4 py-4">
+          <PrivacySettings
+            locationSharing={locationSharing}
+            onLocationSharingChange={handleLocationSharingChange}
+            onBack={() => setSubPage("main")}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (subPage === "editProfile") {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
+          <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
+            <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
+              <ChevronRight className="h-5 w-5 rotate-180" />
+            </button>
+            <h1 className="text-lg font-semibold ml-2">编辑资料</h1>
+          </div>
+        </div>
+        <div className="max-w-lg mx-auto px-4 py-4 space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">姓名 / Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">手机 / Phone</Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-xl" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">微信 / WeChat</Label>
+            <Input value={wechatId} onChange={(e) => setWechatId(e.target.value)} className="rounded-xl" />
+          </div>
+          <div className="pt-3 border-t border-border">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Car className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">车辆信息（司机选填）</span>
+            </div>
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-xs">车型</Label>
+                <Input value={vehicleModel} onChange={(e) => setVehicleModel(e.target.value)} placeholder="如: Toyota Camry" className="rounded-xl" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">车色</Label>
+                <Input value={vehicleColor} onChange={(e) => setVehicleColor(e.target.value)} placeholder="如: 白色" className="rounded-xl" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">车牌</Label>
+                <Input value={licensePlate} onChange={(e) => setLicensePlate(e.target.value)} placeholder="如: ABC-1234" className="rounded-xl" />
+              </div>
+            </div>
+          </div>
+          <Button onClick={handleSaveProfile} className="w-full rounded-xl mt-4">
+            保存
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Main page
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
           <button onClick={() => navigate("/")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
-            <ArrowLeft className="h-5 w-5" />
+            <ChevronRight className="h-5 w-5 rotate-180" />
           </button>
-          <h1 className="text-lg font-semibold">个人中心 / Profile</h1>
-          <button onClick={handleLogout} className="p-2 -mr-2 hover:bg-accent rounded-xl text-destructive">
-            <LogOut className="h-5 w-5" />
+          <h1 className="text-lg font-semibold">我的</h1>
+          <button onClick={() => setSubPage("editProfile")} className="p-2 -mr-2 hover:bg-accent rounded-xl">
+            <Edit className="h-5 w-5" />
           </button>
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Profile Card */}
-        <div className="border border-border rounded-2xl p-5">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative group">
-              <div className="h-14 w-14 rounded-full bg-accent flex items-center justify-center overflow-hidden">
-                {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="" className="h-14 w-14 rounded-full object-cover" />
-                ) : (
-                  <User className="h-7 w-7 text-muted-foreground" />
-                )}
-              </div>
-              <button
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={uploadingAvatar}
-                className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                {uploadingAvatar ? (
-                  <Loader2 className="h-5 w-5 text-white animate-spin" />
-                ) : (
-                  <Camera className="h-5 w-5 text-white" />
-                )}
-              </button>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarUpload}
-                className="hidden"
-              />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-lg">{profile?.name}</p>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setEditing(!editing)}>
-              <Edit className="h-4 w-4" />
-            </Button>
-          </div>
+      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+        {/* Block 1: Profile header */}
+        <ProfileHeader
+          profile={profile}
+          userId={user?.id || ""}
+          email={user?.email || ""}
+          onAvatarUpdated={(url) => setProfile(p => p ? { ...p, avatar_url: url } : p)}
+        />
 
-          {editing && (
-            <div className="space-y-3 pt-3 border-t border-border animate-in fade-in slide-in-from-top-2">
-              <div className="space-y-1">
-                <Label className="text-xs">姓名 / Name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">手机 / Phone</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-xl" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">微信 / WeChat</Label>
-                <Input value={wechatId} onChange={(e) => setWechatId(e.target.value)} className="rounded-xl" />
-              </div>
-              {/* Vehicle info section */}
-              <div className="pt-3 border-t border-border">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Car className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">车辆信息 / Vehicle Info（司机选填）</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">车型 / Vehicle Model</Label>
-                    <Input value={vehicleModel} onChange={(e) => setVehicleModel(e.target.value)} placeholder="如: Toyota Camry" className="rounded-xl" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">车色 / Color</Label>
-                    <Input value={vehicleColor} onChange={(e) => setVehicleColor(e.target.value)} placeholder="如: 白色" className="rounded-xl" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">车牌 / License Plate</Label>
-                    <Input value={licensePlate} onChange={(e) => setLicensePlate(e.target.value)} placeholder="如: ABC-1234" className="rounded-xl" />
-                  </div>
-                </div>
-              </div>
-              <Button onClick={handleSaveProfile} className="w-full rounded-xl">
-                保存 / Save
-              </Button>
-            </div>
-          )}
+        {/* Block 2: Live sharing banner */}
+        <LiveSharingBanner />
+
+        {/* Block 3: Menu list */}
+        <div className="bg-card border border-border rounded-2xl divide-y divide-border overflow-hidden">
+          <button
+            onClick={() => setSubPage("posts")}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/50 transition-colors"
+          >
+            <Package className="h-5 w-5 text-primary" />
+            <span className="flex-1 text-sm font-medium">我的发布</span>
+            <span className="text-xs text-muted-foreground mr-1">{posts.length}</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <button
+            onClick={() => setSubPage("privacy")}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/50 transition-colors"
+          >
+            <Shield className="h-5 w-5 text-primary" />
+            <span className="flex-1 text-sm font-medium">隐私设置</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <button
+            onClick={handleContactSupport}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/50 transition-colors"
+          >
+            <Headphones className="h-5 w-5 text-primary" />
+            <span className="flex-1 text-sm font-medium">联系客服</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
         </div>
 
-        {/* My Posts */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">我的发布 / My Posts</h2>
-            <span className="text-sm text-muted-foreground">{posts.length} 条</span>
-          </div>
+        {/* Block 4: Logout */}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 py-3.5 bg-card border border-border rounded-2xl text-destructive text-sm font-medium hover:bg-destructive/5 transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          退出登录
+        </button>
 
-          {posts.length === 0 ? (
-            <div className="border border-dashed border-border rounded-2xl p-8 text-center">
-              <p className="text-muted-foreground text-sm">暂无发布 / No posts yet</p>
-              <Button variant="outline" className="mt-3 rounded-xl" onClick={() => navigate("/create-post")}>
-                发布第一条 / Create first post
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {posts.map((post) => (
-                <div
-                  key={post.id}
-                  className="border border-border rounded-2xl p-4 flex items-center gap-3 hover:bg-accent/50 transition-colors"
-                >
-                  <span className="text-xl">{categoryEmoji[post.category] || "📌"}</span>
-                  <div
-                    className="flex-1 cursor-pointer"
-                    onClick={() => navigate(`/post/${post.id}`)}
-                  >
-                    <p className="font-medium text-sm line-clamp-1">{post.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {post.price != null && `$${post.price} · `}
-                      {new Date(post.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleDeletePost(post.id)}
-                    className="p-2 hover:bg-destructive/10 rounded-xl text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
         {/* Hidden admin entry */}
         {isAdmin && (
           <button
