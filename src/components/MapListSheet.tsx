@@ -146,7 +146,7 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
     return dA - dB;
   });
 
-  const selectedCategory = posts.length > 0 ? categoryLabels[posts[0]?.category] : null;
+  const activeCategoryLabel = posts.length > 0 ? categoryLabels[posts[0]?.category] : null;
 
   return (
     <div
