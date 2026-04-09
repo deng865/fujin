@@ -41,6 +41,7 @@ export default function LiveLocationMap({
   onClose,
   onStopShare,
   isActive,
+  sharedChannelRef,
 }: LiveLocationMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
