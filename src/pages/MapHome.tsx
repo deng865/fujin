@@ -46,13 +46,11 @@ const MAP_STYLES: Record<string, string> = {
   terrain: "mapbox://styles/mapbox/outdoors-v12",
 };
 
-// Convert radius (km) to an appropriate zoom level at a given latitude
-function radiusToZoom(radiusKm: number, lat: number): number {
-  const C = 40075.016686; // Earth circumference in km
+// Convert radius (miles) to an appropriate zoom level at a given latitude
+function radiusToZoom(radiusMi: number, lat: number): number {
+  const C = 24901.461; // Earth circumference in miles
   const latRad = (lat * Math.PI) / 180;
-  // At zoom z, the map width ≈ C * cos(lat) / 2^z km
-  // We want the diameter (2*radius) to fit the screen, so zoom = log2(C * cos(lat) / (2 * radius))
-  const zoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusKm));
+  const zoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusMi));
   return Math.min(Math.max(zoom, 1), 20);
 }
 
