@@ -24,12 +24,19 @@ export function openMapNavigation(lat: number, lng: number, app: "apple" | "goog
     document.body.removeChild(a);
   }, 100);
 
-  // Fallback: if the above didn't work (some restrictive WebViews),
-  // try direct location assignment after a short delay
+  // Fallback: if the above didn't work, try window.open
   setTimeout(() => {
-    // Only fallback if the page is still focused (meaning navigation didn't happen)
     if (document.hasFocus()) {
-      window.location.href = urls[app];
+      const win = window.open(urls[app], "_blank");
+      // Final fallback: copy coordinates to clipboard
+      if (!win) {
+        navigator.clipboard.writeText(`${lat}, ${lng}`).then(() => {
+          // Use a simple alert as toast may not be available here
+          alert("坐标已复制到剪贴板，请打开地图App粘贴搜索");
+        }).catch(() => {
+          prompt("请复制以下坐标到地图App中搜索：", `${lat}, ${lng}`);
+        });
+      }
     }
   }, 500);
 }
