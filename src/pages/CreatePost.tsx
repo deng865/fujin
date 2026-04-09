@@ -211,7 +211,9 @@ export default function CreatePost() {
               className="w-full rounded-xl h-12 text-base gap-2"
             >
               <Send className="h-4 w-4" />
-              {loading ? "发布中..." : "发布 / Post"}
+              {loading ? (editId ? "保存中..." : "发布中...") : (editId ? "保存修改 / Save" : "发布 / Post")}
+            </Button>
+          )}
             </Button>
           )}
         </div>
