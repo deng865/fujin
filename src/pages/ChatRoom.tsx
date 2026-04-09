@@ -1392,8 +1392,8 @@ export default function ChatRoom() {
         otherName={otherUser?.name || "对方"}
         myAvatarUrl={myAvatarUrl}
         otherAvatarUrl={otherUser?.avatar_url}
-        initialMyPos={selectedLiveLocation?.myPos || cachedMyPos}
-        initialOtherPos={selectedLiveLocation?.otherPos || otherCachedPos}
+        initialMyPos={cachedMyPos || selectedLiveLocation?.myPos}
+        initialOtherPos={otherCachedPos || selectedLiveLocation?.otherPos}
         onClose={() => { setShowLiveMap(false); setSelectedLiveLocation(null); }}
         onStopShare={() => handleStopLiveShare("manual")}
         isActive={!!liveShare}
