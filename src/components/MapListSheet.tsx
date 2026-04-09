@@ -49,6 +49,7 @@ interface MapListSheetProps {
   onToggleFavorite: (postId: string) => void;
   filters: MapFilters;
   onFiltersChange: (filters: MapFilters) => void;
+  selectedCategory?: string | null;
 }
 
 // Bottom nav = 72px, hidden state just shows a small grab bar
@@ -57,8 +58,15 @@ type SheetState = "hidden" | "peek" | "half" | "full";
 const BOTTOM_NAV = 72;
 const HANDLE_HEIGHT = 28; // just the grab bar when hidden
 
-export default function MapListSheet({ posts, userLat, userLng, onSelectPost, favoriteIds, onToggleFavorite, filters, onFiltersChange }: MapListSheetProps) {
+export default function MapListSheet({ posts, userLat, userLng, onSelectPost, favoriteIds, onToggleFavorite, filters, onFiltersChange, selectedCategory }: MapListSheetProps) {
   const [state, setState] = useState<SheetState>("peek");
+
+  // Auto-expand when a category is selected
+  useEffect(() => {
+    if (selectedCategory) {
+      setState("half");
+    }
+  }, [selectedCategory]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const dragRef = useRef({ startY: 0, startState: state as SheetState });
