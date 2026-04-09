@@ -60,6 +60,8 @@ export default function PostDetail() {
   const [startingChat, setStartingChat] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showNavChoice, setShowNavChoice] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [reporting, setReporting] = useState(false);
