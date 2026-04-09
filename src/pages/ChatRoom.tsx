@@ -94,13 +94,10 @@ export default function ChatRoom() {
   const [completingTrip, setCompletingTrip] = useState(false);
   const [cancellingTrip, setCancellingTrip] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
-  const [showMediaPicker, setShowMediaPicker] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1336,7 +1333,7 @@ export default function ChatRoom() {
         {showContactMenu && (
           <div className="max-w-lg mx-auto px-4 pb-3 pt-1">
             <div className="grid grid-cols-4 gap-4">
-              <button onClick={() => { setShowMediaPicker(true); setShowContactMenu(false); }} disabled={uploadingMedia} className="flex flex-col items-center gap-1.5">
+              <button onClick={() => { mediaInputRef.current?.click(); setShowContactMenu(false); }} disabled={uploadingMedia} className="flex flex-col items-center gap-1.5">
                 <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
                   {uploadingMedia ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <ImagePlus className="h-6 w-6 text-muted-foreground" />}
                 </div>
@@ -1374,56 +1371,6 @@ export default function ChatRoom() {
           </div>
         )}
         <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
-        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleMediaUpload} className="hidden" />
-        <input ref={fileInputRef} type="file" multiple onChange={handleMediaUpload} className="hidden" />
-
-        {/* 中文媒体选择弹窗 */}
-        {showMediaPicker && (
-          <div
-            className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/40 animate-in fade-in duration-200"
-            onClick={() => setShowMediaPicker(false)}
-          >
-            <div
-              className="w-full max-w-sm mb-safe bg-background rounded-t-2xl shadow-xl animate-in slide-in-from-bottom duration-300 pb-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
-              </div>
-              <div className="px-4 flex flex-col gap-2 mt-2">
-                <button
-                  onClick={() => { cameraInputRef.current?.click(); setShowMediaPicker(false); }}
-                  className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <Camera className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm font-medium text-foreground">拍照</span>
-                </button>
-                <button
-                  onClick={() => { mediaInputRef.current?.click(); setShowMediaPicker(false); }}
-                  className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm font-medium text-foreground">从相册选择</span>
-                </button>
-                <button
-                  onClick={() => { fileInputRef.current?.click(); setShowMediaPicker(false); }}
-                  className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <FolderOpen className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm font-medium text-foreground">选择文件</span>
-                </button>
-              </div>
-              <div className="px-4 mt-3">
-                <button
-                  onClick={() => setShowMediaPicker(false)}
-                  className="w-full py-3 rounded-xl bg-muted text-sm font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
     </div>
