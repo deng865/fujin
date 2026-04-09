@@ -7,6 +7,7 @@ import { zhCN } from "date-fns/locale";
 import { toast } from "sonner";
 import IncomingCall from "@/components/chat/IncomingCall";
 import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
+import CreditBadge from "@/components/reviews/CreditBadge";
 
 interface Conversation {
   id: string;
@@ -14,7 +15,7 @@ interface Conversation {
   participant_2: string;
   last_message: string | null;
   updated_at: string;
-  other_user?: { name: string; avatar_url: string | null };
+  other_user?: { name: string; avatar_url: string | null; average_rating?: number | null; total_ratings?: number | null };
   unread_count?: number;
 }
 
@@ -253,8 +254,8 @@ export default function Messages() {
       data.map(async (conv) => {
         const otherId = conv.participant_1 === uid ? conv.participant_2 : conv.participant_1;
         const { data: profile } = await supabase
-          .from("public_profiles")
-          .select("name, avatar_url")
+          .from("profiles")
+          .select("name, avatar_url, average_rating, total_ratings")
           .eq("id", otherId)
           .single();
 
@@ -267,7 +268,7 @@ export default function Messages() {
 
         return {
           ...conv,
-          other_user: profile || { name: "用户", avatar_url: null },
+          other_user: profile || { name: "用户", avatar_url: null, average_rating: null, total_ratings: null },
           unread_count: count || 0,
         };
       })
