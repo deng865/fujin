@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Search, ChevronDown } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
