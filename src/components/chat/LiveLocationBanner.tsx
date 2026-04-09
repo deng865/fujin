@@ -17,6 +17,8 @@ interface LiveLocationBannerProps {
   onPositionUpdate?: (pos: { lat: number; lng: number }) => void;
   onOtherPositionUpdate?: (pos: { lat: number; lng: number }) => void;
   onError?: (message: string | null) => void;
+  /** Expose the Supabase channel ref so sibling components (e.g. LiveLocationMap) can attach listeners */
+  channelRef?: React.MutableRefObject<any>;
 }
 
 export default function LiveLocationBanner({
@@ -29,6 +31,7 @@ export default function LiveLocationBanner({
   onPositionUpdate,
   onOtherPositionUpdate,
   onError,
+  channelRef: externalChannelRef,
 }: LiveLocationBannerProps) {
   const [remaining, setRemaining] = useState("");
   const [isStopping, setIsStopping] = useState(false);
