@@ -25,6 +25,8 @@ export default function LiveLocationMap({
   otherUserId,
   myName,
   otherName,
+  myAvatarUrl,
+  otherAvatarUrl,
   initialMyPos,
   initialOtherPos,
   myLocationError,
