@@ -121,8 +121,11 @@ function SwipeableCard({
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-sm truncate">{conv.other_user?.name || "用户"}</p>
+            <div className="flex items-center gap-1.5 justify-between">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <p className="font-medium text-sm truncate">{conv.other_user?.name || "用户"}</p>
+                <CreditBadge averageRating={conv.other_user?.average_rating ?? null} totalRatings={conv.other_user?.total_ratings ?? null} size="sm" showLabel={false} />
+              </div>
               <span className="text-[11px] text-muted-foreground shrink-0 ml-2">
                 {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true, locale: zhCN })}
               </span>
