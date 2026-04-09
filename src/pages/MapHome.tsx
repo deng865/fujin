@@ -152,6 +152,7 @@ export default function MapHome() {
     const zoom = radiusToZoom(radius, center.lat);
     mapRef.current?.flyTo({ center: [center.lng, center.lat], zoom, duration: 600 });
   }, [center]);
+  const handleLocateMe = () => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
