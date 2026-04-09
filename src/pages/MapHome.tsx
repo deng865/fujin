@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import MapGL, { MapRef, GeolocateControl, Marker } from "react-map-gl/mapbox";
+import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,10 +46,33 @@ const MAP_STYLES: Record<string, string> = {
   terrain: "mapbox://styles/mapbox/outdoors-v12",
 };
 
+// Convert radius (km) to an appropriate zoom level at a given latitude
+function radiusToZoom(radiusKm: number, lat: number): number {
+  const C = 40075.016686; // Earth circumference in km
+  const latRad = (lat * Math.PI) / 180;
+  // At zoom z, the map width ≈ C * cos(lat) / 2^z km
+  // We want the diameter (2*radius) to fit the screen, so zoom = log2(C * cos(lat) / (2 * radius))
+  const zoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusKm));
+  return Math.min(Math.max(zoom, 1), 20);
+}
+
+// Convert map bounds to an approximate visible radius from center
+function boundsToRadius(map: mapboxgl.Map): number {
+  const bounds = map.getBounds();
+  if (!bounds) return 25;
+  const center = map.getCenter();
+  // Use half the shorter axis (lat or lng span) as radius
+  const latRadius = haversine(bounds.getSouth(), center.lng, bounds.getNorth(), center.lng) / 2;
+  const lngRadius = haversine(center.lat, bounds.getWest(), center.lat, bounds.getEast()) / 2;
+  return Math.round(Math.min(latRadius, lngRadius));
+}
+
 export default function MapHome() {
   const navigate = useNavigate();
   const mapRef = useRef<MapRef>(null);
   const geolocateRef = useRef<any>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const isRadiusDriven = useRef(false); // flag to avoid feedback loop
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -100,15 +124,35 @@ export default function MapHome() {
     if (data) setPosts(data);
   }, []);
 
+  // Debounced move end: sync center, radius from bounds, and fetch
   const handleMoveEnd = useCallback(() => {
-    const map = mapRef.current?.getMap();
-    if (map) {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const map = mapRef.current?.getMap();
+      if (!map) return;
       const c = map.getCenter();
       setCenter({ lat: c.lat, lng: c.lng });
-    }
-    fetchPosts();
+
+      // Sync radius from zoom (skip if this move was triggered by radius change)
+      if (!isRadiusDriven.current) {
+        const visibleRadius = boundsToRadius(map);
+        if (visibleRadius >= 1 && visibleRadius <= 100) {
+          setSearchRadius(visibleRadius);
+        }
+      }
+      isRadiusDriven.current = false;
+
+      fetchPosts();
+    }, 300);
   }, [fetchPosts]);
 
+  // Radius → Zoom: when user manually adjusts radius, fly to matching zoom
+  const handleRadiusChange = useCallback((radius: number) => {
+    setSearchRadius(radius);
+    isRadiusDriven.current = true;
+    const zoom = radiusToZoom(radius, center.lat);
+    mapRef.current?.flyTo({ center: [center.lng, center.lat], zoom, duration: 600 });
+  }, [center]);
   const handleLocateMe = () => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -185,7 +229,7 @@ export default function MapHome() {
 
       <ControlBar
         searchRadius={searchRadius}
-        onSearchRadiusChange={setSearchRadius}
+        onSearchRadiusChange={handleRadiusChange}
         onPlaceSelect={handlePlaceSelect}
       />
 
