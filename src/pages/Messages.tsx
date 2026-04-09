@@ -7,6 +7,7 @@ import { zhCN } from "date-fns/locale";
 import { toast } from "sonner";
 import IncomingCall from "@/components/chat/IncomingCall";
 import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
+import CreditBadge from "@/components/reviews/CreditBadge";
 
 interface Conversation {
   id: string;
@@ -14,7 +15,7 @@ interface Conversation {
   participant_2: string;
   last_message: string | null;
   updated_at: string;
-  other_user?: { name: string; avatar_url: string | null };
+  other_user?: { name: string; avatar_url: string | null; average_rating?: number | null; total_ratings?: number | null };
   unread_count?: number;
 }
 
@@ -120,8 +121,11 @@ function SwipeableCard({
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-sm truncate">{conv.other_user?.name || "用户"}</p>
+            <div className="flex items-center gap-1.5 justify-between">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <p className="font-medium text-sm truncate">{conv.other_user?.name || "用户"}</p>
+                <CreditBadge averageRating={conv.other_user?.average_rating ?? null} totalRatings={conv.other_user?.total_ratings ?? null} size="sm" showLabel={false} />
+              </div>
               <span className="text-[11px] text-muted-foreground shrink-0 ml-2">
                 {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true, locale: zhCN })}
               </span>
@@ -253,8 +257,8 @@ export default function Messages() {
       data.map(async (conv) => {
         const otherId = conv.participant_1 === uid ? conv.participant_2 : conv.participant_1;
         const { data: profile } = await supabase
-          .from("public_profiles")
-          .select("name, avatar_url")
+          .from("profiles")
+          .select("name, avatar_url, average_rating, total_ratings")
           .eq("id", otherId)
           .single();
 
@@ -267,7 +271,7 @@ export default function Messages() {
 
         return {
           ...conv,
-          other_user: profile || { name: "用户", avatar_url: null },
+          other_user: profile || { name: "用户", avatar_url: null, average_rating: null, total_ratings: null },
           unread_count: count || 0,
         };
       })

@@ -38,6 +38,8 @@ import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/Tri
 import { TripRatingInput } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
 import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
+import CreditBadge from "@/components/reviews/CreditBadge";
+import ReviewDialog from "@/components/reviews/ReviewDialog";
 
 interface Message {
   id: string;
@@ -95,7 +97,8 @@ export default function ChatRoom() {
   const [cancellingTrip, setCancellingTrip] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [otherUserCredit, setOtherUserCredit] = useState<{ average_rating: number | null; total_ratings: number | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -146,6 +149,14 @@ export default function ChatRoom() {
         avatar_url: profile?.avatar_url || null,
         phone: null,
       });
+
+      // Load credit info
+      const { data: creditData } = await supabase
+        .from("profiles")
+        .select("average_rating, total_ratings")
+        .eq("id", otherId)
+        .single();
+      if (creditData) setOtherUserCredit(creditData as any);
 
       // Check if the other user has driver-category posts (conversation initiated from driver listing)
       const { count: driverPostCount } = await supabase
@@ -1045,11 +1056,39 @@ export default function ChatRoom() {
                   </span>
                 )}
               </div>
-              <span className="font-semibold text-sm">{otherUser?.name || "用户"}</span>
+              <div className="flex flex-col">
+                <span className="font-semibold text-sm">{otherUser?.name || "用户"}</span>
+                <CreditBadge averageRating={otherUserCredit?.average_rating ?? null} totalRatings={otherUserCredit?.total_ratings ?? null} size="sm" />
+              </div>
             </div>
           </div>
+          <button
+            onClick={() => setShowReviewDialog(true)}
+            className="p-2 -mr-2 hover:bg-accent rounded-xl text-primary"
+            title="评价对方"
+          >
+            <Star className="h-5 w-5" />
+          </button>
         </div>
       </div>
+
+      {/* Review Dialog */}
+      {userId && otherUserId && (
+        <ReviewDialog
+          open={showReviewDialog}
+          onOpenChange={setShowReviewDialog}
+          senderId={userId}
+          receiverId={otherUserId}
+          postId={conversationId || ""}
+          receiverName={otherUser?.name}
+          onReviewSubmitted={() => {
+            // Refresh other user credit
+            supabase.from("profiles").select("average_rating, total_ratings").eq("id", otherUserId).single().then(({ data }) => {
+              if (data) setOtherUserCredit(data as any);
+            });
+          }}
+        />
+      )}
 
       {/* Live location sharing banner */}
       {liveShare && userId && conversationId && otherUserId && (

@@ -37,6 +37,10 @@ export default function ReviewDialog({
 
   const handleSubmit = async () => {
     if (rating === 0) { toast.error("请选择评分"); return; }
+    if (rating <= 2 && comment.trim().length < 10) {
+      toast.error("低分评价请至少写10个字说明原因，以确保公正");
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.from("reviews").insert({
       sender_id: senderId,

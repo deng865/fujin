@@ -13,6 +13,28 @@ import MyPostsList from "@/components/profile/MyPostsList";
 import PrivacySettings from "@/components/profile/PrivacySettings";
 import ReviewList from "@/components/reviews/ReviewList";
 
+function ReviewPositiveRate({ userId }: { userId: string }) {
+  const [rate, setRate] = useState<number | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from("reviews")
+      .select("rating")
+      .eq("receiver_id", userId)
+      .then(({ data }) => {
+        if (!data || data.length === 0) { setRate(null); return; }
+        const good = data.filter((r: any) => r.rating >= 4).length;
+        setRate(Math.round((good / data.length) * 100));
+      });
+  }, [userId]);
+  return (
+    <>
+      <p className="text-2xl font-bold text-foreground">{rate !== null ? `${rate}%` : "-"}</p>
+      <p className="text-[10px] text-muted-foreground">好评率</p>
+    </>
+  );
+}
+
 const ADMIN_USER_ID = "a7c6d947-52ce-4eaf-83fd-914f87ac9669";
 
 interface UserPost {
@@ -197,6 +219,8 @@ export default function ProfilePage() {
   }
 
   if (subPage === "reviews") {
+    const avg = profile?.average_rating ?? 0;
+    const total = profile?.total_ratings ?? 0;
     return (
       <div className="min-h-screen bg-background">
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
@@ -208,6 +232,21 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+          {/* Stats card */}
+          <div className="bg-card border border-border rounded-2xl p-4 flex items-center gap-6">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-foreground">{avg ? avg.toFixed(1) : "-"}</p>
+              <p className="text-[10px] text-muted-foreground">平均分</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-foreground">{total}</p>
+              <p className="text-[10px] text-muted-foreground">总评价</p>
+            </div>
+            <div className="text-center">
+              <ReviewPositiveRate userId={user?.id || ""} />
+            </div>
+          </div>
+
           <h2 className="text-sm font-medium text-muted-foreground">收到的评价</h2>
           <ReviewList userId={user?.id || ""} type="received" canDispute />
           <h2 className="text-sm font-medium text-muted-foreground pt-2 border-t border-border">我给出的评价</h2>
