@@ -92,10 +92,12 @@ export default function ChatRoom() {
   const [completingTrip, setCompletingTrip] = useState(false);
   const [cancellingTrip, setCancellingTrip] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
