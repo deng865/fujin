@@ -47,6 +47,8 @@ export default function CategoryScroll({ selectedCategory, onSelectCategory }: C
         .order("sort_order", { ascending: true });
       if (data && data.length > 0) {
         setCategories(data);
+      } else {
+        setCategories(fallbackCategories);
       }
     };
     load();
