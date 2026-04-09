@@ -1375,8 +1375,8 @@ export default function ChatRoom() {
             </div>
           </div>
         )}
-        <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
-        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleMediaUpload} className="hidden" />
+        <input ref={cameraInputRef} type="file" accept="image/*,video/*" capture="environment" onChange={handleMediaUpload} className="hidden" />
+        <input ref={mediaInputRef} type="file" accept="image/*,video/*" multiple onChange={handleMediaUpload} className="hidden" />
         <input ref={fileInputRef} type="file" accept="*/*" multiple onChange={handleMediaUpload} className="hidden" />
       </div>
 
