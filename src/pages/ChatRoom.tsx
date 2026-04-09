@@ -1405,6 +1405,7 @@ export default function ChatRoom() {
         isActive={!!liveShare}
         sharedChannelRef={liveChannelRef}
       />
+    )}
     <AlertDialog open={!!pendingCancelTrip} onOpenChange={(open) => { if (!open) setPendingCancelTrip(null); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
