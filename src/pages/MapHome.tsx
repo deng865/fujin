@@ -99,7 +99,7 @@ export default function MapHome() {
         (pos) => {
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setCenter(loc);
-          mapRef.current?.flyTo({ center: [loc.lng, loc.lat], duration: 1000 });
+          mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: radiusToZoom(10, loc.lat), duration: 1000 });
         },
         () => {}
       );
@@ -196,7 +196,7 @@ export default function MapHome() {
         initialViewState={{
           latitude: center.lat,
           longitude: center.lng,
-          zoom: 12,
+          zoom: radiusToZoom(10, center.lat),
         }}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={MAP_STYLES[mapType]}
