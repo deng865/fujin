@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { LogOut, Package, Shield, Headphones, ChevronRight, Edit, Car } from "lucide-react";
+import { LogOut, Package, Shield, Headphones, ChevronRight, Edit, Car, Star } from "lucide-react";
 import { useAdmin } from "@/hooks/useAdmin";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import ProfileHeader from "@/components/profile/ProfileHeader";
 import LiveSharingBanner from "@/components/profile/LiveSharingBanner";
 import MyPostsList from "@/components/profile/MyPostsList";
 import PrivacySettings from "@/components/profile/PrivacySettings";
+import ReviewList from "@/components/reviews/ReviewList";
 
 const ADMIN_USER_ID = "a7c6d947-52ce-4eaf-83fd-914f87ac9669";
 
@@ -32,9 +33,11 @@ interface Profile {
   vehicle_color: string | null;
   license_plate: string | null;
   user_type: string | null;
+  average_rating: number | null;
+  total_ratings: number | null;
 }
 
-type SubPage = "main" | "posts" | "privacy" | "editProfile";
+type SubPage = "main" | "posts" | "privacy" | "editProfile" | "reviews";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -62,7 +65,7 @@ export default function ProfilePage() {
 
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("name, phone, wechat_id, avatar_url, vehicle_model, vehicle_color, license_plate, user_type")
+        .select("name, phone, wechat_id, avatar_url, vehicle_model, vehicle_color, license_plate, user_type, average_rating, total_ratings")
         .eq("id", user.id)
         .single();
 
