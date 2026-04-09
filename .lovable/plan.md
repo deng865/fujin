@@ -1,37 +1,44 @@
 
+结论：之前那次修改不是完全没用，而是只修到了“地图组件内部”的一层；真正把“自己的实时坐标”挡住的问题，还留在父组件 `ChatRoom.tsx` 里，所以效果被抵消了。
 
-# 修复：实时位置地图显示不了自己的位置
+1. 真正原因
+- `LiveLocationBanner` 已经在持续更新 `cachedMyPos` / `otherCachedPos`
+- `LiveLocationMap` 现在也已经改成主要依赖 props 显示自己的位置
+- 但 `ChatRoom.tsx` 仍然先把一份“打开地图那一刻的旧快照”存进 `selectedLiveLocation`
+- 然后传参时又写成：
+  ```ts
+  initialMyPos={selectedLiveLocation?.myPos || cachedMyPos}
+  initialOtherPos={selectedLiveLocation?.otherPos || otherCachedPos}
+  ```
+- 这意味着：只要 `selectedLiveLocation` 里有值，后面实时更新的 `cachedMyPos` / `otherCachedPos` 就永远到不了地图
 
-## 根因
+2. 为什么看起来“改了没用”
+- 上一次删掉地图里的重复 GPS 监听，解决的是“地图自己抢定位、覆盖 Banner 坐标”的问题
+- 但地图虽然不再乱定位了，父组件却还在把“旧坐标快照”优先传给它
+- 所以最终表现还是：对方位置可能有，自己的位置不刷新，像是没修好
 
-`LiveLocationMap` 有**两个独立的位置来源**互相冲突：
+3. 这次应该怎么改
+- 只改 `src/pages/ChatRoom.tsx`
+- 把优先级改成“实时缓存优先，旧快照兜底”：
+  ```ts
+  initialMyPos={cachedMyPos || selectedLiveLocation?.myPos}
+  initialOtherPos={otherCachedPos || selectedLiveLocation?.otherPos}
+  ```
+- 这样只要 Banner 拿到新的实时坐标，地图就能立刻收到并更新 marker
 
-1. **Props 传入**：`initialMyPos` ← `cachedMyPos`（由 Banner 的 `onPositionUpdate` 回调更新）
-2. **自身 GPS watch**（第 105-124 行）：使用严格参数 `enableHighAccuracy: true, timeout: 15000`
+4. 可选加固
+- 继续保留 `selectedLiveLocation`，但只把它当“首次打开地图时的兜底值”
+- 不再让它充当实时位置主来源，避免以后又把实时数据遮住
 
-问题在于：
-- Map 自身的 GPS watch 使用 `enableHighAccuracy: true`，老手机上可能一直超时拿不到结果
-- 虽然 Banner 已经通过 `onPositionUpdate` 把自己的坐标传给了 ChatRoom 的 `cachedMyPos`，再通过 `initialMyPos` 传给 Map
-- 但 Map 内部的 `updateMyPos` 有一个 `hasMeaningfulPositionChange(current, next, 5)` 的过滤（第 64 行），如果 Banner 和 Map 的 GPS watch 同时报告相似坐标，可能导致状态更新被跳过
-- 更关键的是：Map 的 GPS watch 报错时会调用 `setGeoError`，这会**覆盖** Banner 传入的有效位置状态，让地图显示错误界面而不是地图
+5. 为什么这次会生效
+- 数据流会重新变成：
+  ```text
+  Banner 实时定位 → cachedMyPos / otherCachedPos → ChatRoom → LiveLocationMap → marker.setLngLat
+  ```
+- 地图实例不用重建
+- 老手机上也只是更新 marker，不会闪屏或白屏
+- 自己和对方的位置都能按实时缓存刷新
 
-## 修复方案
-
-**删除 Map 组件中冗余的 GPS watch**，完全依赖 Banner 通过 props 传入的坐标。Banner 已经有完善的"先快后精"定位策略，没必要在 Map 中重复定位。
-
-### 文件: `src/components/chat/LiveLocationMap.tsx`
-
-1. **删除自身的 GPS watch**（第 104-124 行）— 不再独立调用 `navigator.geolocation`
-2. **直接使用 `initialMyPos` prop 更新 `myPos`**：将现有的 `useEffect([initialMyPos])` 改为无条件同步更新，不再过滤微小位移
-3. **移除 `geoError` / `retryCount` 状态**和相关 UI — 定位错误由 Banner 的 `onError` 处理
-4. **保留 `myLocationError` prop**（来自 Banner 的 `onError`）用于显示定位异常
-
-这样数据流变为：
-```
-Banner GPS → onPositionUpdate → ChatRoom.cachedMyPos → Map.initialMyPos → Map.myPos → Marker
-```
-只有一条路径，不会冲突。
-
-## 修改文件
-- `src/components/chat/LiveLocationMap.tsx` — 删除冗余 GPS watch，简化位置数据流
-
+6. 修改范围
+- 只需要改 1 个文件：
+  - `src/pages/ChatRoom.tsx`
