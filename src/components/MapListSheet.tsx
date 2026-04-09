@@ -53,6 +53,7 @@ interface MapListSheetProps {
   filters: MapFilters;
   onFiltersChange: (filters: MapFilters) => void;
   selectedCategory?: string | null;
+  mapTapped?: number;
 }
 
 // Bottom nav = 72px, hidden state just shows a small grab bar
@@ -61,7 +62,7 @@ type SheetState = "hidden" | "peek" | "half" | "full";
 const BOTTOM_NAV = 72;
 const HANDLE_HEIGHT = 28; // just the grab bar when hidden
 
-export default function MapListSheet({ posts, userLat, userLng, onSelectPost, favoriteIds, onToggleFavorite, filters, onFiltersChange, selectedCategory }: MapListSheetProps) {
+export default function MapListSheet({ posts, userLat, userLng, onSelectPost, favoriteIds, onToggleFavorite, filters, onFiltersChange, selectedCategory, mapTapped = 0 }: MapListSheetProps) {
   const [state, setState] = useState<SheetState>("peek");
 
   // Auto-expand when a category is selected
@@ -70,6 +71,14 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
       setState("half");
     }
   }, [selectedCategory]);
+
+  // Collapse when map is tapped
+  useEffect(() => {
+    if (mapTapped > 0) {
+      setState("peek");
+    }
+  }, [mapTapped]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const dragRef = useRef({ startY: 0, startState: state as SheetState });
@@ -213,6 +222,9 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <MapPin className="h-8 w-8 mb-2 opacity-30" />
               <p className="text-sm">附近暂无内容</p>
+              {selectedCategory && (
+                <p className="text-xs mt-1 text-muted-foreground/70">请扩大搜索范围</p>
+              )}
             </div>
           ) : (
             <div className="px-4 pb-[calc(16px+env(safe-area-inset-bottom))]">
