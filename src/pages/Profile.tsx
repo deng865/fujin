@@ -196,6 +196,27 @@ export default function ProfilePage() {
     );
   }
 
+  if (subPage === "reviews") {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
+          <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
+            <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
+              <ChevronRight className="h-5 w-5 rotate-180" />
+            </button>
+            <h1 className="text-lg font-semibold ml-2">我的评价</h1>
+          </div>
+        </div>
+        <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+          <h2 className="text-sm font-medium text-muted-foreground">收到的评价</h2>
+          <ReviewList userId={user?.id || ""} type="received" canDispute />
+          <h2 className="text-sm font-medium text-muted-foreground pt-2 border-t border-border">我给出的评价</h2>
+          <ReviewList userId={user?.id || ""} type="sent" />
+        </div>
+      </div>
+    );
+  }
+
   if (subPage === "editProfile") {
     return (
       <div className="min-h-screen bg-background">
@@ -284,6 +305,15 @@ export default function ProfilePage() {
             <Package className="h-5 w-5 text-primary" />
             <span className="flex-1 text-sm font-medium">我的发布</span>
             <span className="text-xs text-muted-foreground mr-1">{posts.length}</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <button
+            onClick={() => setSubPage("reviews")}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/50 transition-colors"
+          >
+            <Star className="h-5 w-5 text-primary" />
+            <span className="flex-1 text-sm font-medium">我的评价</span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
 
