@@ -6,6 +6,7 @@ import { zhCN } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
+import { openMapNavigation } from "@/lib/mapNavigation";
 import FavoriteButton from "@/components/FavoriteButton";
 import {
   Drawer,
@@ -262,13 +263,13 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
                   {showNavChoice && (
                     <div className="absolute right-0 bottom-full mb-2 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
                       <button
-                        onClick={() => { openNavigation(post.latitude, post.longitude, "apple"); setShowNavChoice(false); }}
+                        onClick={() => { setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "apple"); }}
                         className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
                       >
                         🍎 Apple Maps
                       </button>
                       <button
-                        onClick={() => { openNavigation(post.latitude, post.longitude, "google"); setShowNavChoice(false); }}
+                        onClick={() => { setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "google"); }}
                         className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
                       >
                         📍 Google Maps
