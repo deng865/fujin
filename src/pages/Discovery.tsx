@@ -330,12 +330,12 @@ function PostCard({
 
         {/* Bottom row: distance + time */}
         <div className="flex items-center justify-between pt-1">
-          {distMiles != null && (
-            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-              <MapPin className="h-2.5 w-2.5" />
-              {distMiles < 0.1 ? "附近" : `${distMiles.toFixed(1)} mi`}
-            </span>
-          )}
+          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+            <MapPin className="h-2.5 w-2.5" />
+            {distMiles != null
+              ? (distMiles < 0.1 ? "附近" : `${distMiles.toFixed(1)} mi`)
+              : "定位中..."}
+          </span>
           <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground ml-auto">
             <Clock className="h-2.5 w-2.5" />
             {timeAgo}
