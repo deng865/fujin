@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { X, Navigation, Radio, Loader2, AlertTriangle, RefreshCw, StopCircle } from "lucide-react";
+import { X, Navigation, Radio, Loader2, AlertTriangle, RefreshCw, StopCircle, Crosshair, Car } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
-import { hasMeaningfulPositionChange, haversineMiles, LiveLocationPosition } from "@/lib/liveLocation";
+import { hasMeaningfulPositionChange, LiveLocationPosition } from "@/lib/liveLocation";
+
+interface RouteInfo {
+  distance: string;
+  duration: string;
+}
 
 interface LiveLocationMapProps {
   conversationId: string;
@@ -40,10 +45,14 @@ export default function LiveLocationMap({
   const otherMarkerRef = useRef<any>(null);
   const mapboxRef = useRef<any>(null);
   const hasAutoFitRef = useRef(false);
+  const routeTimerRef = useRef<number | null>(null);
+  const mapLoadedRef = useRef(false);
+
   const [myPos, setMyPos] = useState<LiveLocationPosition | null>(initialMyPos || null);
   const [otherPos, setOtherPos] = useState<LiveLocationPosition | null>(initialOtherPos || null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
 
   const updateMyPos = useCallback((next: LiveLocationPosition) => {
     setGeoError(null);
@@ -53,79 +62,76 @@ export default function LiveLocationMap({
     });
   }, []);
 
-  // Sync otherPos from props (ChatRoom manages this centrally)
   useEffect(() => {
-    if (initialOtherPos) {
-      setOtherPos(initialOtherPos);
-    }
+    if (initialOtherPos) setOtherPos(initialOtherPos);
   }, [initialOtherPos]);
 
-  // Sync myPos from props
   useEffect(() => {
     if (initialMyPos) updateMyPos(initialMyPos);
   }, [initialMyPos, updateMyPos]);
 
-  // Actively get own GPS
+  // GPS watch
   useEffect(() => {
     if (!navigator.geolocation) {
       setGeoError("当前设备不支持定位");
       return;
     }
-
     let cancelled = false;
-
     const onSuccess = (pos: GeolocationPosition) => {
-      if (!cancelled) {
-        updateMyPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      }
+      if (!cancelled) updateMyPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
     };
-
     const onError = (err: GeolocationPositionError) => {
       if (cancelled) return;
       if (err.code === 1) setGeoError("定位权限被拒绝");
       else if (err.code === 2) setGeoError("定位不可用");
       else setGeoError("定位超时，请重试");
     };
-
     const opts = { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 };
     navigator.geolocation.getCurrentPosition(onSuccess, onError, opts);
     const watchId = navigator.geolocation.watchPosition(onSuccess, onError, opts);
-
-    return () => {
-      cancelled = true;
-      navigator.geolocation.clearWatch(watchId);
-    };
+    return () => { cancelled = true; navigator.geolocation.clearWatch(watchId); };
   }, [updateMyPos, retryCount]);
 
-  // First available center for map init
   const firstCenter = useMemo(() => myPos || otherPos, [myPos, otherPos]);
 
-  // Init map only once
+  // Init map
   useEffect(() => {
     if (!firstCenter || mapRef.current || !mapContainerRef.current || !MAPBOX_TOKEN) return;
-
     let cancelled = false;
-
     import("mapbox-gl").then((mapboxgl) => {
       if (cancelled || !mapContainerRef.current || mapRef.current) return;
       (mapboxgl as any).accessToken = MAPBOX_TOKEN;
       mapboxRef.current = mapboxgl;
-
       const map = new mapboxgl.Map({
         container: mapContainerRef.current!,
         style: "mapbox://styles/mapbox/streets-v12",
         center: [firstCenter.lng, firstCenter.lat],
         zoom: 15,
       });
-
+      map.on("load", () => {
+        mapLoadedRef.current = true;
+        // Add empty route source + layer
+        map.addSource("route", {
+          type: "geojson",
+          data: { type: "Feature", geometry: { type: "LineString", coordinates: [] }, properties: {} },
+        });
+        map.addLayer({
+          id: "route-line",
+          type: "line",
+          source: "route",
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: { "line-color": "#3b82f6", "line-width": 4, "line-opacity": 0.7, "line-dasharray": [2, 1] },
+        });
+      });
       mapRef.current = map;
     });
-
     return () => { cancelled = true; };
   }, [firstCenter]);
 
+  // Cleanup
   useEffect(() => {
     return () => {
+      if (routeTimerRef.current) clearTimeout(routeTimerRef.current);
       myMarkerRef.current?.remove();
       otherMarkerRef.current?.remove();
       mapRef.current?.remove();
@@ -134,10 +140,50 @@ export default function LiveLocationMap({
       mapRef.current = null;
       mapboxRef.current = null;
       hasAutoFitRef.current = false;
+      mapLoadedRef.current = false;
     };
   }, []);
 
-  // Helper to create avatar marker element
+  // Fetch driving route with 5s debounce
+  useEffect(() => {
+    if (!myPos || !otherPos || !MAPBOX_TOKEN) return;
+    if (routeTimerRef.current) clearTimeout(routeTimerRef.current);
+
+    routeTimerRef.current = window.setTimeout(async () => {
+      try {
+        const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${myPos.lng},${myPos.lat};${otherPos.lng},${otherPos.lat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        const route = data.routes?.[0];
+        if (!route) return;
+
+        const distMi = (route.distance / 1609.344);
+        const durMin = Math.round(route.duration / 60);
+        setRouteInfo({
+          distance: distMi < 0.1 ? `${Math.round(route.distance)} m` : `${distMi.toFixed(1)} mi`,
+          duration: durMin < 1 ? "< 1 分钟" : `约 ${durMin} 分钟`,
+        });
+
+        // Update route on map
+        if (mapRef.current && mapLoadedRef.current) {
+          const src = mapRef.current.getSource("route");
+          if (src) {
+            src.setData({
+              type: "Feature",
+              geometry: route.geometry,
+              properties: {},
+            });
+          }
+        }
+      } catch {
+        // silently fail
+      }
+    }, 5000);
+
+    return () => { if (routeTimerRef.current) clearTimeout(routeTimerRef.current); };
+  }, [myPos, otherPos]);
+
   const createMarkerEl = useCallback((avatarUrl: string | null | undefined, fallbackChar: string, borderColor: string) => {
     const el = document.createElement("div");
     const size = 40;
@@ -151,7 +197,6 @@ export default function LiveLocationMap({
     el.style.display = "flex";
     el.style.alignItems = "center";
     el.style.justifyContent = "center";
-
     if (avatarUrl) {
       const img = document.createElement("img");
       img.src = avatarUrl;
@@ -171,47 +216,31 @@ export default function LiveLocationMap({
     return el;
   }, []);
 
-  // Create / update my marker
+  // My marker
   useEffect(() => {
     if (!mapRef.current || !mapboxRef.current) return;
-
-    if (!myPos) {
-      myMarkerRef.current?.remove();
-      myMarkerRef.current = null;
-      return;
-    }
-
+    if (!myPos) { myMarkerRef.current?.remove(); myMarkerRef.current = null; return; }
     const mapboxgl = mapboxRef.current;
     if (!myMarkerRef.current) {
       const el = createMarkerEl(myAvatarUrl, (myName || "我").charAt(0), "#3b82f6");
-      myMarkerRef.current = new mapboxgl.Marker({ element: el })
-        .setLngLat([myPos.lng, myPos.lat])
-        .addTo(mapRef.current);
+      myMarkerRef.current = new mapboxgl.Marker({ element: el }).setLngLat([myPos.lng, myPos.lat]).addTo(mapRef.current);
     } else {
       myMarkerRef.current.setLngLat([myPos.lng, myPos.lat]);
     }
   }, [myPos, myAvatarUrl, myName, createMarkerEl]);
 
-  // Create / update other marker
+  // Other marker
   useEffect(() => {
     if (!mapRef.current || !mapboxRef.current) return;
-
-    if (!otherPos) {
-      otherMarkerRef.current?.remove();
-      otherMarkerRef.current = null;
-      return;
-    }
-
+    if (!otherPos) { otherMarkerRef.current?.remove(); otherMarkerRef.current = null; return; }
     const mapboxgl = mapboxRef.current;
     if (!otherMarkerRef.current) {
       const el = createMarkerEl(otherAvatarUrl, (otherName || "对").charAt(0), "#22c55e");
-      otherMarkerRef.current = new mapboxgl.Marker({ element: el })
-        .setLngLat([otherPos.lng, otherPos.lat])
-        .addTo(mapRef.current);
+      otherMarkerRef.current = new mapboxgl.Marker({ element: el }).setLngLat([otherPos.lng, otherPos.lat]).addTo(mapRef.current);
     } else {
       otherMarkerRef.current.setLngLat([otherPos.lng, otherPos.lat]);
     }
-  }, [otherName, otherPos]);
+  }, [otherName, otherPos, otherAvatarUrl, createMarkerEl]);
 
   const fitBounds = useCallback(() => {
     if (!mapRef.current || !mapboxRef.current || !myPos || !otherPos) return;
@@ -224,23 +253,17 @@ export default function LiveLocationMap({
 
   useEffect(() => {
     if (!myPos || !otherPos || hasAutoFitRef.current) return;
-
     hasAutoFitRef.current = true;
-    const timeoutId = window.setTimeout(() => {
-      fitBounds();
-    }, 150);
-
-    return () => window.clearTimeout(timeoutId);
+    const t = window.setTimeout(() => fitBounds(), 150);
+    return () => window.clearTimeout(t);
   }, [fitBounds, myPos, otherPos]);
 
-  const distance = useMemo(() => {
-    if (!myPos || !otherPos) return null;
-    return haversineMiles(myPos, otherPos);
-  }, [myPos, otherPos]);
+  const handleRetry = () => { setGeoError(null); setRetryCount((c) => c + 1); };
 
-  const handleRetry = () => {
-    setGeoError(null);
-    setRetryCount((c) => c + 1);
+  const flyToMe = () => {
+    if (mapRef.current && myPos) {
+      mapRef.current.flyTo({ center: [myPos.lng, myPos.lat], zoom: 16 });
+    }
   };
 
   return (
@@ -269,11 +292,12 @@ export default function LiveLocationMap({
         )}
       </div>
 
-      {/* Distance bar */}
-      {distance !== null && (
-        <div className="shrink-0 bg-primary/10 px-4 py-1.5 text-center">
+      {/* Route info bar */}
+      {routeInfo && (
+        <div className="shrink-0 bg-primary/10 px-4 py-1.5 flex items-center justify-center gap-2">
+          <Car className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium text-primary">
-            距离: {distance.toFixed(distance < 1 ? 2 : 1)} mi
+            驾车 {routeInfo.distance} · {routeInfo.duration}
           </span>
         </div>
       )}
@@ -303,6 +327,17 @@ export default function LiveLocationMap({
               )}
             </div>
           </div>
+        )}
+
+        {/* My location button */}
+        {myPos && (
+          <button
+            onClick={flyToMe}
+            className="absolute bottom-4 right-4 z-20 w-10 h-10 rounded-full bg-background/90 backdrop-blur shadow-lg border border-border flex items-center justify-center hover:bg-accent transition-colors"
+            title="我的位置"
+          >
+            <Crosshair className="h-5 w-5 text-primary" />
+          </button>
         )}
       </div>
 
