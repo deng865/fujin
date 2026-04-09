@@ -84,6 +84,7 @@ export default function MapHome() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [bearing, setBearing] = useState(0);
   const [filters, setFilters] = useState<MapFilters>(defaultFilters);
+  const [mapTapped, setMapTapped] = useState(0);
   const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {
@@ -208,6 +209,7 @@ export default function MapHome() {
         }}
         onMoveEnd={handleMoveEnd}
         onRotate={(e) => setBearing(e.viewState.bearing)}
+        onClick={() => setMapTapped(n => n + 1)}
       >
         <GeolocateControl
           ref={geolocateRef}
@@ -257,6 +259,7 @@ export default function MapHome() {
         filters={filters}
         onFiltersChange={setFilters}
         selectedCategory={selectedCategory}
+        mapTapped={mapTapped}
       />
 
       <PostBottomSheet
