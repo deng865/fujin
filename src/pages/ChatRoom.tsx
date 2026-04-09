@@ -1341,7 +1341,7 @@ export default function ChatRoom() {
         {showContactMenu && (
           <div className="max-w-lg mx-auto px-4 pb-3 pt-1">
             <div className="grid grid-cols-4 gap-4">
-              <button onClick={() => { setShowMediaPicker(true); setShowContactMenu(false); }} disabled={uploadingMedia} className="flex flex-col items-center gap-1.5">
+              <button onClick={() => { mediaInputRef.current?.click(); setShowContactMenu(false); }} disabled={uploadingMedia} className="flex flex-col items-center gap-1.5">
                 <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
                   {uploadingMedia ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <ImagePlus className="h-6 w-6 text-muted-foreground" />}
                 </div>
@@ -1379,52 +1379,8 @@ export default function ChatRoom() {
           </div>
         )}
         <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
-        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleMediaUpload} className="hidden" />
       </div>
 
-    {/* Chinese media picker sheet */}
-    {showMediaPicker && (
-      <>
-        <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setShowMediaPicker(false)} />
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom duration-300 max-w-lg mx-auto">
-          <div className="px-4 pt-4 pb-2">
-            <h3 className="text-base font-semibold">选择照片来源</h3>
-          </div>
-          <div className="px-4 pb-6 space-y-2">
-            <button
-              onClick={() => { cameraInputRef.current?.click(); setShowMediaPicker(false); }}
-              className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-accent transition-colors text-left"
-            >
-              <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <Camera className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">拍照</p>
-                <p className="text-xs text-muted-foreground">使用相机拍摄照片</p>
-              </div>
-            </button>
-            <button
-              onClick={() => { mediaInputRef.current?.click(); setShowMediaPicker(false); }}
-              className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-accent transition-colors text-left"
-            >
-              <div className="h-11 w-11 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
-                <ImageIcon className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">从相册选择</p>
-                <p className="text-xs text-muted-foreground">选择已有的照片或视频</p>
-              </div>
-            </button>
-          </div>
-          <button
-            onClick={() => setShowMediaPicker(false)}
-            className="w-full py-3 text-sm text-muted-foreground hover:text-foreground border-t border-border transition-colors"
-          >
-            取消
-          </button>
-        </div>
-      </>
-    )}
     </div>
 
     <LocationShareDialog
