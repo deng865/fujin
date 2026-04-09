@@ -1,0 +1,1 @@
+UPDATE public.categories SET name = 'jobs' WHERE name = 'job';
