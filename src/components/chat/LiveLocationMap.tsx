@@ -70,9 +70,32 @@ export default function LiveLocationMap({
     if (initialOtherPos) setOtherPos(initialOtherPos);
   }, [initialOtherPos]);
 
+  // Listen for partner broadcasts via the shared channel from Banner
   useEffect(() => {
-    if (initialMyPos) updateMyPos(initialMyPos);
-  }, [initialMyPos, updateMyPos]);
+    const ch = sharedChannelRef?.current;
+    if (!ch || !otherUserId) return;
+
+    console.log("[LiveLocationMap] 正在监听 partner_id:", otherUserId);
+
+    const handler = (msg: any) => {
+      const p = msg?.payload;
+      if (!p || typeof p.lat !== "number" || typeof p.lng !== "number") return;
+      if (p.userId === otherUserId) {
+        console.log("[LiveLocationMap] 收到对方坐标:", p.lat, p.lng);
+        setOtherPos({ lat: p.lat, lng: p.lng });
+      }
+    };
+
+    ch.on("broadcast", { event: "live-location" }, handler);
+
+    // If channel is already subscribed, no need to re-subscribe
+    // The Banner manages the channel lifecycle
+
+    return () => {
+      // Note: Supabase JS v2 does not support removing individual listeners,
+      // but the channel itself will be cleaned up by Banner's effect.
+    };
+  }, [sharedChannelRef, otherUserId]);
 
   // GPS watch
   useEffect(() => {
