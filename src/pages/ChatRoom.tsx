@@ -82,7 +82,6 @@ export default function ChatRoom() {
   const [sendingTrip, setSendingTrip] = useState(false);
   const [isRideChat, setIsRideChat] = useState(false);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
-  
   const [liveShare, setLiveShare] = useState<{ duration: number; startedAt: number; messageId: string } | null>(null);
   const [showLiveMap, setShowLiveMap] = useState(false);
   const [selectedLiveLocation, setSelectedLiveLocation] = useState<{ myPos?: { lat: number; lng: number }; otherPos?: { lat: number; lng: number } } | null>(null);
@@ -99,8 +98,6 @@ export default function ChatRoom() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -656,8 +653,6 @@ export default function ChatRoom() {
     } finally {
       setUploadingMedia(false);
       if (mediaInputRef.current) mediaInputRef.current.value = "";
-      if (cameraInputRef.current) cameraInputRef.current.value = "";
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -1336,50 +1331,38 @@ export default function ChatRoom() {
         )}
         {/* Expandable action panel (WeChat style "+" menu) */}
         {showContactMenu && (
-          <div className="max-w-lg mx-auto px-4 pb-2 pt-1">
-            <div className="grid grid-cols-4 gap-3">
-              <button onClick={() => { cameraInputRef.current?.click(); }} disabled={uploadingMedia} className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
-                  {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Camera className="h-5 w-5 text-muted-foreground" />}
+          <div className="max-w-lg mx-auto px-4 pb-3 pt-1">
+            <div className="grid grid-cols-4 gap-4">
+              <button onClick={() => { mediaInputRef.current?.click(); setShowContactMenu(false); }} disabled={uploadingMedia} className="flex flex-col items-center gap-1.5">
+                <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
+                  {uploadingMedia ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <ImagePlus className="h-6 w-6 text-muted-foreground" />}
                 </div>
-                <span className="text-[11px] text-muted-foreground">拍照</span>
+                <span className="text-[11px] text-muted-foreground">照片</span>
               </button>
-              <button onClick={() => { mediaInputRef.current?.click(); }} disabled={uploadingMedia} className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
-                  {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <ImageIcon className="h-5 w-5 text-muted-foreground" />}
-                </div>
-                <span className="text-[11px] text-muted-foreground">相册</span>
-              </button>
-              <button onClick={() => { fileInputRef.current?.click(); }} disabled={uploadingMedia} className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
-                  {uploadingMedia ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <FolderOpen className="h-5 w-5 text-muted-foreground" />}
-                </div>
-                <span className="text-[11px] text-muted-foreground">文件</span>
-              </button>
-              <button onClick={() => { setShowLocationDialog(true); setShowContactMenu(false); }} disabled={sendingLocation} className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
-                  {sendingLocation ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <MapPin className="h-5 w-5 text-muted-foreground" />}
+              <button onClick={() => { setShowLocationDialog(true); setShowContactMenu(false); }} disabled={sendingLocation} className="flex flex-col items-center gap-1.5">
+                <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
+                  {sendingLocation ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <MapPin className="h-6 w-6 text-muted-foreground" />}
                 </div>
                 <span className="text-[11px] text-muted-foreground">位置</span>
               </button>
-              <button onClick={() => { handleStartCall(); setShowContactMenu(false); }} disabled={startingCall} className="flex flex-col items-center gap-1">
-                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
-                  {startingCall ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Phone className="h-5 w-5 text-muted-foreground" />}
+              <button onClick={() => { handleStartCall(); setShowContactMenu(false); }} disabled={startingCall} className="flex flex-col items-center gap-1.5">
+                <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
+                  {startingCall ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : <Phone className="h-6 w-6 text-muted-foreground" />}
                 </div>
                 <span className="text-[11px] text-muted-foreground">{startingCall ? "呼叫中..." : "语音通话"}</span>
               </button>
               {myPhone && (
-                <button onClick={() => { handleSendContact("phone"); setShowContactMenu(false); }} className="flex flex-col items-center gap-1">
-                  <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
-                    <UserCircle className="h-5 w-5 text-muted-foreground" />
+                <button onClick={() => { handleSendContact("phone"); setShowContactMenu(false); }} className="flex flex-col items-center gap-1.5">
+                  <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
+                    <UserCircle className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <span className="text-[11px] text-muted-foreground leading-tight text-center">手机号发送</span>
                 </button>
               )}
               {myWechat && (
-                <button onClick={() => { handleSendContact("wechat"); setShowContactMenu(false); }} className="flex flex-col items-center gap-1">
-                  <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
-                    <MessageSquareShare className="h-5 w-5 text-muted-foreground" />
+                <button onClick={() => { handleSendContact("wechat"); setShowContactMenu(false); }} className="flex flex-col items-center gap-1.5">
+                  <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center hover:bg-accent transition-colors">
+                    <MessageSquareShare className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <span className="text-[11px] text-muted-foreground leading-tight text-center">微信号发送</span>
                 </button>
@@ -1387,13 +1370,10 @@ export default function ChatRoom() {
             </div>
           </div>
         )}
-        <input ref={cameraInputRef} type="file" accept="image/*,video/*" capture="environment" onChange={handleMediaUpload} className="hidden" />
-        <input ref={mediaInputRef} type="file" accept="image/*,video/*" multiple onChange={handleMediaUpload} className="hidden" />
-        <input ref={fileInputRef} type="file" accept="*/*" multiple onChange={handleMediaUpload} className="hidden" />
+        <input ref={mediaInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleMediaUpload} className="hidden" />
       </div>
 
     </div>
-
 
     <LocationShareDialog
       open={showLocationDialog}
