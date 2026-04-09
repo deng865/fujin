@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { X, Navigation, Radio, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { X, Navigation, Radio, Loader2, AlertTriangle, RefreshCw, StopCircle } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { hasMeaningfulPositionChange, haversineMiles, LiveLocationPosition } from "@/lib/liveLocation";
 
@@ -14,6 +13,8 @@ interface LiveLocationMapProps {
   initialOtherPos?: { lat: number; lng: number } | null;
   myLocationError?: string | null;
   onClose: () => void;
+  onStopShare?: () => void;
+  isActive?: boolean;
 }
 
 export default function LiveLocationMap({
@@ -26,6 +27,8 @@ export default function LiveLocationMap({
   initialOtherPos,
   myLocationError,
   onClose,
+  onStopShare,
+  isActive,
 }: LiveLocationMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -35,7 +38,6 @@ export default function LiveLocationMap({
   const hasAutoFitRef = useRef(false);
   const [myPos, setMyPos] = useState<LiveLocationPosition | null>(initialMyPos || null);
   const [otherPos, setOtherPos] = useState<LiveLocationPosition | null>(initialOtherPos || null);
-  const [otherStopped, setOtherStopped] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -47,24 +49,19 @@ export default function LiveLocationMap({
     });
   }, []);
 
-  const updateOtherPos = useCallback((next: LiveLocationPosition) => {
-    setOtherStopped(false);
-    setOtherPos((current) => {
-      if (current && !hasMeaningfulPositionChange(current, next, 5)) return current;
-      return next;
-    });
-  }, []);
+  // Sync otherPos from props (ChatRoom manages this centrally)
+  useEffect(() => {
+    if (initialOtherPos) {
+      setOtherPos(initialOtherPos);
+    }
+  }, [initialOtherPos]);
 
-  // Seed from initial props
+  // Sync myPos from props
   useEffect(() => {
     if (initialMyPos) updateMyPos(initialMyPos);
   }, [initialMyPos, updateMyPos]);
 
-  useEffect(() => {
-    if (initialOtherPos) updateOtherPos(initialOtherPos);
-  }, [initialOtherPos, updateOtherPos]);
-
-  // Actively get own GPS — always try, even if we have initialMyPos (it may be stale)
+  // Actively get own GPS
   useEffect(() => {
     if (!navigator.geolocation) {
       setGeoError("当前设备不支持定位");
@@ -87,11 +84,7 @@ export default function LiveLocationMap({
     };
 
     const opts = { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 };
-
-    // Get immediate position
     navigator.geolocation.getCurrentPosition(onSuccess, onError, opts);
-
-    // Also watch for updates
     const watchId = navigator.geolocation.watchPosition(onSuccess, onError, opts);
 
     return () => {
@@ -100,79 +93,10 @@ export default function LiveLocationMap({
     };
   }, [updateMyPos, retryCount]);
 
-  // Subscribe to broadcast channel for location updates
-  useEffect(() => {
-    const ch = supabase.channel(`live-loc-map-${conversationId}-${Date.now()}`, { config: { broadcast: { self: true } } });
-
-    ch.on("broadcast", { event: "live-location" }, (payload: any) => {
-      const p = payload?.payload;
-      if (!p || typeof p.lat !== "number" || typeof p.lng !== "number") return;
-
-      const next = { lat: p.lat, lng: p.lng };
-
-      if (p.userId === otherUserId) {
-        updateOtherPos(next);
-      } else if (p.userId === userId) {
-        updateMyPos(next);
-      }
-    });
-
-    ch.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
-      const stoppedUserId = payload?.payload?.userId;
-
-      if (stoppedUserId === otherUserId) {
-        setOtherPos(null);
-        setOtherStopped(true);
-      }
-
-      if (stoppedUserId === userId) {
-        setMyPos(null);
-      }
-    });
-
-    ch.subscribe();
-
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [conversationId, otherUserId, updateMyPos, updateOtherPos, userId]);
-
-  // Also listen on the main live-loc channel (same one the banner broadcasts on)
-  useEffect(() => {
-    const ch = supabase.channel(`live-loc-${conversationId}`);
-
-    ch.on("broadcast", { event: "live-location" }, (payload: any) => {
-      const p = payload?.payload;
-      if (!p || typeof p.lat !== "number" || typeof p.lng !== "number") return;
-
-      const next = { lat: p.lat, lng: p.lng };
-
-      if (p.userId === otherUserId) {
-        updateOtherPos(next);
-      } else if (p.userId === userId) {
-        updateMyPos(next);
-      }
-    });
-
-    ch.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
-      const stoppedUserId = payload?.payload?.userId;
-      if (stoppedUserId === otherUserId) {
-        setOtherPos(null);
-        setOtherStopped(true);
-      }
-    });
-
-    ch.subscribe();
-
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [conversationId, otherUserId, updateMyPos, updateOtherPos, userId]);
-
   // First available center for map init
   const firstCenter = useMemo(() => myPos || otherPos, [myPos, otherPos]);
 
-  // Init map only once after we get the first usable coordinate.
+  // Init map only once
   useEffect(() => {
     if (!firstCenter || mapRef.current || !mapContainerRef.current || !MAPBOX_TOKEN) return;
 
@@ -193,9 +117,7 @@ export default function LiveLocationMap({
       mapRef.current = map;
     });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [firstCenter]);
 
   useEffect(() => {
@@ -297,9 +219,19 @@ export default function LiveLocationMap({
           <Radio className="h-4 w-4 text-green-500 animate-pulse" />
           <span className="text-sm font-semibold">实时位置共享</span>
         </div>
-        <button onClick={fitBounds} className="p-1.5 hover:bg-accent rounded-full" disabled={!myPos || !otherPos}>
-          <Navigation className="h-5 w-5" />
-        </button>
+        {isActive && onStopShare ? (
+          <button
+            onClick={onStopShare}
+            className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded-full text-xs font-semibold hover:bg-destructive/90 transition-colors flex items-center gap-1"
+          >
+            <StopCircle className="h-3.5 w-3.5" />
+            结束共享
+          </button>
+        ) : (
+          <button onClick={fitBounds} className="p-1.5 hover:bg-accent rounded-full" disabled={!myPos || !otherPos}>
+            <Navigation className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Distance bar */}
@@ -350,8 +282,7 @@ export default function LiveLocationMap({
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-green-500" />
           <span className="text-sm text-muted-foreground">{otherName || "对方"}</span>
-          {!otherPos && !otherStopped && <span className="text-xs text-muted-foreground/60">(等待中...)</span>}
-          {!otherPos && otherStopped && <span className="text-xs text-muted-foreground/60">(已结束)</span>}
+          {!otherPos && <span className="text-xs text-muted-foreground/60">(等待中...)</span>}
         </div>
       </div>
     </div>
