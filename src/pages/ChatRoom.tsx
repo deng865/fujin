@@ -38,6 +38,8 @@ import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/Tri
 import { TripRatingInput } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
 import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
+import CreditBadge from "@/components/reviews/CreditBadge";
+import ReviewDialog from "@/components/reviews/ReviewDialog";
 
 interface Message {
   id: string;
@@ -95,7 +97,8 @@ export default function ChatRoom() {
   const [cancellingTrip, setCancellingTrip] = useState(false);
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [otherUserCredit, setOtherUserCredit] = useState<{ average_rating: number | null; total_ratings: number | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
