@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { X, Navigation, Radio, Loader2, AlertTriangle, RefreshCw, StopCircle, Crosshair, Car } from "lucide-react";
+import { X, Navigation, Radio, Loader2, AlertTriangle, StopCircle, Crosshair, Car } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
-import { hasMeaningfulPositionChange, LiveLocationPosition } from "@/lib/liveLocation";
+import { LiveLocationPosition } from "@/lib/liveLocation";
 
 interface RouteInfo {
   distance: string;
@@ -23,7 +23,6 @@ interface LiveLocationMapProps {
   onClose: () => void;
   onStopShare?: () => void;
   isActive?: boolean;
-  /** Shared Supabase channel from LiveLocationBanner — used to listen for partner broadcasts */
   sharedChannelRef?: React.RefObject<any>;
 }
 
@@ -54,17 +53,7 @@ export default function LiveLocationMap({
 
   const [myPos, setMyPos] = useState<LiveLocationPosition | null>(initialMyPos || null);
   const [otherPos, setOtherPos] = useState<LiveLocationPosition | null>(initialOtherPos || null);
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
-
-  const updateMyPos = useCallback((next: LiveLocationPosition) => {
-    setGeoError(null);
-    setMyPos((current) => {
-      if (current && !hasMeaningfulPositionChange(current, next, 5)) return current;
-      return next;
-    });
-  }, []);
 
   useEffect(() => {
     if (initialOtherPos) setOtherPos(initialOtherPos);
