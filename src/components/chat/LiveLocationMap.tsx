@@ -9,6 +9,8 @@ interface LiveLocationMapProps {
   otherUserId: string;
   myName: string;
   otherName: string;
+  myAvatarUrl?: string | null;
+  otherAvatarUrl?: string | null;
   initialMyPos?: { lat: number; lng: number } | null;
   initialOtherPos?: { lat: number; lng: number } | null;
   myLocationError?: string | null;
