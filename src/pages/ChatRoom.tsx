@@ -82,7 +82,7 @@ export default function ChatRoom() {
   const [sendingTrip, setSendingTrip] = useState(false);
   const [isRideChat, setIsRideChat] = useState(false);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
-  const [liveShare, setLiveShare] = useState<{ duration: number; startedAt: number } | null>(null);
+  const [liveShare, setLiveShare] = useState<{ duration: number; startedAt: number; messageId: string } | null>(null);
   const [showLiveMap, setShowLiveMap] = useState(false);
   const [selectedLiveLocation, setSelectedLiveLocation] = useState<{ myPos?: { lat: number; lng: number }; otherPos?: { lat: number; lng: number } } | null>(null);
   const [cachedMyPos, setCachedMyPos] = useState<{ lat: number; lng: number } | null>(null);
@@ -194,7 +194,7 @@ export default function ChatRoom() {
     primeAudioNotifications();
   }, []);
 
-  // Realtime subscription - INSERT and UPDATE (for recall)
+  // Realtime subscription - INSERT and UPDATE (for recall + live location accept)
   useEffect(() => {
     if (!conversationId || !userId) return;
 
@@ -215,11 +215,6 @@ export default function ChatRoom() {
               .from("messages")
               .update({ read_at: new Date().toISOString() })
               .eq("id", newMsg.id);
-            // Auto-start receiver's live share when other party initiates
-            const liveData = parseLiveLocationMessage(newMsg.content);
-            if (liveData) {
-              setLiveShare({ duration: liveData.durationMinutes, startedAt: Date.now() });
-            }
           }
         }
       )
@@ -228,7 +223,15 @@ export default function ChatRoom() {
         { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
           const updated = payload.new as Message;
-          setMessages((prev) => prev.map((m) => m.id === updated.id ? { ...m, is_recalled: updated.is_recalled } : m));
+          setMessages((prev) => prev.map((m) => m.id === updated.id ? { ...m, content: updated.content, is_recalled: updated.is_recalled } : m));
+          // When a live_location message is accepted, start banner for both parties
+          const liveData = parseLiveLocationMessage(updated.content);
+          if (liveData?.status === "accepted") {
+            setLiveShare({ duration: liveData.durationMinutes, startedAt: Date.now(), messageId: updated.id });
+          }
+          if (liveData?.status === "ended") {
+            setLiveShare(null);
+          }
         }
       )
       .subscribe();
@@ -238,7 +241,7 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId]);
 
-  // Listen for live-location-stop broadcast — same channel as Banner
+  // Listen for live-location-stop broadcast
   useEffect(() => {
     if (!conversationId || !userId) return;
     const ch = supabase.channel(`live-loc-stop-listen-${conversationId}`);
@@ -248,20 +251,8 @@ export default function ChatRoom() {
         toast({ title: "位置共享已结束", description: "对方已停止共享位置" });
       }
     });
-    // Also listen on the main broadcast channel
-    const mainCh = supabase.channel(`live-loc-${conversationId}`);
-    mainCh.on("broadcast", { event: "live-location-stop" }, (payload: any) => {
-      if (payload?.payload?.userId !== userId) {
-        setLiveShare(null);
-        toast({ title: "位置共享已结束", description: "对方已停止共享位置" });
-      }
-    });
     ch.subscribe();
-    mainCh.subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-      supabase.removeChannel(mainCh);
-    };
+    return () => { supabase.removeChannel(ch); };
   }, [conversationId, userId]);
 
   const saveCallRecord = useCallback(async (status: "missed" | "declined" | "completed" | "cancelled", callerId: string, duration?: number) => {
@@ -549,7 +540,6 @@ export default function ChatRoom() {
 
   const handleStartLiveShare = async (durationMinutes: number) => {
     if (!userId || !conversationId) return;
-    // Send a message indicating live share started
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
@@ -570,15 +560,47 @@ export default function ChatRoom() {
         address,
         durationMinutes,
         sharedBy: userId,
+        status: "pending",
       });
       await supabase.from("messages").insert({
         conversation_id: conversationId, sender_id: userId, content: liveContent,
       });
-      await supabase.from("conversations").update({ last_message: "📍 实时位置共享", updated_at: new Date().toISOString() }).eq("id", conversationId);
-      setLiveShare({ duration: durationMinutes, startedAt: Date.now() });
+      await supabase.from("conversations").update({ last_message: "📍 实时位置共享请求", updated_at: new Date().toISOString() }).eq("id", conversationId);
+      // Don't start banner yet — wait for accept
     } catch {
       toast({ title: "获取位置失败", description: "请确保已开启定位权限", variant: "destructive" });
     }
+  };
+
+  const handleAcceptLiveShare = async (messageId: string) => {
+    if (!conversationId || !userId) return;
+    const msg = messages.find((m) => m.id === messageId);
+    if (!msg) return;
+    const liveData = parseLiveLocationMessage(msg.content);
+    if (!liveData) return;
+    const updatedContent = JSON.stringify({ ...liveData, status: "accepted" });
+    await supabase.from("messages").update({ content: updatedContent } as any).eq("id", messageId);
+    setLiveShare({ duration: liveData.durationMinutes, startedAt: Date.now(), messageId });
+  };
+
+  const handleStopLiveShare = async (reason: "manual" | "expired") => {
+    if (!conversationId || !userId) return;
+    // Update the live location message status to "ended"
+    if (liveShare?.messageId) {
+      const msg = messages.find((m) => m.id === liveShare.messageId);
+      if (msg) {
+        const liveData = parseLiveLocationMessage(msg.content);
+        if (liveData) {
+          const updatedContent = JSON.stringify({ ...liveData, status: "ended" });
+          await supabase.from("messages").update({ content: updatedContent } as any).eq("id", liveShare.messageId);
+        }
+      }
+    }
+    // Send system notification
+    const sysContent = JSON.stringify({ type: "system", text: "实时位置共享已结束" });
+    await supabase.from("messages").insert({ conversation_id: conversationId, sender_id: userId, content: sysContent });
+    await supabase.from("conversations").update({ last_message: "实时位置共享已结束", updated_at: new Date().toISOString() }).eq("id", conversationId);
+    setLiveShare(null);
   };
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
