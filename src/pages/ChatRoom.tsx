@@ -233,9 +233,11 @@ export default function ChatRoom() {
           const liveData = parseLiveLocationMessage(updated.content);
           if (liveData?.status === "accepted") {
             setLiveShare({ duration: liveData.durationMinutes, startedAt: Date.now(), messageId: updated.id });
+            localStorage.setItem("live_sharing_conversation", JSON.stringify({ conversationId, expiresAt: Date.now() + liveData.durationMinutes * 60000 }));
           }
           if (liveData?.status === "ended") {
             setLiveShare(null);
+            localStorage.removeItem("live_sharing_conversation");
           }
         }
       )
@@ -574,6 +576,7 @@ export default function ChatRoom() {
     const updatedContent = JSON.stringify({ ...liveData, status: "accepted" });
     await supabase.from("messages").update({ content: updatedContent } as any).eq("id", messageId);
     setLiveShare({ duration: liveData.durationMinutes, startedAt: Date.now(), messageId });
+    localStorage.setItem("live_sharing_conversation", JSON.stringify({ conversationId, expiresAt: Date.now() + liveData.durationMinutes * 60000 }));
   };
 
   const handleStopLiveShare = async (reason: "manual" | "expired") => {
@@ -595,6 +598,7 @@ export default function ChatRoom() {
     await supabase.from("conversations").update({ last_message: "实时位置共享已结束", updated_at: new Date().toISOString() }).eq("id", conversationId);
     setLiveShare(null);
     setOtherCachedPos(null);
+    localStorage.removeItem("live_sharing_conversation");
   };
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
