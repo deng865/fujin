@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { X, Navigation, Radio, Loader2, AlertTriangle, RefreshCw, StopCircle, Crosshair, Car } from "lucide-react";
+import { X, Navigation, Radio, Loader2, AlertTriangle, StopCircle, Crosshair, Car } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
-import { hasMeaningfulPositionChange, LiveLocationPosition } from "@/lib/liveLocation";
+import { LiveLocationPosition } from "@/lib/liveLocation";
 
 interface RouteInfo {
   distance: string;
@@ -23,7 +23,6 @@ interface LiveLocationMapProps {
   onClose: () => void;
   onStopShare?: () => void;
   isActive?: boolean;
-  /** Shared Supabase channel from LiveLocationBanner — used to listen for partner broadcasts */
   sharedChannelRef?: React.RefObject<any>;
 }
 
@@ -54,17 +53,7 @@ export default function LiveLocationMap({
 
   const [myPos, setMyPos] = useState<LiveLocationPosition | null>(initialMyPos || null);
   const [otherPos, setOtherPos] = useState<LiveLocationPosition | null>(initialOtherPos || null);
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
-
-  const updateMyPos = useCallback((next: LiveLocationPosition) => {
-    setGeoError(null);
-    setMyPos((current) => {
-      if (current && !hasMeaningfulPositionChange(current, next, 5)) return current;
-      return next;
-    });
-  }, []);
 
   useEffect(() => {
     if (initialOtherPos) setOtherPos(initialOtherPos);
@@ -97,31 +86,10 @@ export default function LiveLocationMap({
     };
   }, [sharedChannelRef, otherUserId]);
 
+  // Sync myPos from Banner via props (single source of truth)
   useEffect(() => {
-    if (initialMyPos) updateMyPos(initialMyPos);
-  }, [initialMyPos, updateMyPos]);
-
-  // GPS watch
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setGeoError("当前设备不支持定位");
-      return;
-    }
-    let cancelled = false;
-    const onSuccess = (pos: GeolocationPosition) => {
-      if (!cancelled) updateMyPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-    };
-    const onError = (err: GeolocationPositionError) => {
-      if (cancelled) return;
-      if (err.code === 1) setGeoError("定位权限被拒绝");
-      else if (err.code === 2) setGeoError("定位不可用");
-      else setGeoError("定位超时，请重试");
-    };
-    const opts = { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 };
-    navigator.geolocation.getCurrentPosition(onSuccess, onError, opts);
-    const watchId = navigator.geolocation.watchPosition(onSuccess, onError, opts);
-    return () => { cancelled = true; navigator.geolocation.clearWatch(watchId); };
-  }, [updateMyPos, retryCount]);
+    if (initialMyPos) setMyPos(initialMyPos);
+  }, [initialMyPos]);
 
   const firstCenter = useMemo(() => myPos || otherPos, [myPos, otherPos]);
 
@@ -289,7 +257,7 @@ export default function LiveLocationMap({
     return () => window.clearTimeout(t);
   }, [fitBounds, myPos, otherPos]);
 
-  const handleRetry = () => { setGeoError(null); setRetryCount((c) => c + 1); };
+  
 
   const flyToMe = () => {
     if (mapRef.current && myPos) {
@@ -338,17 +306,10 @@ export default function LiveLocationMap({
         {!firstCenter && (
           <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
             <div className="flex flex-col items-center gap-3">
-              {(geoError || myLocationError) ? (
+              {myLocationError ? (
                 <>
                   <AlertTriangle className="h-6 w-6 text-destructive" />
-                  <span className="text-sm text-destructive">{geoError || myLocationError}</span>
-                  <button
-                    onClick={handleRetry}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    重新定位
-                  </button>
+                  <span className="text-sm text-destructive">{myLocationError}</span>
                 </>
               ) : (
                 <>
@@ -383,8 +344,8 @@ export default function LiveLocationMap({
             )}
           </div>
           <span className="text-sm text-muted-foreground">{myName || "我"}</span>
-          {!myPos && !geoError && !myLocationError && <span className="text-xs text-muted-foreground/60">(定位中...)</span>}
-          {!myPos && (geoError || myLocationError) && <span className="text-xs text-destructive">({geoError || myLocationError})</span>}
+          {!myPos && !myLocationError && <span className="text-xs text-muted-foreground/60">(定位中...)</span>}
+          {!myPos && myLocationError && <span className="text-xs text-destructive">({myLocationError})</span>}
         </div>
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-full border-2 border-green-500 overflow-hidden bg-green-500 flex items-center justify-center shrink-0">
