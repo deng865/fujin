@@ -242,20 +242,7 @@ export default function ChatRoom() {
     };
   }, [conversationId, userId]);
 
-  // Listen for live-location broadcasts (other user's position updates)
-  useEffect(() => {
-    if (!conversationId || !userId || !otherUserId) return;
-    const ch = supabase.channel(`live-loc-${conversationId}`, { config: { broadcast: { self: false } } });
-    ch.on("broadcast", { event: "live-location" }, (payload: any) => {
-      const p = payload?.payload;
-      if (!p || typeof p.lat !== "number" || typeof p.lng !== "number") return;
-      if (p.userId === otherUserId) {
-        setOtherCachedPos({ lat: p.lat, lng: p.lng });
-      }
-    });
-    ch.subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [conversationId, userId, otherUserId]);
+  // Live location listening is handled inside LiveLocationBanner via onOtherPositionUpdate
 
   const saveCallRecord = useCallback(async (status: "missed" | "declined" | "completed" | "cancelled", callerId: string, duration?: number) => {
     if (!conversationId || !userId) return;
@@ -1061,10 +1048,12 @@ export default function ChatRoom() {
         <LiveLocationBanner
           conversationId={conversationId}
           userId={userId}
+          otherUserId={otherUserId}
           durationMinutes={liveShare.duration}
           startedAt={liveShare.startedAt}
           onStop={(reason) => handleStopLiveShare(reason)}
           onPositionUpdate={(pos) => setCachedMyPos(pos)}
+          onOtherPositionUpdate={(pos) => setOtherCachedPos(pos)}
         />
       )}
 

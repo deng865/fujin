@@ -10,20 +10,24 @@ import {
 interface LiveLocationBannerProps {
   conversationId: string;
   userId: string;
+  otherUserId?: string;
   durationMinutes: number;
   startedAt: number;
   onStop: (reason: "manual" | "expired") => void | Promise<void>;
   onPositionUpdate?: (pos: { lat: number; lng: number }) => void;
+  onOtherPositionUpdate?: (pos: { lat: number; lng: number }) => void;
   onError?: (message: string | null) => void;
 }
 
 export default function LiveLocationBanner({
   conversationId,
   userId,
+  otherUserId,
   durationMinutes,
   startedAt,
   onStop,
   onPositionUpdate,
+  onOtherPositionUpdate,
   onError,
 }: LiveLocationBannerProps) {
   const [remaining, setRemaining] = useState("");
@@ -113,6 +117,14 @@ export default function LiveLocationBanner({
       broadcastPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude });
     };
 
+    ch.on("broadcast", { event: "live-location" }, (msg: any) => {
+      const p = msg?.payload;
+      if (!p || typeof p.lat !== "number" || typeof p.lng !== "number") return;
+      if (otherUserId && p.userId === otherUserId) {
+        onOtherPositionUpdate?.({ lat: p.lat, lng: p.lng });
+      }
+    });
+
     ch.subscribe((status: string) => {
       if (status === "SUBSCRIBED" && !watchStartedRef.current) {
         watchStartedRef.current = true;
@@ -165,7 +177,7 @@ export default function LiveLocationBanner({
       lastBroadcastRef.current = null;
       lastBroadcastAtRef.current = 0;
     };
-  }, [broadcastPosition, conversationId, onError, userId]);
+  }, [broadcastPosition, conversationId, onError, onOtherPositionUpdate, otherUserId, userId]);
 
   return (
     <div className="shrink-0 bg-green-500/10 border-b border-green-500/20 max-w-lg mx-auto w-full">
