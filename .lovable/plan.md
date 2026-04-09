@@ -1,47 +1,28 @@
 
 
-# 改造图片按钮：中文底部弹窗 + 按钮位置优化
+# 修复三个媒体选择按钮的行为
 
-## 方案
+## 问题
 
-点击"照片"按钮时，不再直接触发原生文件选择器，而是弹出一个**中文底部弹窗**让用户选择"拍照"、"相册"或"文件"。同时优化"+"菜单面板中按钮的间距和位置。
+当前的隐藏 input 配置不够准确，导致点击后仍可能弹出浏览器原生的英文选项面板。
 
-## 修改内容（仅 `src/pages/ChatRoom.tsx`）
+## 修改内容（`src/pages/ChatRoom.tsx`）
 
-### 1. 添加中文媒体选择弹窗
+### 修改三个隐藏 input 的 accept 和 capture 属性
 
-- 新增 `showMediaPicker` state
-- "照片"按钮点击时 → `setShowMediaPicker(true)` 而非直接触发 input
-- 弹窗使用底部弹出样式（类似位置消息的地图选择弹窗），包含三个选项：
-  - 📷 **拍照** → 触发 `cameraInputRef`（`capture="environment"`）
-  - 🖼️ **相册** → 触发现有 `mediaInputRef`
-  - 📁 **文件** → 触发 `fileInputRef`（`accept="*/*"`）
+1. **拍照 input**（`cameraInputRef`）：
+   - `accept="image/*,video/*"` — 支持拍照和拍视频
+   - `capture="environment"` — 直接打开摄像头，不弹选项
 
-### 2. 添加隐藏 input 元素
+2. **相册 input**（`mediaInputRef`）：
+   - `accept="image/*,video/*"` — 照片和视频都可选
+   - `multiple` — 多选
+   - **不加** `capture` 属性 — 直接打开相册/图库
 
-- 新增 `cameraInputRef`：`<input accept="image/*" capture="environment">`
-- 新增 `fileInputRef`：`<input accept="*/*">`
-- 复用现有 `mediaInputRef` 给"相册"
+3. **文件 input**（`fileInputRef`）：
+   - `accept="*/*"` — 所有文件类型
+   - `multiple` — 多选
+   - **不加** `capture` 属性 — 直接打开文件管理器
 
-### 3. 优化"+"菜单面板布局
-
-- 减小按钮间距：`gap-4` → `gap-3`
-- 减小图标容器：`w-14 h-14` → `w-12 h-12`
-- 减少上下内边距，让面板更紧凑、位置更低
-
-### 4. 弹窗 UI 结构
-
-```text
-┌─────────────────────────┐
-│     选择操作              │  ← 标题
-├─────────────────────────┤
-│  📷  拍照                │
-│  🖼️  相册                │
-│  📁  文件                │
-├─────────────────────────┤
-│       取消               │
-└─────────────────────────┘
-```
-
-弹窗使用 `fixed inset-0` 遮罩 + 底部滑入动画，与位置消息的地图选择弹窗风格一致。
+关键点：`capture` 属性会强制打开摄像头；不加 `capture` 时浏览器会根据 `accept` 类型直接跳到相册或文件管理器，避免弹出英文选项面板。
 
