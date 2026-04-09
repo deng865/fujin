@@ -14,6 +14,7 @@ interface LocationMessageProps {
   content: string;
   isMe: boolean;
   senderName?: string;
+  myAvatarUrl?: string | null;
 }
 
 export function parseLocationMessage(content: string): LocationData | null {
@@ -28,7 +29,7 @@ export function parseLocationMessage(content: string): LocationData | null {
   return null;
 }
 
-export default function LocationMessage({ content, isMe, senderName }: LocationMessageProps) {
+export default function LocationMessage({ content, isMe, senderName, myAvatarUrl }: LocationMessageProps) {
   const [showNavMap, setShowNavMap] = useState(false);
   const loc = parseLocationMessage(content);
   if (!loc) return null;
@@ -78,6 +79,7 @@ export default function LocationMessage({ content, isMe, senderName }: LocationM
           lat={loc.lat}
           lng={loc.lng}
           address={loc.address}
+          myAvatarUrl={myAvatarUrl}
           onClose={() => setShowNavMap(false)}
         />
       )}

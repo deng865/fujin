@@ -2,16 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { X, Navigation, MapPin } from "lucide-react";
 import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl/mapbox";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
+import AvatarMarker from "@/components/AvatarMarker";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 interface InAppNavMapProps {
   lat: number;
   lng: number;
   address?: string;
+  myAvatarUrl?: string | null;
   onClose: () => void;
 }
 
-export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapProps) {
+export default function InAppNavMap({ lat, lng, address, myAvatarUrl, onClose }: InAppNavMapProps) {
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [route, setRoute] = useState<any>(null);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
@@ -90,8 +92,8 @@ export default function InAppNavMap({ lat, lng, address, onClose }: InAppNavMapP
             </div>
           </Marker>
           {userPos && (
-            <Marker longitude={userPos.lng} latitude={userPos.lat}>
-              <div className="h-4 w-4 rounded-full border-2 border-background shadow-lg" style={{ backgroundColor: "hsl(var(--primary))" }} />
+            <Marker longitude={userPos.lng} latitude={userPos.lat} anchor="center">
+              <AvatarMarker avatarUrl={myAvatarUrl} size={34} />
             </Marker>
           )}
           {route && (

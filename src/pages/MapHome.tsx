@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import MapGL, { MapRef, GeolocateControl } from "react-map-gl/mapbox";
+import MapGL, { MapRef, GeolocateControl, Marker } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
+import AvatarMarker from "@/components/AvatarMarker";
 import ControlBar from "@/components/ControlBar";
 import CategoryScroll from "@/components/CategoryScroll";
 import MapControls from "@/components/MapControls";
@@ -54,13 +55,21 @@ export default function MapHome() {
   const [searchRadius, setSearchRadius] = useState(25);
   const [mapType, setMapType] = useState("roadmap");
   const [user, setUser] = useState<any>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [bearing, setBearing] = useState(0);
   const [filters, setFilters] = useState<MapFilters>(defaultFilters);
   const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUser(data.user);
+      if (data.user) {
+        const { data: profile } = await supabase.from("profiles").select("avatar_url").eq("id", data.user.id).single();
+        if (profile?.avatar_url) setAvatarUrl(profile.avatar_url);
+      }
+    });
     const perm = localStorage.getItem("locationPermission");
     if (perm !== "never") {
       navigator.geolocation.getCurrentPosition(
@@ -160,9 +169,17 @@ export default function MapHome() {
           ref={geolocateRef}
           positionOptions={{ enableHighAccuracy: true }}
           trackUserLocation
-          showUserLocation
+          showUserLocation={false}
           style={{ display: "none" }}
+          onGeolocate={(e: any) => {
+            setUserPos({ lat: e.coords.latitude, lng: e.coords.longitude });
+          }}
         />
+        {userPos && (
+          <Marker longitude={userPos.lng} latitude={userPos.lat} anchor="center">
+            <AvatarMarker avatarUrl={avatarUrl} name={user?.user_metadata?.name} size={40} />
+          </Marker>
+        )}
         <PostMarkers posts={filtered} onSelectPost={setSelectedPost} favoriteIds={favoriteIds} />
       </MapGL>
 
