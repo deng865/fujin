@@ -214,8 +214,6 @@ export default function CreatePost() {
               {loading ? (editId ? "保存中..." : "发布中...") : (editId ? "保存修改 / Save" : "发布 / Post")}
             </Button>
           )}
-            </Button>
-          )}
         </div>
       </div>
     </div>
