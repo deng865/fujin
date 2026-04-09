@@ -1,35 +1,17 @@
 
 
-# 零结果提示 + 点击地图收回弹框
+# 首页默认显示10英里范围
 
-## 修改内容
+## 问题
+当前地图初始缩放级别硬编码为 `zoom: 12`，与10英里搜索范围不匹配。用户定位成功后 `flyTo` 也没有指定匹配10英里的zoom，导致实际可见范围和搜索半径不一致。
 
-### 1. `src/components/MapListSheet.tsx`
-- **零结果提示**：在空状态区域（第213-216行），当 `selectedCategory` 有值但结果为0时，额外显示"请扩大搜索范围"提示文字
-- **暴露收回方法**：新增 prop `onMapClick`（或直接用 `setState`），但更简单的做法是新增 prop `collapsed: boolean`，由父组件控制
+## 修改方案
 
-实际最简方案：新增 prop `onRequestCollapse` 不需要，直接让父组件传一个 `mapTapped` 计数器或布尔值触发收回。
+**文件：`src/pages/MapHome.tsx`**
 
-最简实现：
-- 新增 prop `mapTapped: number`（每次点击地图+1）
-- `useEffect` 监听 `mapTapped` 变化，当 state 为 half/full 时收回到 peek
+1. **初始 zoom 使用 `radiusToZoom(10, lat)` 计算**：将 `initialViewState.zoom` 从硬编码 `12` 改为 `radiusToZoom(10, DEFAULT_CENTER.lat)`，确保首次渲染就显示10英里范围。
 
-### 2. `src/pages/MapHome.tsx`
-- 新增 `mapTapped` state
-- 在 `<MapGL>` 上添加 `onClick` 事件，递增 `mapTapped`
-- 将 `mapTapped` 传给 `<MapListSheet>`
+2. **定位成功后 flyTo 也指定 zoom**：第102行 `flyTo` 添加 `zoom: radiusToZoom(10, loc.lat)`，让定位到用户位置后依然显示10英里视野。
 
-## 具体改动
-
-**MapListSheet.tsx**：
-1. Props 增加 `mapTapped: number`
-2. 空状态文字改为：当有 `selectedCategory` 时显示"该分类附近暂无内容，请扩大搜索范围"
-3. 新增 `useEffect`：监听 `mapTapped`，当值 > 0 时将 state 收回到 `"peek"`
-
-**MapHome.tsx**：
-1. 新增 `const [mapTapped, setMapTapped] = useState(0)`
-2. `<MapGL>` 添加 `onClick={() => setMapTapped(n => n + 1)}`
-3. `<MapListSheet>` 传入 `mapTapped={mapTapped}`
-
-共约 10 行改动。
+共约2行改动。
 
