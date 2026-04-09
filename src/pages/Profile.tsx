@@ -13,6 +13,28 @@ import MyPostsList from "@/components/profile/MyPostsList";
 import PrivacySettings from "@/components/profile/PrivacySettings";
 import ReviewList from "@/components/reviews/ReviewList";
 
+function ReviewPositiveRate({ userId }: { userId: string }) {
+  const [rate, setRate] = useState<number | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from("reviews")
+      .select("rating")
+      .eq("receiver_id", userId)
+      .then(({ data }) => {
+        if (!data || data.length === 0) { setRate(null); return; }
+        const good = data.filter((r: any) => r.rating >= 4).length;
+        setRate(Math.round((good / data.length) * 100));
+      });
+  }, [userId]);
+  return (
+    <>
+      <p className="text-2xl font-bold text-foreground">{rate !== null ? `${rate}%` : "-"}</p>
+      <p className="text-[10px] text-muted-foreground">好评率</p>
+    </>
+  );
+}
+
 const ADMIN_USER_ID = "a7c6d947-52ce-4eaf-83fd-914f87ac9669";
 
 interface UserPost {
