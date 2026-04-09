@@ -304,7 +304,18 @@ export default function PostDetail() {
             {startingChat ? "正在创建会话..." : "私聊 / Contact"}
           </Button>
 
-          {/* Contact Info Toggle */}
+          {/* Review Button */}
+          {currentUserId && post.user_id !== currentUserId && (
+            <Button
+              variant="outline"
+              onClick={() => setShowReview(true)}
+              className="w-full rounded-xl h-10 text-sm"
+            >
+              <Star className="h-4 w-4 mr-2" />
+              评价此发布者
+            </Button>
+          )}
+
           <Button
             variant="outline"
             onClick={() => setShowContact(!showContact)}
@@ -411,6 +422,17 @@ export default function PostDetail() {
           </div>
         </div>
       </div>
+      {/* Review Dialog */}
+      {currentUserId && post && (
+        <ReviewDialog
+          open={showReview}
+          onOpenChange={setShowReview}
+          senderId={currentUserId}
+          receiverId={post.user_id}
+          postId={post.id}
+          receiverName={post.profiles?.name}
+        />
+      )}
     </div>
   );
 }
