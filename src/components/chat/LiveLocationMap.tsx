@@ -80,7 +80,7 @@ export default function LiveLocationMap({
   }, [initialMyPos, myPos, updateMyPos]);
 
   useEffect(() => {
-    const ch = supabase.channel(`live-loc-${conversationId}`);
+    const ch = supabase.channel(`live-loc-${conversationId}`, { config: { broadcast: { self: true } } });
 
     ch.on("broadcast", { event: "live-location" }, (payload: any) => {
       const p = payload?.payload;
