@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { X, Navigation, Radio, Loader2, AlertTriangle, RefreshCw, StopCircle, Crosshair, Car } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
+import { supabase } from "@/integrations/supabase/client";
 import { hasMeaningfulPositionChange, LiveLocationPosition } from "@/lib/liveLocation";
 
 interface RouteInfo {
@@ -22,6 +23,8 @@ interface LiveLocationMapProps {
   onClose: () => void;
   onStopShare?: () => void;
   isActive?: boolean;
+  /** Shared Supabase channel from LiveLocationBanner — used to listen for partner broadcasts */
+  sharedChannelRef?: React.RefObject<any>;
 }
 
 export default function LiveLocationMap({
