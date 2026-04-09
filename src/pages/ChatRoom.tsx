@@ -603,6 +603,7 @@ export default function ChatRoom() {
     await supabase.from("messages").insert({ conversation_id: conversationId, sender_id: userId, content: sysContent });
     await supabase.from("conversations").update({ last_message: "实时位置共享已结束", updated_at: new Date().toISOString() }).eq("id", conversationId);
     setLiveShare(null);
+    setOtherCachedPos(null);
   };
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
