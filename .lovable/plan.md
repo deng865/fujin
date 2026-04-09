@@ -1,44 +1,49 @@
 
-结论：之前那次修改不是完全没用，而是只修到了“地图组件内部”的一层；真正把“自己的实时坐标”挡住的问题，还留在父组件 `ChatRoom.tsx` 里，所以效果被抵消了。
 
-1. 真正原因
-- `LiveLocationBanner` 已经在持续更新 `cachedMyPos` / `otherCachedPos`
-- `LiveLocationMap` 现在也已经改成主要依赖 props 显示自己的位置
-- 但 `ChatRoom.tsx` 仍然先把一份“打开地图那一刻的旧快照”存进 `selectedLiveLocation`
-- 然后传参时又写成：
-  ```ts
-  initialMyPos={selectedLiveLocation?.myPos || cachedMyPos}
-  initialOtherPos={selectedLiveLocation?.otherPos || otherCachedPos}
-  ```
-- 这意味着：只要 `selectedLiveLocation` 里有值，后面实时更新的 `cachedMyPos` / `otherCachedPos` 就永远到不了地图
+# 改造"发送我的位置"消息样式
 
-2. 为什么看起来“改了没用”
-- 上一次删掉地图里的重复 GPS 监听，解决的是“地图自己抢定位、覆盖 Banner 坐标”的问题
-- 但地图虽然不再乱定位了，父组件却还在把“旧坐标快照”优先传给它
-- 所以最终表现还是：对方位置可能有，自己的位置不刷新，像是没修好
+## 需求理解
 
-3. 这次应该怎么改
-- 只改 `src/pages/ChatRoom.tsx`
-- 把优先级改成“实时缓存优先，旧快照兜底”：
-  ```ts
-  initialMyPos={cachedMyPos || selectedLiveLocation?.myPos}
-  initialOtherPos={otherCachedPos || selectedLiveLocation?.otherPos}
-  ```
-- 这样只要 Banner 拿到新的实时坐标，地图就能立刻收到并更新 marker
+用户想要把"发送我的位置"功能改为：
+1. 地图预览上用**发送者的头像**作为标记（替代红色 pin 图标）
+2. **不显示对方位置**（纯静态位置卡片）
+3. 地图预览下方添加一个**跳转按钮**，点击直接打开 Google 地图（Android）或 Apple 地图（iOS），不再打开应用内全屏导航地图
 
-4. 可选加固
-- 继续保留 `selectedLiveLocation`，但只把它当“首次打开地图时的兜底值”
-- 不再让它充当实时位置主来源，避免以后又把实时数据遮住
+## 当前实现
 
-5. 为什么这次会生效
-- 数据流会重新变成：
-  ```text
-  Banner 实时定位 → cachedMyPos / otherCachedPos → ChatRoom → LiveLocationMap → marker.setLngLat
-  ```
-- 地图实例不用重建
-- 老手机上也只是更新 marker，不会闪屏或白屏
-- 自己和对方的位置都能按实时缓存刷新
+- `LocationMessage.tsx`：点击地图预览 → 打开 `InAppNavMap` 全屏导航
+- 地图预览用 Mapbox Static API 的红色 pin 标记
+- `InAppNavMap` 内部还会获取用户位置、画路线等（不需要了）
 
-6. 修改范围
-- 只需要改 1 个文件：
-  - `src/pages/ChatRoom.tsx`
+## 修改方案
+
+### 文件 1: `src/components/chat/LocationMessage.tsx`
+
+1. **新增 `senderAvatarUrl` prop** — 传入发送者头像 URL
+2. **地图预览标记改为头像** — 使用 Mapbox Static API 的 custom marker（头像 URL 编码后作为 marker icon），或者改用简单方案：在静态地图预览上叠加一个头像 `<div>`
+3. **移除点击打开 InAppNavMap 的逻辑** — 不再需要全屏导航
+4. **底部添加"在地图中打开"按钮** — iOS 跳转 Apple Maps，Android 跳转 Google Maps（复用 `InAppNavMap` 已有的 UA 判断逻辑）
+
+最终 LocationMessage 结构：
+```
+┌──────────────────────┐
+│  地图静态预览          │
+│    [发送者头像标记]     │
+├──────────────────────┤
+│ 📍 xxx的位置          │
+│    地址文本            │
+├──────────────────────┤
+│ 🗺️  在地图中打开  →   │  ← 点击跳转外部地图
+└──────────────────────┘
+```
+
+### 文件 2: `src/pages/ChatRoom.tsx`（约第 1239 行）
+
+- 传入发送者头像：`isMe` 时传 `myAvatarUrl`，否则传 `otherUser?.avatar_url`
+
+## 技术细节
+
+- 头像叠加方案：在地图预览 `<img>` 上用 `absolute` 定位放一个圆形头像（比用 Mapbox marker URL 编码更可靠）
+- 外部地图跳转链接：iOS → `https://maps.apple.com/?ll=lat,lng&q=地址`，Android → `https://www.google.com/maps/search/?api=1&query=lat,lng`
+- 可以完全移除 `InAppNavMap` 的 import（如果没有其他地方使用的话保留文件）
+
