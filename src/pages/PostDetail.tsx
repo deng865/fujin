@@ -248,24 +248,18 @@ export default function PostDetail() {
               </button>
               {showNavChoice && (
                 <div className="absolute right-0 bottom-full mb-2 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <a
-                    href={`https://maps.apple.com/?daddr=${post.latitude},${post.longitude}&dirflg=d`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setShowNavChoice(false)}
+                  <button
+                    onClick={() => { setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "apple"); }}
                     className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
                   >
                     🍎 Apple Maps
-                  </a>
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${post.latitude},${post.longitude}&travelmode=driving`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setShowNavChoice(false)}
+                  </button>
+                  <button
+                    onClick={() => { setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "google"); }}
                     className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
                   >
                     📍 Google Maps
-                  </a>
+                  </button>
                 </div>
               )}
             </div>

@@ -68,13 +68,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function openNavigation(lat: number, lng: number, app: "apple" | "google") {
-  if (app === "apple") {
-    window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`, "_blank");
-  } else {
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, "_blank");
-  }
-}
+// Removed: use openMapNavigation from lib/mapNavigation instead
 
 function isVideo(url: string) {
   return /\.(mp4|webm|mov|avi)(\?|$)/i.test(url);
