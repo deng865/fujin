@@ -17,6 +17,8 @@ interface LiveLocationBannerProps {
   onPositionUpdate?: (pos: { lat: number; lng: number }) => void;
   onOtherPositionUpdate?: (pos: { lat: number; lng: number }) => void;
   onError?: (message: string | null) => void;
+  /** Expose the Supabase channel ref so sibling components (e.g. LiveLocationMap) can attach listeners */
+  channelRef?: React.MutableRefObject<any>;
 }
 
 export default function LiveLocationBanner({
@@ -29,6 +31,7 @@ export default function LiveLocationBanner({
   onPositionUpdate,
   onOtherPositionUpdate,
   onError,
+  channelRef: externalChannelRef,
 }: LiveLocationBannerProps) {
   const [remaining, setRemaining] = useState("");
   const [isStopping, setIsStopping] = useState(false);
@@ -111,6 +114,7 @@ export default function LiveLocationBanner({
   useEffect(() => {
     const ch = supabase.channel(`live-loc-${conversationId}`);
     channelRef.current = ch;
+    if (externalChannelRef) externalChannelRef.current = ch;
 
     const handleGeoError = (error: GeolocationPositionError) => {
       if (error.code === 1) callbacksRef.current.onError?.("定位权限被拒绝");
@@ -177,6 +181,7 @@ export default function LiveLocationBanner({
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
+        if (externalChannelRef) externalChannelRef.current = null;
       }
 
       watchStartedRef.current = false;

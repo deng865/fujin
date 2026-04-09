@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { X, Navigation, Radio, Loader2, AlertTriangle, RefreshCw, StopCircle, Crosshair, Car } from "lucide-react";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
+import { supabase } from "@/integrations/supabase/client";
 import { hasMeaningfulPositionChange, LiveLocationPosition } from "@/lib/liveLocation";
 
 interface RouteInfo {
@@ -22,6 +23,8 @@ interface LiveLocationMapProps {
   onClose: () => void;
   onStopShare?: () => void;
   isActive?: boolean;
+  /** Shared Supabase channel from LiveLocationBanner — used to listen for partner broadcasts */
+  sharedChannelRef?: React.RefObject<any>;
 }
 
 export default function LiveLocationMap({
@@ -38,6 +41,7 @@ export default function LiveLocationMap({
   onClose,
   onStopShare,
   isActive,
+  sharedChannelRef,
 }: LiveLocationMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -65,6 +69,33 @@ export default function LiveLocationMap({
   useEffect(() => {
     if (initialOtherPos) setOtherPos(initialOtherPos);
   }, [initialOtherPos]);
+
+  // Listen for partner broadcasts via the shared channel from Banner
+  useEffect(() => {
+    const ch = sharedChannelRef?.current;
+    if (!ch || !otherUserId) return;
+
+    console.log("[LiveLocationMap] 正在监听 partner_id:", otherUserId);
+
+    const handler = (msg: any) => {
+      const p = msg?.payload;
+      if (!p || typeof p.lat !== "number" || typeof p.lng !== "number") return;
+      if (p.userId === otherUserId) {
+        console.log("[LiveLocationMap] 收到对方坐标:", p.lat, p.lng);
+        setOtherPos({ lat: p.lat, lng: p.lng });
+      }
+    };
+
+    ch.on("broadcast", { event: "live-location" }, handler);
+
+    // If channel is already subscribed, no need to re-subscribe
+    // The Banner manages the channel lifecycle
+
+    return () => {
+      // Note: Supabase JS v2 does not support removing individual listeners,
+      // but the channel itself will be cleaned up by Banner's effect.
+    };
+  }, [sharedChannelRef, otherUserId]);
 
   useEffect(() => {
     if (initialMyPos) updateMyPos(initialMyPos);

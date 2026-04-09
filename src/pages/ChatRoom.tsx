@@ -88,6 +88,7 @@ export default function ChatRoom() {
   const [cachedMyPos, setCachedMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [otherCachedPos, setOtherCachedPos] = useState<{ lat: number; lng: number } | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
+  const liveChannelRef = useRef<any>(null);
   const [isDriver, setIsDriver] = useState(false);
   const [acceptingTrip, setAcceptingTrip] = useState(false);
   const [completingTrip, setCompletingTrip] = useState(false);
@@ -1044,7 +1045,7 @@ export default function ChatRoom() {
       </div>
 
       {/* Live location sharing banner */}
-      {liveShare && userId && conversationId && (
+      {liveShare && userId && conversationId && otherUserId && (
         <LiveLocationBanner
           conversationId={conversationId}
           userId={userId}
@@ -1054,6 +1055,7 @@ export default function ChatRoom() {
           onStop={(reason) => handleStopLiveShare(reason)}
           onPositionUpdate={(pos) => setCachedMyPos(pos)}
           onOtherPositionUpdate={(pos) => setOtherCachedPos(pos)}
+          channelRef={liveChannelRef}
         />
       )}
 
@@ -1395,6 +1397,7 @@ export default function ChatRoom() {
         onClose={() => { setShowLiveMap(false); setSelectedLiveLocation(null); }}
         onStopShare={() => handleStopLiveShare("manual")}
         isActive={!!liveShare}
+        sharedChannelRef={liveChannelRef}
       />
     )}
 
