@@ -1,58 +1,37 @@
 
 
-# 修复：老款手机定位显示极慢
+# 修复：实时位置地图显示不了自己的位置
 
-## 根因分析
+## 根因
 
-当前 `LiveLocationBanner` 的 GPS 配置（第 148 行）：
+`LiveLocationMap` 有**两个独立的位置来源**互相冲突：
 
-```typescript
-const geoOptions = { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 };
+1. **Props 传入**：`initialMyPos` ← `cachedMyPos`（由 Banner 的 `onPositionUpdate` 回调更新）
+2. **自身 GPS watch**（第 105-124 行）：使用严格参数 `enableHighAccuracy: true, timeout: 15000`
+
+问题在于：
+- Map 自身的 GPS watch 使用 `enableHighAccuracy: true`，老手机上可能一直超时拿不到结果
+- 虽然 Banner 已经通过 `onPositionUpdate` 把自己的坐标传给了 ChatRoom 的 `cachedMyPos`，再通过 `initialMyPos` 传给 Map
+- 但 Map 内部的 `updateMyPos` 有一个 `hasMeaningfulPositionChange(current, next, 5)` 的过滤（第 64 行），如果 Banner 和 Map 的 GPS watch 同时报告相似坐标，可能导致状态更新被跳过
+- 更关键的是：Map 的 GPS watch 报错时会调用 `setGeoError`，这会**覆盖** Banner 传入的有效位置状态，让地图显示错误界面而不是地图
+
+## 修复方案
+
+**删除 Map 组件中冗余的 GPS watch**，完全依赖 Banner 通过 props 传入的坐标。Banner 已经有完善的"先快后精"定位策略，没必要在 Map 中重复定位。
+
+### 文件: `src/components/chat/LiveLocationMap.tsx`
+
+1. **删除自身的 GPS watch**（第 104-124 行）— 不再独立调用 `navigator.geolocation`
+2. **直接使用 `initialMyPos` prop 更新 `myPos`**：将现有的 `useEffect([initialMyPos])` 改为无条件同步更新，不再过滤微小位移
+3. **移除 `geoError` / `retryCount` 状态**和相关 UI — 定位错误由 Banner 的 `onError` 处理
+4. **保留 `myLocationError` prop**（来自 Banner 的 `onError`）用于显示定位异常
+
+这样数据流变为：
 ```
-
-问题：
-1. **`enableHighAccuracy: true`** — 强制使用 GPS 芯片获取精确坐标。老款手机 GPS 冷启动需要 30秒~几分钟来搜索卫星信号，在室内或信号弱时更慢
-2. **`timeout: 10000`**（10秒）— 如果 GPS 芯片 10 秒内没锁定卫星，直接报错超时，不会降级到基站/WiFi 定位
-3. **`maximumAge: 3000`**（3秒）— 只接受 3 秒内的缓存位置，过于严格。老款手机可能有稍旧但完全可用的缓存位置被丢弃
-4. **`getCurrentPosition` 和 `watchPosition` 同时使用相同的严格参数** — 没有"先快后精"的降级策略
-
-结果：老手机卡在等 GPS 精确定位，可能反复超时重试，用户看到自己的位置迟迟不出现。
-
-## 修复方案："先快后精"两阶段定位
-
-### 文件: `src/components/chat/LiveLocationBanner.tsx`
-
-**阶段一：快速定位（立即显示）**
-- `getCurrentPosition` 使用宽松参数：`enableHighAccuracy: false, maximumAge: 60000, timeout: 5000`
-- 先用基站/WiFi 粗略定位，1-3 秒内就能拿到坐标，立即显示在地图上
-
-**阶段二：持续高精度跟踪**
-- `watchPosition` 保持 `enableHighAccuracy: true`，但增大 `maximumAge` 到 `10000`，`timeout` 到 `15000`
-- GPS 芯片在后台慢慢锁定卫星后，坐标会自动更新变精确
-- 用户不用干等，一开始就能看到自己的大致位置
-
-### 具体改动
-
-```typescript
-// 阶段一：快速粗略定位
-const fastOptions = { enableHighAccuracy: false, maximumAge: 60000, timeout: 5000 };
-
-// 阶段二：持续精确跟踪
-const preciseOptions = { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 };
-
-navigator.geolocation.getCurrentPosition(
-  (pos) => broadcastPosition({ ... }, true),
-  handleGeoError,
-  fastOptions,    // ← 改用宽松参数
-);
-
-watchIdRef.current = navigator.geolocation.watchPosition(
-  handleGeoSuccess,
-  handleGeoError,
-  preciseOptions, // ← 放宽超时和缓存
-);
+Banner GPS → onPositionUpdate → ChatRoom.cachedMyPos → Map.initialMyPos → Map.myPos → Marker
 ```
+只有一条路径，不会冲突。
 
-## 只修改一个文件
-- `src/components/chat/LiveLocationBanner.tsx` — 第 148-159 行
+## 修改文件
+- `src/components/chat/LiveLocationMap.tsx` — 删除冗余 GPS watch，简化位置数据流
 
