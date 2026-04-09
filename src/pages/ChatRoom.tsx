@@ -1060,7 +1060,7 @@ export default function ChatRoom() {
           userId={userId}
           durationMinutes={liveShare.duration}
           startedAt={liveShare.startedAt}
-          onStop={() => setLiveShare(null)}
+          onStop={(reason) => handleStopLiveShare(reason)}
           onPositionUpdate={(pos) => setCachedMyPos(pos)}
         />
       )}
@@ -1218,17 +1218,17 @@ export default function ChatRoom() {
                       </div>
                     )}
                     {parseLiveLocationMessage(msg.content) ? (
-                      <LiveLocationMessage content={msg.content} isMe={isMe} onOpen={() => {
+                      <LiveLocationMessage content={msg.content} isMe={isMe} messageId={msg.id} onAccept={handleAcceptLiveShare} onOpen={() => {
                         const liveData = parseLiveLocationMessage(msg.content);
-                        if (liveData) {
+                        if (liveData && liveData.status === "accepted") {
                           const coords = { lat: liveData.lat, lng: liveData.lng };
                           const isMeSender = liveData.sharedBy === userId;
                           setSelectedLiveLocation({
                             myPos: isMeSender ? coords : cachedMyPos || undefined,
                             otherPos: isMeSender ? undefined : coords,
                           });
+                          setShowLiveMap(true);
                         }
-                        setShowLiveMap(true);
                       }} />
                     ) : parseLocationMessage(msg.content) ? (
                       <LocationMessage content={msg.content} isMe={isMe} senderName={isMe ? myName : otherUser?.name} />
