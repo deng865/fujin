@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -17,7 +17,10 @@ const initialFormData = {
 
 export default function CreatePost() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("edit");
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(!!editId);
   const [category, setCategory] = useState("");
   const [formData, setFormData] = useState(initialFormData);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -34,6 +37,35 @@ export default function CreatePost() {
       }
     });
   }, [navigate]);
+
+  // Load existing post data for edit mode
+  useEffect(() => {
+    if (!editId) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("id", editId)
+        .single();
+      if (error || !data) {
+        toast.error("加载帖子失败");
+        navigate("/profile");
+        return;
+      }
+      setCategory(data.category);
+      setFormData({
+        ...initialFormData,
+        title: data.title || "",
+        description: data.description || "",
+        price: data.price != null ? String(data.price) : "",
+        phone: data.contact_phone || "",
+        wechatId: data.contact_wechat || "",
+        imageUrls: data.image_urls || [],
+      });
+      setLocation({ lat: data.latitude, lng: data.longitude });
+      setInitialLoading(false);
+    })();
+  }, [editId, navigate]);
 
   const updateForm = (partial: Partial<typeof initialFormData>) => {
     setFormData((prev) => ({ ...prev, ...partial }));
