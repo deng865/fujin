@@ -35,7 +35,7 @@ interface CategoryScrollProps {
 }
 
 export default function CategoryScroll({ selectedCategory, onSelectCategory }: CategoryScrollProps) {
-  const [categories, setCategories] = useState(fallbackCategories);
+  const [categories, setCategories] = useState<typeof fallbackCategories>([]);
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
@@ -47,6 +47,8 @@ export default function CategoryScroll({ selectedCategory, onSelectCategory }: C
         .order("sort_order", { ascending: true });
       if (data && data.length > 0) {
         setCategories(data);
+      } else {
+        setCategories(fallbackCategories);
       }
     };
     load();

@@ -31,7 +31,7 @@ interface Post {
 }
 
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const R = 6371;
+  const R = 3958.8; // Earth radius in miles
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
@@ -46,20 +46,18 @@ const MAP_STYLES: Record<string, string> = {
   terrain: "mapbox://styles/mapbox/outdoors-v12",
 };
 
-// Convert radius (km) to an appropriate zoom level at a given latitude
-function radiusToZoom(radiusKm: number, lat: number): number {
-  const C = 40075.016686; // Earth circumference in km
+// Convert radius (miles) to an appropriate zoom level at a given latitude
+function radiusToZoom(radiusMi: number, lat: number): number {
+  const C = 24901.461; // Earth circumference in miles
   const latRad = (lat * Math.PI) / 180;
-  // At zoom z, the map width ≈ C * cos(lat) / 2^z km
-  // We want the diameter (2*radius) to fit the screen, so zoom = log2(C * cos(lat) / (2 * radius))
-  const zoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusKm));
+  const zoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusMi));
   return Math.min(Math.max(zoom, 1), 20);
 }
 
 // Convert map bounds to an approximate visible radius from center
 function boundsToRadius(map: mapboxgl.Map): number {
   const bounds = map.getBounds();
-  if (!bounds) return 25;
+  if (!bounds) return 10;
   const center = map.getCenter();
   // Use half the shorter axis (lat or lng span) as radius
   const latRadius = haversine(bounds.getSouth(), center.lng, bounds.getNorth(), center.lng) / 2;
@@ -76,7 +74,7 @@ export default function MapHome() {
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [searchRadius, setSearchRadius] = useState(25);
+  const [searchRadius, setSearchRadius] = useState(10);
   const [mapType, setMapType] = useState("roadmap");
   const [user, setUser] = useState<any>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
