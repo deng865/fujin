@@ -27,6 +27,17 @@ export default function VoiceRecorder({ conversationId, userId, disabled }: Voic
   }, []);
 
   const startRecording = useCallback(async () => {
+    // Pre-check permission status (Safari may not support this, so we catch)
+    try {
+      const permResult = await navigator.permissions.query({ name: "microphone" as PermissionName });
+      if (permResult.state === "denied") {
+        toast({ title: "麦克风权限被拒绝", description: "请在系统设置中允许本应用使用麦克风", variant: "destructive" });
+        return;
+      }
+    } catch {
+      // permissions.query not supported (e.g. Safari), continue to getUserMedia
+    }
+
     let stream: MediaStream | null = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
