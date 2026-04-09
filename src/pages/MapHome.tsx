@@ -228,7 +228,7 @@ export default function MapHome() {
 
       <ControlBar
         searchRadius={searchRadius}
-        onSearchRadiusChange={setSearchRadius}
+        onSearchRadiusChange={handleRadiusChange}
         onPlaceSelect={handlePlaceSelect}
       />
 
