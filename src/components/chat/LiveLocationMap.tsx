@@ -9,6 +9,8 @@ interface LiveLocationMapProps {
   otherUserId: string;
   myName: string;
   otherName: string;
+  myAvatarUrl?: string | null;
+  otherAvatarUrl?: string | null;
   initialMyPos?: { lat: number; lng: number } | null;
   initialOtherPos?: { lat: number; lng: number } | null;
   myLocationError?: string | null;
@@ -23,6 +25,8 @@ export default function LiveLocationMap({
   otherUserId,
   myName,
   otherName,
+  myAvatarUrl,
+  otherAvatarUrl,
   initialMyPos,
   initialOtherPos,
   myLocationError,
@@ -133,6 +137,40 @@ export default function LiveLocationMap({
     };
   }, []);
 
+  // Helper to create avatar marker element
+  const createMarkerEl = useCallback((avatarUrl: string | null | undefined, fallbackChar: string, borderColor: string) => {
+    const el = document.createElement("div");
+    const size = 40;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.borderRadius = "50%";
+    el.style.border = `3px solid ${borderColor}`;
+    el.style.boxShadow = "0 2px 8px rgba(0,0,0,.3)";
+    el.style.overflow = "hidden";
+    el.style.background = avatarUrl ? "#e5e7eb" : borderColor;
+    el.style.display = "flex";
+    el.style.alignItems = "center";
+    el.style.justifyContent = "center";
+
+    if (avatarUrl) {
+      const img = document.createElement("img");
+      img.src = avatarUrl;
+      img.alt = fallbackChar;
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.objectFit = "cover";
+      img.onerror = () => {
+        img.remove();
+        el.style.background = borderColor;
+        el.innerHTML = `<span style="color:white;font-size:14px;font-weight:700;">${fallbackChar}</span>`;
+      };
+      el.appendChild(img);
+    } else {
+      el.innerHTML = `<span style="color:white;font-size:14px;font-weight:700;">${fallbackChar}</span>`;
+    }
+    return el;
+  }, []);
+
   // Create / update my marker
   useEffect(() => {
     if (!mapRef.current || !mapboxRef.current) return;
@@ -145,15 +183,14 @@ export default function LiveLocationMap({
 
     const mapboxgl = mapboxRef.current;
     if (!myMarkerRef.current) {
-      const el = document.createElement("div");
-      el.innerHTML = `<div style="width:36px;height:36px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">我</div>`;
+      const el = createMarkerEl(myAvatarUrl, (myName || "我").charAt(0), "#3b82f6");
       myMarkerRef.current = new mapboxgl.Marker({ element: el })
         .setLngLat([myPos.lng, myPos.lat])
         .addTo(mapRef.current);
     } else {
       myMarkerRef.current.setLngLat([myPos.lng, myPos.lat]);
     }
-  }, [myPos]);
+  }, [myPos, myAvatarUrl, myName, createMarkerEl]);
 
   // Create / update other marker
   useEffect(() => {
@@ -167,9 +204,7 @@ export default function LiveLocationMap({
 
     const mapboxgl = mapboxRef.current;
     if (!otherMarkerRef.current) {
-      const initial = (otherName || "对").charAt(0);
-      const el = document.createElement("div");
-      el.innerHTML = `<div style="width:36px;height:36px;border-radius:50%;background:#22c55e;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;">${initial}</div>`;
+      const el = createMarkerEl(otherAvatarUrl, (otherName || "对").charAt(0), "#22c55e");
       otherMarkerRef.current = new mapboxgl.Marker({ element: el })
         .setLngLat([otherPos.lng, otherPos.lat])
         .addTo(mapRef.current);
@@ -274,13 +309,25 @@ export default function LiveLocationMap({
       {/* Legend */}
       <div className="shrink-0 px-4 py-3 border-t border-border bg-background flex items-center gap-6">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
+          <div className="w-6 h-6 rounded-full border-2 border-blue-500 overflow-hidden bg-blue-500 flex items-center justify-center shrink-0">
+            {myAvatarUrl ? (
+              <img src={myAvatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[10px] font-bold text-white">{(myName || "我").charAt(0)}</span>
+            )}
+          </div>
           <span className="text-sm text-muted-foreground">{myName || "我"}</span>
           {!myPos && !geoError && !myLocationError && <span className="text-xs text-muted-foreground/60">(定位中...)</span>}
           {!myPos && (geoError || myLocationError) && <span className="text-xs text-destructive">({geoError || myLocationError})</span>}
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500" />
+          <div className="w-6 h-6 rounded-full border-2 border-green-500 overflow-hidden bg-green-500 flex items-center justify-center shrink-0">
+            {otherAvatarUrl ? (
+              <img src={otherAvatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[10px] font-bold text-white">{(otherName || "对").charAt(0)}</span>
+            )}
+          </div>
           <span className="text-sm text-muted-foreground">{otherName || "对方"}</span>
           {!otherPos && <span className="text-xs text-muted-foreground/60">(等待中...)</span>}
         </div>
