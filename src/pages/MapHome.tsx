@@ -89,6 +89,7 @@ export default function MapHome() {
   const [bearing, setBearing] = useState(0);
   const [filters, setFilters] = useState<MapFilters>(defaultFilters);
   const [mapTapped, setMapTapped] = useState(0);
+  const [sheetHeight, setSheetHeight] = useState(100);
   const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {
@@ -283,6 +284,7 @@ export default function MapHome() {
         currentMapType={mapType}
         bearing={bearing}
         onResetNorth={() => mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: 500 })}
+        bottomOffset={sheetHeight}
       />
 
       {/* Bottom sheet with list of nearby posts */}
@@ -297,6 +299,7 @@ export default function MapHome() {
         onFiltersChange={setFilters}
         selectedCategory={selectedCategory}
         mapTapped={mapTapped}
+        onSheetHeightChange={setSheetHeight}
       />
 
       <PostBottomSheet

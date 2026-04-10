@@ -54,6 +54,7 @@ interface MapListSheetProps {
   onFiltersChange: (filters: MapFilters) => void;
   selectedCategory?: string | null;
   mapTapped?: number;
+  onSheetHeightChange?: (height: number) => void;
 }
 
 // Bottom nav = 72px, hidden state just shows a small grab bar
@@ -62,7 +63,7 @@ type SheetState = "hidden" | "peek" | "half" | "full";
 const BOTTOM_NAV = 72;
 const HANDLE_HEIGHT = 28; // just the grab bar when hidden
 
-export default function MapListSheet({ posts, userLat, userLng, onSelectPost, favoriteIds, onToggleFavorite, filters, onFiltersChange, selectedCategory, mapTapped = 0 }: MapListSheetProps) {
+export default function MapListSheet({ posts, userLat, userLng, onSelectPost, favoriteIds, onToggleFavorite, filters, onFiltersChange, selectedCategory, mapTapped = 0, onSheetHeightChange }: MapListSheetProps) {
   const [state, setState] = useState<SheetState>("peek");
 
   // Auto-expand when a category is selected
@@ -151,6 +152,10 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
   const displayHeight = isDragging
     ? Math.max(HANDLE_HEIGHT, Math.min(window.innerHeight * 0.85, currentHeight + dragOffset))
     : currentHeight;
+
+  useEffect(() => {
+    onSheetHeightChange?.(displayHeight);
+  }, [displayHeight, onSheetHeightChange]);
 
   const sorted = [...posts].sort((a, b) => {
     const dA = haversineKm(userLat, userLng, a.latitude, a.longitude);
