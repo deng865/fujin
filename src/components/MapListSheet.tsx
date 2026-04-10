@@ -205,12 +205,6 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
         )}
       </div>
 
-      {/* Filter Chips - only show when not hidden */}
-      {state !== "hidden" && (
-        <div className="shrink-0">
-          <MapFilterChips filters={filters} onChange={onFiltersChange} />
-        </div>
-      )}
 
       {/* Post list */}
       {(state === "half" || state === "full") && (
