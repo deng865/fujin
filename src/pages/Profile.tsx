@@ -44,6 +44,8 @@ interface UserPost {
   price: number | null;
   created_at: string;
   is_visible: boolean;
+  is_mobile: boolean;
+  operating_hours: { open: string; close: string; timezone?: string } | null;
 }
 
 interface Profile {
@@ -103,7 +105,7 @@ export default function ProfilePage() {
 
       const { data: postsData } = await supabase
         .from("posts")
-        .select("id, title, category, price, created_at, is_visible")
+        .select("id, title, category, price, created_at, is_visible, is_mobile, operating_hours")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
