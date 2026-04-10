@@ -582,6 +582,7 @@ export type Database = {
           contact_wechat: string | null
           created_at: string
           description: string | null
+          device_id: string | null
           id: string
           image_urls: string[] | null
           is_visible: boolean | null
@@ -598,6 +599,7 @@ export type Database = {
           contact_wechat?: string | null
           created_at?: string
           description?: string | null
+          device_id?: string | null
           id?: string
           image_urls?: string[] | null
           is_visible?: boolean | null
@@ -614,6 +616,7 @@ export type Database = {
           contact_wechat?: string | null
           created_at?: string
           description?: string | null
+          device_id?: string | null
           id?: string
           image_urls?: string[] | null
           is_visible?: boolean | null
