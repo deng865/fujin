@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, MapPin, Truck } from "lucide-react";
 import CategoryGrid from "@/components/create-post/CategoryGrid";
 import DynamicForm from "@/components/create-post/DynamicForm";
 import LocationPicker from "@/components/create-post/LocationPicker";
@@ -14,6 +14,7 @@ const initialFormData = {
   imageUrls: [] as string[], bedrooms: "", bathrooms: "", priceUnit: "month",
   carModel: "", availableTime: "", driverPriceUnit: "trip",
   salaryRange: "", jobType: "",
+  openTime: "", closeTime: "", timezone: "America/Chicago",
 };
 
 export default function CreatePost() {
@@ -27,6 +28,7 @@ export default function CreatePost() {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState("");
   const [locationType, setLocationType] = useState<"precise" | "approximate">("precise");
+  const [isMobile, setIsMobile] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -97,15 +99,29 @@ export default function CreatePost() {
   const handleSubmit = async () => {
     if (!category) return toast.error("请选择分类 / Category required");
     if (!formData.title.trim()) return toast.error("请输入标题 / Title required");
-    if (!location) return toast.error("请选择位置 / Location required");
+
+    // For mobile merchants, auto-detect location if not set
+    let submitLocation = location;
+    if (isMobile && !submitLocation) {
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true })
+        );
+        submitLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setLocation(submitLocation);
+      } catch {
+        return toast.error("无法获取位置，请允许定位权限");
+      }
+    }
+    if (!submitLocation) return toast.error("请选择位置 / Location required");
 
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      let finalLat = location.lat;
-      let finalLng = location.lng;
+      let finalLat = submitLocation.lat;
+      let finalLng = submitLocation.lng;
       if (locationType === "approximate") {
         finalLat += (Math.random() - 0.5) * 0.01;
         finalLng += (Math.random() - 0.5) * 0.01;
@@ -129,6 +145,11 @@ export default function CreatePost() {
         desc = (desc ? desc + "\n\n" : "") + extras.join(" | ");
       }
 
+      // Build operating hours for fixed merchants
+      const operatingHours = (!isMobile && formData.openTime && formData.closeTime)
+        ? { open: formData.openTime, close: formData.closeTime, timezone: formData.timezone }
+        : null;
+
       const postPayload = {
         title: formData.title.trim(),
         description: desc?.trim() || null,
@@ -139,6 +160,8 @@ export default function CreatePost() {
         image_urls: formData.imageUrls.length > 0 ? formData.imageUrls : null,
         contact_phone: formData.phone.trim() || null,
         contact_wechat: formData.wechatId.trim() || null,
+        is_mobile: isMobile,
+        operating_hours: operatingHours,
       };
 
       if (editId) {
@@ -193,15 +216,41 @@ export default function CreatePost() {
           {/* Section 1: Category Selection */}
           <CategoryGrid selected={category} onSelect={handleCategorySelect} />
 
-          {/* Section 2: Dynamic Form - only show after category selected */}
+          {/* Merchant type toggle: Fixed vs Mobile */}
+          {category && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-200">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsMobile(false)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border-2 transition-all ${
+                    !isMobile ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                  }`}
+                >
+                  <MapPin className="h-4 w-4" />
+                  固定地址
+                </button>
+                <button
+                  onClick={() => setIsMobile(true)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border-2 transition-all ${
+                    isMobile ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                  }`}
+                >
+                  <Truck className="h-4 w-4" />
+                  移动服务
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Section 2: Dynamic Form */}
           {category && (
             <div ref={formRef} className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <DynamicForm category={category} data={formData} onChange={updateForm} />
+              <DynamicForm category={category} data={formData} onChange={updateForm} isMobile={isMobile} />
             </div>
           )}
 
           {/* Section 3: Location Picker */}
-          {category && (
+          {category && !isMobile && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <LocationPicker
                 location={location}
@@ -211,6 +260,15 @@ export default function CreatePost() {
                 onAddressChange={setAddress}
                 onLocationTypeChange={setLocationType}
               />
+            </div>
+          )}
+
+          {/* Mobile service hint */}
+          {category && isMobile && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 bg-primary/5 border border-primary/20 rounded-xl p-4 text-center space-y-1">
+              <Truck className="h-6 w-6 mx-auto text-primary" />
+              <p className="text-sm font-medium text-foreground">移动服务模式</p>
+              <p className="text-xs text-muted-foreground">发布后将自动追踪您的位置，在地图上以模糊区域显示</p>
             </div>
           )}
 

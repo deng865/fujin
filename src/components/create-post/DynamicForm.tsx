@@ -1,8 +1,15 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { DollarSign, Phone, MessageCircle } from "lucide-react";
+import { DollarSign, Phone, MessageCircle, Clock } from "lucide-react";
 import MediaUpload from "./MediaUpload";
+
+const TIMEZONE_OPTIONS = [
+  { value: "America/New_York", label: "东部 ET" },
+  { value: "America/Chicago", label: "中部 CT" },
+  { value: "America/Denver", label: "山区 MT" },
+  { value: "America/Los_Angeles", label: "太平洋 PT" },
+];
 
 interface FormData {
   title: string;
@@ -22,15 +29,20 @@ interface FormData {
   // Jobs specific
   salaryRange: string;
   jobType: string;
+  // Operating hours (fixed merchants)
+  openTime: string;
+  closeTime: string;
+  timezone: string;
 }
 
 interface DynamicFormProps {
   category: string;
   data: FormData;
   onChange: (data: Partial<FormData>) => void;
+  isMobile?: boolean;
 }
 
-export default function DynamicForm({ category, data, onChange }: DynamicFormProps) {
+export default function DynamicForm({ category, data, onChange, isMobile = false }: DynamicFormProps) {
   return (
     <div className="space-y-5">
       {/* Title */}
@@ -223,6 +235,49 @@ export default function DynamicForm({ category, data, onChange }: DynamicFormPro
           </div>
         </div>
       </div>
+
+      {/* Operating hours - only for fixed merchants */}
+      {!isMobile && (
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            营业时间 / Operating Hours
+          </Label>
+          <div className="grid grid-cols-5 gap-2">
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs text-muted-foreground">开门</Label>
+              <Input
+                type="time"
+                value={data.openTime}
+                onChange={(e) => onChange({ openTime: e.target.value })}
+                className="rounded-xl h-11"
+              />
+            </div>
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs text-muted-foreground">关门</Label>
+              <Input
+                type="time"
+                value={data.closeTime}
+                onChange={(e) => onChange({ closeTime: e.target.value })}
+                className="rounded-xl h-11"
+              />
+            </div>
+            <div className="col-span-1 space-y-1">
+              <Label className="text-xs text-muted-foreground">时区</Label>
+              <select
+                value={data.timezone}
+                onChange={(e) => onChange({ timezone: e.target.value })}
+                className="w-full h-11 rounded-xl border border-border bg-background px-1 text-xs"
+              >
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <option key={tz.value} value={tz.value}>{tz.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">设置后，非营业时间将在地图上隐藏</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
+import { isCurrentlyOpen } from "@/lib/operatingHours";
 import AvatarMarker from "@/components/AvatarMarker";
 import ControlBar from "@/components/ControlBar";
 import CategoryScroll from "@/components/CategoryScroll";
@@ -28,6 +29,11 @@ interface Post {
   longitude: number;
   image_urls: string[] | null;
   created_at: string;
+  is_mobile?: boolean;
+  operating_hours?: any;
+  live_latitude?: number | null;
+  live_longitude?: number | null;
+  live_updated_at?: string | null;
 }
 
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -113,7 +119,7 @@ export default function MapHome() {
     if (!bounds) return;
     const { data } = await supabase
       .from("posts")
-      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at")
+      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, is_mobile, operating_hours, live_latitude, live_longitude, live_updated_at")
       .gte("latitude", bounds.getSouth())
       .lte("latitude", bounds.getNorth())
       .gte("longitude", bounds.getWest())
@@ -121,6 +127,31 @@ export default function MapHome() {
       .eq("is_visible", true)
       .limit(200);
     if (data) setPosts(data);
+  }, []);
+
+  // Realtime subscription for mobile merchant location updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("posts-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "posts" },
+        (payload) => {
+          const updated = payload.new as any;
+          if (updated.is_mobile && updated.live_latitude != null) {
+            setPosts((prev) =>
+              prev.map((p) =>
+                p.id === updated.id
+                  ? { ...p, live_latitude: updated.live_latitude, live_longitude: updated.live_longitude, live_updated_at: updated.live_updated_at }
+                  : p
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   // Debounced move end: sync center, radius from bounds, and fetch
@@ -175,16 +206,24 @@ export default function MapHome() {
     else if (result === false) toast({ title: "已取消收藏" });
   };
 
-  // Apply category + radius + filter chips
+  // Apply category + radius + filter chips + operating hours
   const filtered = posts.filter((p) => {
     if (selectedCategory && p.category !== selectedCategory) return false;
-    if (haversine(center.lat, center.lng, p.latitude, p.longitude) > searchRadius) return false;
+    // Use live coordinates for mobile merchants in distance calc
+    const pLat = p.is_mobile && p.live_latitude != null ? p.live_latitude : p.latitude;
+    const pLng = p.is_mobile && p.live_longitude != null ? p.live_longitude : p.longitude;
+    if (haversine(center.lat, center.lng, pLat, pLng) > searchRadius) return false;
     // Price filter
     if (filters.price) {
       const price = p.price ?? 0;
       if (filters.price === "$" && price > 50) return false;
       if (filters.price === "$$" && (price <= 50 || price > 200)) return false;
       if (filters.price === "$$$" && price <= 200) return false;
+    }
+    // Operating hours filter for fixed merchants
+    if (!p.is_mobile && p.operating_hours) {
+      const open = isCurrentlyOpen(p.operating_hours);
+      if (open === false) return false;
     }
     return true;
   });
