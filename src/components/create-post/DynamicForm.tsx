@@ -1,8 +1,15 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { DollarSign, Phone, MessageCircle } from "lucide-react";
+import { DollarSign, Phone, MessageCircle, Clock } from "lucide-react";
 import MediaUpload from "./MediaUpload";
+
+const TIMEZONE_OPTIONS = [
+  { value: "America/New_York", label: "东部 ET" },
+  { value: "America/Chicago", label: "中部 CT" },
+  { value: "America/Denver", label: "山区 MT" },
+  { value: "America/Los_Angeles", label: "太平洋 PT" },
+];
 
 interface FormData {
   title: string;
@@ -22,6 +29,10 @@ interface FormData {
   // Jobs specific
   salaryRange: string;
   jobType: string;
+  // Operating hours (fixed merchants)
+  openTime: string;
+  closeTime: string;
+  timezone: string;
 }
 
 interface DynamicFormProps {
