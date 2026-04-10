@@ -89,6 +89,7 @@ export default function MapHome() {
   const [bearing, setBearing] = useState(0);
   const [filters, setFilters] = useState<MapFilters>(defaultFilters);
   const [mapTapped, setMapTapped] = useState(0);
+  const [sheetHeight, setSheetHeight] = useState(100);
   const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useEffect(() => {

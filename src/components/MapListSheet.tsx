@@ -153,6 +153,10 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
     ? Math.max(HANDLE_HEIGHT, Math.min(window.innerHeight * 0.85, currentHeight + dragOffset))
     : currentHeight;
 
+  useEffect(() => {
+    onSheetHeightChange?.(displayHeight);
+  }, [displayHeight, onSheetHeightChange]);
+
   const sorted = [...posts].sort((a, b) => {
     const dA = haversineKm(userLat, userLng, a.latitude, a.longitude);
     const dB = haversineKm(userLat, userLng, b.latitude, b.longitude);
