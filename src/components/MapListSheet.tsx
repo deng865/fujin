@@ -571,8 +571,8 @@ function ListCard({
             });
           }} />
           <ActionCapsule
-            icon={<FavIcon isFavorite={favoriteIds.has(post.id)} />}
-            label={favoriteIds.has(post.id) ? "已收藏" : "收藏"}
+            icon={<Bookmark className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />}
+            label={isFavorite ? "已收藏" : "收藏"}
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
           />
           <ActionCapsule icon={<Share2 className="h-3.5 w-3.5" />} label="分享" onClick={handleShare} />
@@ -720,7 +720,7 @@ function PreviewCard({
           });
         }} />
         <ActionCapsule
-          icon={<FavIcon isFavorite={isFavorite} />}
+          icon={<Bookmark className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />}
           label={isFavorite ? "已收藏" : "收藏"}
           onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
         />
