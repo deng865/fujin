@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Clock, Play, X, Navigation, Send, Phone, Share2 } from "lucide-react";
+import { MapPin, Clock, Play, X, Navigation, Send, Phone, Share2, Bookmark } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { cn } from "@/lib/utils";

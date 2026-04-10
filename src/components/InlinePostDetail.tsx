@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Navigation, Phone, Send, Clock, MapPin,
   ChevronLeft, ChevronRight, Play, Truck, Store, Locate,
-  Share2, Bookmark,
+  Share2, Bookmark, X,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
