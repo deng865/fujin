@@ -128,18 +128,15 @@ export default function InAppNavMap({ lat, lng, address, myAvatarUrl, onClose }:
               <p className="text-xs text-muted-foreground">正在获取位置...</p>
             )}
           </div>
-          <a
-            href={
-              /iphone|ipad/i.test(navigator.userAgent)
-                ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`
-                : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
-            }
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => {
+              const app = /iphone|ipad/i.test(navigator.userAgent) ? "apple" as const : "google" as const;
+              openMapNavigation(lat, lng, app);
+            }}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shrink-0 text-center"
           >
             开始导航
-          </a>
+          </button>
         </div>
       </div>
     </div>
