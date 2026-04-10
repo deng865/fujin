@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import FavoriteButton from "@/components/FavoriteButton";
+import InlinePostDetail from "@/components/InlinePostDetail";
 
 interface Post {
   id: string;
@@ -16,6 +17,11 @@ interface Post {
   longitude: number;
   image_urls: string[] | null;
   created_at: string;
+  is_mobile?: boolean;
+  operating_hours?: any;
+  live_latitude?: number | null;
+  live_longitude?: number | null;
+  live_updated_at?: string | null;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -47,7 +53,8 @@ interface MapListSheetProps {
   posts: Post[];
   userLat: number;
   userLng: number;
-  onSelectPost: (post: Post) => void;
+  selectedPost: Post | null;
+  onSelectPost: (post: Post | null) => void;
   favoriteIds: Set<string>;
   onToggleFavorite: (postId: string) => void;
   filters: MapFilters;
@@ -57,28 +64,43 @@ interface MapListSheetProps {
   onSheetHeightChange?: (height: number) => void;
 }
 
-// Bottom nav = 72px, hidden state just shows a small grab bar
 type SheetState = "hidden" | "peek" | "half" | "full";
 
 const BOTTOM_NAV = 72;
-const HANDLE_HEIGHT = 28; // just the grab bar when hidden
+const HANDLE_HEIGHT = 28;
 
-export default function MapListSheet({ posts, userLat, userLng, onSelectPost, favoriteIds, onToggleFavorite, filters, onFiltersChange, selectedCategory, mapTapped = 0, onSheetHeightChange }: MapListSheetProps) {
+export default function MapListSheet({
+  posts, userLat, userLng, selectedPost, onSelectPost,
+  favoriteIds, onToggleFavorite, filters, onFiltersChange,
+  selectedCategory, mapTapped = 0, onSheetHeightChange,
+}: MapListSheetProps) {
   const [state, setState] = useState<SheetState>("peek");
+  const prevMapTapped = useRef(mapTapped);
+
+  // Auto-expand to full when a post is selected
+  useEffect(() => {
+    if (selectedPost) {
+      setState("full");
+    }
+  }, [selectedPost]);
 
   // Auto-expand when a category is selected
   useEffect(() => {
-    if (selectedCategory) {
+    if (selectedCategory && !selectedPost) {
       setState("half");
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedPost]);
 
-  // Collapse when map is tapped
+  // Collapse when map is tapped (only on new taps)
   useEffect(() => {
-    if (mapTapped > 0) {
+    if (mapTapped > 0 && mapTapped !== prevMapTapped.current) {
+      prevMapTapped.current = mapTapped;
+      if (selectedPost) {
+        onSelectPost(null);
+      }
       setState("peek");
     }
-  }, [mapTapped]);
+  }, [mapTapped, selectedPost, onSelectPost]);
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
@@ -86,7 +108,6 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
   const sheetRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Calculate heights based on window
   const getHeight = useCallback((s: SheetState) => {
     const vh = window.innerHeight;
     switch (s) {
@@ -100,10 +121,11 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
   const currentHeight = getHeight(state);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
-    // Don't drag if scrolling inside the list
+    // Don't allow drag when in detail mode (let content scroll)
+    if (selectedPost && state === "full") return;
+
     const list = listRef.current;
     if (list && state === "full" && list.scrollTop > 0) return;
-    // Don't drag if touch originated inside the scrollable list and it has scroll room
     if (list && (state === "half" || state === "full")) {
       const listRect = list.getBoundingClientRect();
       const touchY = e.touches[0].clientY;
@@ -113,7 +135,7 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
     dragRef.current.startY = e.touches[0].clientY;
     dragRef.current.startState = state;
     setIsDragging(true);
-  }, [state]);
+  }, [state, selectedPost]);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging) return;
@@ -124,12 +146,9 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
   const onTouchEnd = useCallback(() => {
     if (!isDragging) return;
     setIsDragging(false);
-
     const dy = dragOffset;
     const threshold = 50;
-
     if (dy > threshold) {
-      // Swipe up
       setState((s) => {
         if (s === "hidden") return "peek";
         if (s === "peek") return "half";
@@ -137,7 +156,6 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
         return s;
       });
     } else if (dy < -threshold) {
-      // Swipe down
       setState((s) => {
         if (s === "full") return "half";
         if (s === "half") return "peek";
@@ -148,7 +166,6 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
     setDragOffset(0);
   }, [isDragging, dragOffset]);
 
-  // Clamp dragged height
   const displayHeight = isDragging
     ? Math.max(HANDLE_HEIGHT, Math.min(window.innerHeight * 0.85, currentHeight + dragOffset))
     : currentHeight;
@@ -163,7 +180,10 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
     return dA - dB;
   });
 
-  const activeCategoryLabel = posts.length > 0 ? categoryLabels[posts[0]?.category] : null;
+  const handleBackToList = useCallback(() => {
+    onSelectPost(null);
+    setState("half");
+  }, [onSelectPost]);
 
   return (
     <div
@@ -171,7 +191,7 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
       className={cn(
         "absolute left-0 right-0 z-20 bg-background rounded-t-2xl flex flex-col",
         "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
-        "touch-none select-none",
+        selectedPost ? "" : "touch-none select-none",
         !isDragging && "transition-[height] duration-300 ease-out"
       )}
       style={{
@@ -184,21 +204,15 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
     >
       {/* Drag handle area */}
       <div className="shrink-0">
-        {/* Grab bar */}
         <div className="flex justify-center pt-2.5 pb-1">
           <div className="w-9 h-1 rounded-full bg-muted-foreground/25" />
         </div>
 
-        {/* Header row: title + count + close */}
-        {state !== "hidden" && (
+        {state !== "hidden" && !selectedPost && (
           <div className="flex items-center justify-between px-4 pb-2">
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-foreground">
-                附近
-              </h3>
-              <span className="text-xs text-muted-foreground">
-                {sorted.length} 个结果
-              </span>
+              <h3 className="text-base font-bold text-foreground">附近</h3>
+              <span className="text-xs text-muted-foreground">{sorted.length} 个结果</span>
             </div>
             <button
               onClick={() => setState("hidden")}
@@ -210,9 +224,20 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
         )}
       </div>
 
+      {/* Detail mode: render inline detail */}
+      {selectedPost && (state === "half" || state === "full") && (
+        <InlinePostDetail
+          post={selectedPost}
+          onBack={handleBackToList}
+          isFavorite={favoriteIds.has(selectedPost.id)}
+          onToggleFavorite={onToggleFavorite}
+          userLat={userLat}
+          userLng={userLng}
+        />
+      )}
 
-      {/* Post list */}
-      {(state === "half" || state === "full") && (
+      {/* List mode */}
+      {!selectedPost && (state === "half" || state === "full") && (
         <div
           ref={listRef}
           className="flex-1 overflow-y-auto overscroll-contain touch-auto"
@@ -241,25 +266,16 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
                       onClick={() => onSelectPost(post)}
                       className="py-3 active:bg-accent/50 transition-colors cursor-pointer rounded-lg"
                     >
-                      {/* Title row */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-[15px] font-semibold text-foreground line-clamp-1">
-                            {post.title}
-                          </h4>
-                          {/* Meta row */}
+                          <h4 className="text-[15px] font-semibold text-foreground line-clamp-1">{post.title}</h4>
                           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                             {post.price != null && (
-                              <span className="text-xs text-muted-foreground">
-                                ${post.price.toLocaleString()}
-                              </span>
+                              <span className="text-xs text-muted-foreground">${post.price.toLocaleString()}</span>
                             )}
                             <span className="text-[10px] text-muted-foreground">·</span>
-                            <span className="text-xs text-muted-foreground">
-                              {categoryLabels[post.category] || post.category}
-                            </span>
+                            <span className="text-xs text-muted-foreground">{categoryLabels[post.category] || post.category}</span>
                           </div>
-                          {/* Distance + time */}
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-xs text-primary font-medium">
                               {distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
@@ -278,7 +294,6 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
                         />
                       </div>
 
-                      {/* Image gallery row - Google Maps style */}
                       {coverUrls.length > 0 && (
                         <div className="flex gap-1.5 mt-2.5 overflow-hidden rounded-xl">
                           {coverUrls.map((url, i) => (
@@ -316,11 +331,11 @@ export default function MapListSheet({ posts, userLat, userLng, onSelectPost, fa
         </div>
       )}
 
-      {/* Peek mode: show first 1-2 items as preview */}
-      {state === "peek" && sorted.length > 0 && (
+      {/* Peek mode */}
+      {!selectedPost && state === "peek" && sorted.length > 0 && (
         <div className="px-4 overflow-hidden flex-1">
           <div
-            onClick={() => { onSelectPost(sorted[0]); }}
+            onClick={() => onSelectPost(sorted[0])}
             className="flex items-center gap-3 py-1 cursor-pointer"
           >
             {sorted[0].image_urls?.[0] && (
