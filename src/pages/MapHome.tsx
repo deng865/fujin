@@ -119,7 +119,7 @@ export default function MapHome() {
     if (!bounds) return;
     const { data } = await supabase
       .from("posts")
-      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at")
+      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, is_mobile, operating_hours, live_latitude, live_longitude, live_updated_at")
       .gte("latitude", bounds.getSouth())
       .lte("latitude", bounds.getNorth())
       .gte("longitude", bounds.getWest())
@@ -127,6 +127,31 @@ export default function MapHome() {
       .eq("is_visible", true)
       .limit(200);
     if (data) setPosts(data);
+  }, []);
+
+  // Realtime subscription for mobile merchant location updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("posts-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "posts" },
+        (payload) => {
+          const updated = payload.new as any;
+          if (updated.is_mobile && updated.live_latitude != null) {
+            setPosts((prev) =>
+              prev.map((p) =>
+                p.id === updated.id
+                  ? { ...p, live_latitude: updated.live_latitude, live_longitude: updated.live_longitude, live_updated_at: updated.live_updated_at }
+                  : p
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   // Debounced move end: sync center, radius from bounds, and fetch
