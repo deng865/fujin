@@ -1,29 +1,28 @@
 
 
-# 设备 ID 去重防刷
+# 联系方式去重
 
 ## 方案
 
+在已有的设备 ID 去重基础上，新增数据库触发器：同一 `contact_phone` 或 `contact_wechat` 在同一 `category` 下只允许一条 `is_visible = true` 的活跃帖子，不论哪个账号发的。
+
+## 实施步骤
+
 ### 1. 数据库迁移
-- `posts` 表新增 `device_id text` 列
-- 创建验证触发器：INSERT 时检查同一 `device_id` + 同一 `category` 下是否已有 `is_visible = true` 的活跃帖子，有则 RAISE EXCEPTION
+创建触发器函数 `check_duplicate_contact()`：
+- 若 `contact_phone` 非空，检查同 category 下是否已有活跃帖子使用该号码（排除自身 id）
+- 若 `contact_wechat` 非空，同理检查
+- 命中则 `RAISE EXCEPTION 'CONTACT_DUPLICATE: ...'`
+- 触发器挂在 INSERT 前（编辑用 UPDATE 不受影响）
 
-### 2. 前端生成 device_id
-- 在 `src/lib/deviceId.ts` 新增工具函数
-- 首次访问时生成 UUID 存入 `localStorage`，后续复用
-- 发布时从 localStorage 读取 device_id 附加到 postPayload
-
-### 3. 修改发布逻辑
-- `src/pages/CreatePost.tsx`：submit 时读取 device_id 写入 payload
-- 编辑模式不校验（触发器中 `id != NEW.id` 排除自身）
-- 捕获触发器抛出的错误，显示友好提示："该设备在此分类下已有活跃信息"
+### 2. 前端错误处理
+**文件：`src/pages/CreatePost.tsx`**
+- submit 错误处理中新增 `CONTACT_DUPLICATE` 匹配
+- 显示提示："该联系方式在此分类下已有活跃信息，请勿重复发布"
 
 ## 涉及文件
-- 数据库迁移（新增列 + 触发器）
-- `src/lib/deviceId.ts`（新建）
-- `src/pages/CreatePost.tsx`（payload 增加 device_id，错误提示优化）
-
-## 局限性说明
-- localStorage 可被清除或在隐私模式下隔离，不是 100% 防刷，但能挡住大部分普通用户多账号发帖
-- 结合已有的"同一联系方式去重"触发器效果更好
+| 文件 | 操作 |
+|------|------|
+| 数据库迁移 | 新建触发器函数 + 触发器 |
+| `src/pages/CreatePost.tsx` | 错误处理增加一个分支 |
 
