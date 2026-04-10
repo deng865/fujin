@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { MapPin, Clock, Play, X, Navigation, Send, Phone, Share2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
@@ -6,6 +7,10 @@ import { cn } from "@/lib/utils";
 import FavoriteButton from "@/components/FavoriteButton";
 import InlinePostDetail from "@/components/InlinePostDetail";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
+import { openMapNavigation } from "@/lib/mapNavigation";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { checkActiveTripLock } from "@/lib/tripLock";
 
 interface Post {
   id: string;
@@ -31,6 +36,13 @@ const categoryLabels: Record<string, string> = {
   beauty: "💅 美容美发", dating: "❤️ 约会", other: "⭐ 其他",
   "second-hand goods": "🛍️ 二手商品", "home services": "🔧 家庭服务",
   "medical services": "🏥 医疗服务", "law and accounting": "⚖️ 法律/会计",
+};
+
+const greetingTemplates: Record<string, string> = {
+  housing: "你好，我对你发布的房产信息很感兴趣，请问还在吗？",
+  driver: "你好，我看到你发布的司机服务，请问现在可以接单吗？",
+  jobs: "你好，我对你发布的招工信息很感兴趣，请问还在招人吗？",
+  default: "你好，我看到你在地图上发布的信息，想了解更多详情。",
 };
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -79,21 +91,18 @@ export default function MapListSheet({
   const [state, setState] = useState<SheetState>("peek");
   const prevMapTapped = useRef(mapTapped);
 
-  // When a post is selected, go to preview (not full)
   useEffect(() => {
     if (selectedPost) {
       setState("preview");
     }
   }, [selectedPost]);
 
-  // Auto-expand when a category is selected
   useEffect(() => {
     if (selectedCategory && !selectedPost) {
       setState("half");
     }
   }, [selectedCategory, selectedPost]);
 
-  // Collapse when map is tapped
   useEffect(() => {
     if (mapTapped > 0 && mapTapped !== prevMapTapped.current) {
       prevMapTapped.current = mapTapped;
@@ -125,7 +134,6 @@ export default function MapListSheet({
   const currentHeight = getHeight(state);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
-    // In full detail mode, only drag from handle or when scrolled to top
     if (selectedPost && state === "full") {
       const detailEl = detailScrollRef.current;
       const touchY = e.touches[0].clientY;
@@ -160,7 +168,6 @@ export default function MapListSheet({
     const threshold = 50;
 
     if (selectedPost) {
-      // In preview: swipe up → full, swipe down → dismiss
       if (state === "preview") {
         if (dy > threshold) {
           setState("full");
@@ -168,9 +175,7 @@ export default function MapListSheet({
           onSelectPost(null);
           setState("half");
         }
-      }
-      // In full: swipe down → preview → dismiss
-      else if (state === "full") {
+      } else if (state === "full") {
         if (dy < -threshold) {
           setState("preview");
         }
@@ -259,7 +264,7 @@ export default function MapListSheet({
         )}
       </div>
 
-      {/* Preview mode: compact card */}
+      {/* Preview mode */}
       {isPreview && (
         <PreviewCard
           post={selectedPost}
@@ -343,6 +348,72 @@ export default function MapListSheet({
   );
 }
 
+/* ─── Responsive image gallery ─── */
+function ImageGallery({ urls, onClickExpand }: { urls: string[]; onClickExpand?: () => void }) {
+  if (urls.length === 0) return null;
+
+  // 1 image: full width banner
+  if (urls.length === 1) {
+    const url = urls[0];
+    return (
+      <div className="mt-2 rounded-xl overflow-hidden bg-muted" onClick={onClickExpand}>
+        {isVideo(url) ? (
+          <div className="relative w-full h-40">
+            <video src={url} className="w-full h-40 object-cover" muted preload="metadata" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <Play className="h-6 w-6 text-white drop-shadow-lg" />
+            </div>
+          </div>
+        ) : (
+          <img src={url} alt="" className="w-full h-40 object-cover" loading="lazy" />
+        )}
+      </div>
+    );
+  }
+
+  // 2-3 images: equal split grid
+  if (urls.length <= 3) {
+    return (
+      <div className={cn("mt-2 grid gap-1 rounded-xl overflow-hidden", urls.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
+        {urls.map((url, i) => (
+          <div key={i} className="bg-muted overflow-hidden" onClick={onClickExpand}>
+            {isVideo(url) ? (
+              <div className="relative w-full h-28">
+                <video src={url} className="w-full h-28 object-cover" muted preload="metadata" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <Play className="h-5 w-5 text-white drop-shadow-lg" />
+                </div>
+              </div>
+            ) : (
+              <img src={url} alt="" className="w-full h-28 object-cover" loading="lazy" />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // 4+ images: first 3 visible + scroll for more
+  return (
+    <div className="mt-2 flex gap-1 overflow-x-auto scrollbar-hide rounded-xl">
+      {urls.map((url, i) => (
+        <div key={i} className="w-[calc(33.333%-3px)] shrink-0 bg-muted overflow-hidden first:rounded-l-xl last:rounded-r-xl" onClick={onClickExpand}>
+          {isVideo(url) ? (
+            <div className="relative w-full h-28">
+              <video src={url} className="w-full h-28 object-cover" muted preload="metadata" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <Play className="h-5 w-5 text-white drop-shadow-lg" />
+              </div>
+            </div>
+          ) : (
+            <img src={url} alt="" className="w-full h-28 object-cover" loading="lazy" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ─── Google Maps style list card ─── */
 function ListCard({
   post, userLat, userLng, isFavorite, onToggleFavorite, onSelect, showDivider,
@@ -355,11 +426,12 @@ function ListCard({
   onSelect: () => void;
   showDivider: boolean;
 }) {
+  const navigate = useNavigate();
   const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
   const distMi = kmToMiles(distKm);
-  const coverUrls = post.image_urls?.slice(0, 4) || [];
+  const coverUrls = post.image_urls || [];
+  const [showNavChoice, setShowNavChoice] = useState(false);
 
-  // Operating status
   let statusText = "";
   let statusColor = "";
   if (!post.is_mobile && post.operating_hours) {
@@ -370,6 +442,49 @@ function ListCard({
     statusText = "移动服务";
     statusColor = "text-primary";
   }
+
+  const handleStartChat = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { navigate("/auth"); return; }
+    const { data: postData } = await supabase.from("posts").select("user_id").eq("id", post.id).single();
+    if (!postData) return;
+    if (user.id === postData.user_id) {
+      toast({ title: "提示", description: "不能和自己聊天哦" });
+      return;
+    }
+    if (post.category === "driver") {
+      const lockedConvId = await checkActiveTripLock(user.id);
+      if (lockedConvId) {
+        toast({ title: "你有进行中的行程", description: "请先结束当前预约后再联系其他司机" });
+        navigate(`/chat/${lockedConvId}`);
+        return;
+      }
+    }
+    const { data: existing } = await supabase
+      .from("conversations").select("id")
+      .or(`and(participant_1.eq.${user.id},participant_2.eq.${postData.user_id}),and(participant_1.eq.${postData.user_id},participant_2.eq.${user.id})`)
+      .maybeSingle();
+    if (existing) { navigate(`/chat/${existing.id}`); return; }
+    const greeting = greetingTemplates[post.category] || greetingTemplates.default;
+    const { data: newConv, error } = await supabase
+      .from("conversations").insert({ participant_1: user.id, participant_2: postData.user_id, last_message: greeting })
+      .select("id").single();
+    if (error || !newConv) { toast({ title: "创建会话失败", variant: "destructive" }); return; }
+    await supabase.from("messages").insert({ conversation_id: newConv.id, sender_id: user.id, content: greeting });
+    navigate(`/chat/${newConv.id}`);
+  };
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/post/${post.id}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: post.title, url }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "链接已复制" });
+    }
+  };
 
   return (
     <>
@@ -412,28 +527,52 @@ function ListCard({
           </span>
         </div>
 
-        {/* Horizontal scrollable images */}
-        {coverUrls.length > 0 && (
-          <div className="flex gap-1.5 mt-2 overflow-x-auto scrollbar-hide">
-            {coverUrls.map((url, i) => (
-              <div
-                key={i}
-                className="w-24 h-24 shrink-0 rounded-lg overflow-hidden bg-muted"
-              >
-                {isVideo(url) ? (
-                  <div className="relative w-full h-full">
-                    <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                      <Play className="h-5 w-5 text-white drop-shadow-lg" />
-                    </div>
-                  </div>
-                ) : (
-                  <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                )}
+        {/* Responsive image gallery */}
+        <ImageGallery urls={coverUrls} />
+
+        {/* Action capsules */}
+        <div className="flex gap-2 mt-2 overflow-x-auto scrollbar-hide">
+          <div className="relative">
+            <ActionCapsule
+              icon={<Navigation className="h-3.5 w-3.5" />}
+              label="路线"
+              primary
+              onClick={(e) => { e.stopPropagation(); setShowNavChoice(v => !v); }}
+            />
+            {showNavChoice && (
+              <div className="absolute left-0 bottom-full mb-1 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "apple"); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+                >
+                  🍎 Apple Maps
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "google"); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+                >
+                  📍 Google Maps
+                </button>
               </div>
-            ))}
+            )}
           </div>
-        )}
+          <ActionCapsule icon={<Send className="h-3.5 w-3.5" />} label="私聊" onClick={handleStartChat} />
+          <ActionCapsule icon={<Phone className="h-3.5 w-3.5" />} label="致电" onClick={(e) => {
+            e.stopPropagation();
+            // Will attempt to get phone from post contact or profile
+            supabase.from("posts").select("contact_phone, user_id").eq("id", post.id).single().then(({ data }) => {
+              if (data?.contact_phone) {
+                window.location.href = `tel:${data.contact_phone}`;
+              } else if (data?.user_id) {
+                supabase.from("profiles").select("phone").eq("id", data.user_id).maybeSingle().then(({ data: prof }) => {
+                  if (prof?.phone) window.location.href = `tel:${prof.phone}`;
+                  else toast({ title: "暂无电话号码" });
+                });
+              }
+            });
+          }} />
+          <ActionCapsule icon={<Share2 className="h-3.5 w-3.5" />} label="分享" onClick={handleShare} />
+        </div>
       </div>
     </>
   );
@@ -451,9 +590,11 @@ function PreviewCard({
   onExpand: () => void;
   onBack: () => void;
 }) {
+  const navigate = useNavigate();
   const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
   const distMi = kmToMiles(distKm);
-  const coverUrls = post.image_urls?.slice(0, 5) || [];
+  const coverUrls = post.image_urls || [];
+  const [showNavChoice, setShowNavChoice] = useState(false);
 
   let statusText = "";
   let statusColor = "";
@@ -465,6 +606,41 @@ function PreviewCard({
     statusText = "📍 移动服务中";
     statusColor = "text-primary";
   }
+
+  const handleStartChat = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { navigate("/auth"); return; }
+    const { data: postData } = await supabase.from("posts").select("user_id").eq("id", post.id).single();
+    if (!postData) return;
+    if (user.id === postData.user_id) {
+      toast({ title: "提示", description: "不能和自己聊天哦" });
+      return;
+    }
+    const { data: existing } = await supabase
+      .from("conversations").select("id")
+      .or(`and(participant_1.eq.${user.id},participant_2.eq.${postData.user_id}),and(participant_1.eq.${postData.user_id},participant_2.eq.${user.id})`)
+      .maybeSingle();
+    if (existing) { navigate(`/chat/${existing.id}`); return; }
+    const greeting = greetingTemplates[post.category] || greetingTemplates.default;
+    const { data: newConv, error } = await supabase
+      .from("conversations").insert({ participant_1: user.id, participant_2: postData.user_id, last_message: greeting })
+      .select("id").single();
+    if (error || !newConv) { toast({ title: "创建会话失败", variant: "destructive" }); return; }
+    await supabase.from("messages").insert({ conversation_id: newConv.id, sender_id: user.id, content: greeting });
+    navigate(`/chat/${newConv.id}`);
+  };
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/post/${post.id}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: post.title, url }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "链接已复制" });
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto overscroll-contain touch-auto px-4 pb-4">
@@ -502,38 +678,46 @@ function PreviewCard({
         </span>
       </div>
 
-      {/* Action capsules — Google Maps style */}
+      {/* Action capsules */}
       <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide pb-1">
-        <ActionCapsule icon={<Navigation className="h-3.5 w-3.5" />} label="路线" primary />
-        <ActionCapsule icon={<Send className="h-3.5 w-3.5" />} label="私聊" />
-        {/* Phone - only show if we have contact */}
-        <ActionCapsule icon={<Phone className="h-3.5 w-3.5" />} label="致电" />
-        <ActionCapsule icon={<Share2 className="h-3.5 w-3.5" />} label="分享" />
+        <div className="relative">
+          <ActionCapsule icon={<Navigation className="h-3.5 w-3.5" />} label="路线" primary onClick={(e) => { e.stopPropagation(); setShowNavChoice(v => !v); }} />
+          {showNavChoice && (
+            <div className="absolute left-0 bottom-full mb-1 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "apple"); }}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+              >
+                🍎 Apple Maps
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "google"); }}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+              >
+                📍 Google Maps
+              </button>
+            </div>
+          )}
+        </div>
+        <ActionCapsule icon={<Send className="h-3.5 w-3.5" />} label="私聊" onClick={handleStartChat} />
+        <ActionCapsule icon={<Phone className="h-3.5 w-3.5" />} label="致电" onClick={(e) => {
+          e.stopPropagation();
+          supabase.from("posts").select("contact_phone, user_id").eq("id", post.id).single().then(({ data }) => {
+            if (data?.contact_phone) {
+              window.location.href = `tel:${data.contact_phone}`;
+            } else if (data?.user_id) {
+              supabase.from("profiles").select("phone").eq("id", data.user_id).maybeSingle().then(({ data: prof }) => {
+                if (prof?.phone) window.location.href = `tel:${prof.phone}`;
+                else toast({ title: "暂无电话号码" });
+              });
+            }
+          });
+        }} />
+        <ActionCapsule icon={<Share2 className="h-3.5 w-3.5" />} label="分享" onClick={handleShare} />
       </div>
 
-      {/* Horizontal scrollable images */}
-      {coverUrls.length > 0 && (
-        <div className="flex gap-1.5 mt-3 overflow-x-auto scrollbar-hide">
-          {coverUrls.map((url, i) => (
-            <div
-              key={i}
-              className="w-28 h-28 shrink-0 rounded-xl overflow-hidden bg-muted"
-              onClick={onExpand}
-            >
-              {isVideo(url) ? (
-                <div className="relative w-full h-full">
-                  <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                    <Play className="h-5 w-5 text-white drop-shadow-lg" />
-                  </div>
-                </div>
-              ) : (
-                <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Responsive image gallery */}
+      <ImageGallery urls={coverUrls} onClickExpand={onExpand} />
 
       {/* Tap to see more */}
       <button
@@ -551,11 +735,11 @@ function ActionCapsule({ icon, label, primary = false, onClick }: {
   icon: React.ReactNode;
   label: string;
   primary?: boolean;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent) => void;
 }) {
   return (
     <button
-      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      onClick={(e) => { e.stopPropagation(); onClick?.(e); }}
       className={cn(
         "flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 active:scale-95 transition-transform",
         primary
