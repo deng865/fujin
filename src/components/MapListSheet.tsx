@@ -250,6 +250,7 @@ export default function MapListSheet({
           onToggleFavorite={onToggleFavorite}
           userLat={userLat}
           userLng={userLng}
+          scrollRef={detailScrollRef}
         />
       )}
 
