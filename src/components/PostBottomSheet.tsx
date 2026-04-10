@@ -223,12 +223,33 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
 
             {/* Content area */}
             <div className="px-5 pt-4 space-y-3">
-              {/* Category tag + time */}
-              <div className="flex items-center justify-between">
+              {/* Category tag + merchant status + time */}
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${categoryColors[post.category] || "bg-muted text-muted-foreground"}`}>
                   {categoryLabels[post.category] || post.category}
                 </span>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                {post.is_mobile ? (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
+                    <Truck className="h-3 w-3" />
+                    移动服务中
+                    {post.live_updated_at && (
+                      <span className="text-muted-foreground ml-1">
+                        · {formatDistanceToNow(new Date(post.live_updated_at), { addSuffix: true, locale: zhCN })}
+                      </span>
+                    )}
+                  </span>
+                ) : post.operating_hours ? (
+                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                    isCurrentlyOpen(post.operating_hours)
+                      ? "bg-emerald-500/10 text-emerald-600"
+                      : "bg-muted text-muted-foreground"
+                  }`}>
+                    <Store className="h-3 w-3" />
+                    {isCurrentlyOpen(post.operating_hours) ? "🟢 营业中" : "🔴 已打烊"}
+                    <span className="ml-1">{post.operating_hours.open}-{post.operating_hours.close}</span>
+                  </span>
+                ) : null}
+                <span className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
                   <Clock className="h-3 w-3" />
                   {timeAgo}
                 </span>
