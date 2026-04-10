@@ -8,6 +8,7 @@ interface MapControlsProps {
   currentMapType: string;
   onResetNorth?: () => void;
   bearing?: number;
+  bottomOffset?: number;
 }
 const mapTypes = [
   { id: "roadmap", label: "标准", icon: MapIcon },
@@ -15,11 +16,14 @@ const mapTypes = [
   { id: "terrain", label: "地形", icon: Mountain },
 ];
 
-export default function MapControls({ onLocateMe, onMapTypeChange, currentMapType, onResetNorth, bearing = 0 }: MapControlsProps) {
+export default function MapControls({ onLocateMe, onMapTypeChange, currentMapType, onResetNorth, bearing = 0, bottomOffset = 0 }: MapControlsProps) {
   const [showLayers, setShowLayers] = useState(false);
 
   return (
-    <div className="absolute bottom-36 right-4 z-10 flex flex-col gap-2 items-end">
+    <div
+      className="absolute right-4 z-10 flex flex-col gap-2 items-end transition-[bottom] duration-300 ease-out"
+      style={{ bottom: `${72 + bottomOffset + 16}px` }}
+    >
       {showLayers && (
         <div className="bg-background/80 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/30 p-1.5 flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
           {mapTypes.map((t) => {
