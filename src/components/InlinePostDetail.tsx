@@ -251,13 +251,20 @@ export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFav
       {/* Scrollable content */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain touch-auto pb-4">
         {/* Back button header */}
-        <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 bg-background/90 backdrop-blur-sm">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-3 py-2 bg-background/90 backdrop-blur-sm">
           <button
             onClick={onBack}
             className="flex items-center gap-1 text-sm font-medium text-primary active:scale-95 transition-transform"
           >
             <ArrowLeft className="h-4 w-4" />
             返回列表
+          </button>
+          <button
+            onClick={onBack}
+            className="p-1.5 rounded-full bg-muted hover:bg-muted/80 active:scale-90 transition-all"
+            aria-label="关闭"
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
 
