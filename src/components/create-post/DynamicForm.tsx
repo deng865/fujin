@@ -235,6 +235,49 @@ export default function DynamicForm({ category, data, onChange, isMobile = false
           </div>
         </div>
       </div>
+
+      {/* Operating hours - only for fixed merchants */}
+      {!isMobile && (
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            营业时间 / Operating Hours
+          </Label>
+          <div className="grid grid-cols-5 gap-2">
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs text-muted-foreground">开门</Label>
+              <Input
+                type="time"
+                value={data.openTime}
+                onChange={(e) => onChange({ openTime: e.target.value })}
+                className="rounded-xl h-11"
+              />
+            </div>
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs text-muted-foreground">关门</Label>
+              <Input
+                type="time"
+                value={data.closeTime}
+                onChange={(e) => onChange({ closeTime: e.target.value })}
+                className="rounded-xl h-11"
+              />
+            </div>
+            <div className="col-span-1 space-y-1">
+              <Label className="text-xs text-muted-foreground">时区</Label>
+              <select
+                value={data.timezone}
+                onChange={(e) => onChange({ timezone: e.target.value })}
+                className="w-full h-11 rounded-xl border border-border bg-background px-1 text-xs"
+              >
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <option key={tz.value} value={tz.value}>{tz.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">设置后，非营业时间将在地图上隐藏</p>
+        </div>
+      )}
     </div>
   );
 }

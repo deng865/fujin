@@ -14,6 +14,7 @@ const initialFormData = {
   imageUrls: [] as string[], bedrooms: "", bathrooms: "", priceUnit: "month",
   carModel: "", availableTime: "", driverPriceUnit: "trip",
   salaryRange: "", jobType: "",
+  openTime: "", closeTime: "", timezone: "America/Chicago",
 };
 
 export default function CreatePost() {
