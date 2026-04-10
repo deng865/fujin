@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Clock, Play, X, Navigation, Send, Phone, Share2 } from "lucide-react";
+import { MapPin, Clock, Play, X, Navigation, Send, Phone, Share2, Bookmark } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -559,7 +559,6 @@ function ListCard({
           <ActionCapsule icon={<Send className="h-3.5 w-3.5" />} label="私聊" onClick={handleStartChat} />
           <ActionCapsule icon={<Phone className="h-3.5 w-3.5" />} label="致电" onClick={(e) => {
             e.stopPropagation();
-            // Will attempt to get phone from post contact or profile
             supabase.from("posts").select("contact_phone, user_id").eq("id", post.id).single().then(({ data }) => {
               if (data?.contact_phone) {
                 window.location.href = `tel:${data.contact_phone}`;
@@ -571,6 +570,11 @@ function ListCard({
               }
             });
           }} />
+          <ActionCapsule
+            icon={<Bookmark className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />}
+            label={isFavorite ? "已收藏" : "收藏"}
+            onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
+          />
           <ActionCapsule icon={<Share2 className="h-3.5 w-3.5" />} label="分享" onClick={handleShare} />
         </div>
       </div>
@@ -647,11 +651,13 @@ function PreviewCard({
       {/* Title row */}
       <div className="flex items-start justify-between gap-2 mb-1">
         <h3 className="text-lg font-bold text-foreground line-clamp-2 flex-1">{post.title}</h3>
-        <FavoriteButton
-          isFavorite={isFavorite}
-          onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
-          size="md"
-        />
+        <button
+          onClick={(e) => { e.stopPropagation(); onBack(); }}
+          className="shrink-0 p-1.5 rounded-full bg-muted hover:bg-muted/80 active:scale-90 transition-all"
+          aria-label="关闭"
+        >
+          <X className="h-4 w-4 text-muted-foreground" />
+        </button>
       </div>
 
       {/* Info line */}
@@ -713,6 +719,11 @@ function PreviewCard({
             }
           });
         }} />
+        <ActionCapsule
+          icon={<Bookmark className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />}
+          label={isFavorite ? "已收藏" : "收藏"}
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
+        />
         <ActionCapsule icon={<Share2 className="h-3.5 w-3.5" />} label="分享" onClick={handleShare} />
       </div>
 
