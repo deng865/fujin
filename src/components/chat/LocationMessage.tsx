@@ -1,4 +1,5 @@
 import { MapPin, ExternalLink, X } from "lucide-react";
+import { openMapNavigation } from "@/lib/mapNavigation";
 import { useState } from "react";
 import AvatarMarker from "../AvatarMarker";
 
@@ -39,8 +40,6 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
 
   const mapPreviewUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${loc.lng},${loc.lat},14,0/280x160@2x?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || ""}`;
 
-  const googleUrl = `https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}`;
-  const appleUrl = `https://maps.apple.com/?ll=${loc.lat},${loc.lng}&q=${loc.address ? encodeURIComponent(loc.address) : `${loc.lat},${loc.lng}`}`;
 
   return (
     <>
@@ -112,35 +111,29 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
 
             {/* Options */}
             <div className="px-4 flex flex-col gap-2">
-              <a
-                href={googleUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                onClick={() => setShowPicker(false)}
+              <button
+                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors w-full text-left"
+                onClick={() => { setShowPicker(false); openMapNavigation(loc.lat, loc.lng, "google"); }}
               >
                 <span className="text-2xl">🗺️</span>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-foreground">Google 地图</span>
-                  <span className="text-xs text-muted-foreground">在浏览器中打开</span>
+                  <span className="text-xs text-muted-foreground">打开地图导航</span>
                 </div>
                 <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
-              </a>
+              </button>
 
-              <a
-                href={appleUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                onClick={() => setShowPicker(false)}
+              <button
+                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors w-full text-left"
+                onClick={() => { setShowPicker(false); openMapNavigation(loc.lat, loc.lng, "apple"); }}
               >
                 <span className="text-2xl">🍎</span>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-foreground">Apple 地图</span>
-                  <span className="text-xs text-muted-foreground">在浏览器中打开</span>
+                  <span className="text-xs text-muted-foreground">打开地图导航</span>
                 </div>
                 <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
-              </a>
+              </button>
             </div>
 
             {/* Cancel */}
