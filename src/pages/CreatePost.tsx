@@ -202,15 +202,41 @@ export default function CreatePost() {
           {/* Section 1: Category Selection */}
           <CategoryGrid selected={category} onSelect={handleCategorySelect} />
 
-          {/* Section 2: Dynamic Form - only show after category selected */}
+          {/* Merchant type toggle: Fixed vs Mobile */}
+          {category && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-200">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsMobile(false)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border-2 transition-all ${
+                    !isMobile ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                  }`}
+                >
+                  <MapPin className="h-4 w-4" />
+                  固定地址
+                </button>
+                <button
+                  onClick={() => setIsMobile(true)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border-2 transition-all ${
+                    isMobile ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                  }`}
+                >
+                  <Truck className="h-4 w-4" />
+                  移动服务
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Section 2: Dynamic Form */}
           {category && (
             <div ref={formRef} className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <DynamicForm category={category} data={formData} onChange={updateForm} />
+              <DynamicForm category={category} data={formData} onChange={updateForm} isMobile={isMobile} />
             </div>
           )}
 
           {/* Section 3: Location Picker */}
-          {category && (
+          {category && !isMobile && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <LocationPicker
                 location={location}
@@ -220,6 +246,15 @@ export default function CreatePost() {
                 onAddressChange={setAddress}
                 onLocationTypeChange={setLocationType}
               />
+            </div>
+          )}
+
+          {/* Mobile service hint */}
+          {category && isMobile && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 bg-primary/5 border border-primary/20 rounded-xl p-4 text-center space-y-1">
+              <Truck className="h-6 w-6 mx-auto text-primary" />
+              <p className="text-sm font-medium text-foreground">移动服务模式</p>
+              <p className="text-xs text-muted-foreground">发布后将自动追踪您的位置，在地图上以模糊区域显示</p>
             </div>
           )}
 
