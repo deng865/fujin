@@ -109,7 +109,10 @@ export default function ProfilePage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      setPosts(postsData || []);
+      setPosts((postsData || []).map((p: any) => ({
+        ...p,
+        operating_hours: p.operating_hours as UserPost["operating_hours"],
+      })));
 
       // Load location sharing preference
       const saved = localStorage.getItem("location_sharing_enabled");
