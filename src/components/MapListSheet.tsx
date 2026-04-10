@@ -532,30 +532,32 @@ function ListCard({
 
         {/* Action capsules */}
         <div className="flex gap-2 mt-2 overflow-x-auto scrollbar-hide">
-          <div className="relative">
-            <ActionCapsule
-              icon={<Navigation className="h-3.5 w-3.5" />}
-              label="路线"
-              primary
-              onClick={(e) => { e.stopPropagation(); setShowNavChoice(v => !v); }}
-            />
-            {showNavChoice && (
-              <div className="absolute left-0 bottom-full mb-1 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "apple"); }}
-                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
-                >
-                  🍎 Apple Maps
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "google"); }}
-                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
-                >
-                  📍 Google Maps
-                </button>
-              </div>
-            )}
-          </div>
+          {!post.is_mobile && (
+            <div className="relative">
+              <ActionCapsule
+                icon={<Navigation className="h-3.5 w-3.5" />}
+                label="路线"
+                primary
+                onClick={(e) => { e.stopPropagation(); setShowNavChoice(v => !v); }}
+              />
+              {showNavChoice && (
+                <div className="absolute left-0 bottom-full mb-1 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "apple"); }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+                  >
+                    🍎 Apple Maps
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "google"); }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+                  >
+                    📍 Google Maps
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <ActionCapsule icon={<Send className="h-3.5 w-3.5" />} label="私聊" onClick={handleStartChat} />
           <ActionCapsule icon={<Phone className="h-3.5 w-3.5" />} label="致电" onClick={(e) => {
             e.stopPropagation();
@@ -686,25 +688,27 @@ function PreviewCard({
 
       {/* Action capsules */}
       <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide pb-1">
-        <div className="relative">
-          <ActionCapsule icon={<Navigation className="h-3.5 w-3.5" />} label="路线" primary onClick={(e) => { e.stopPropagation(); setShowNavChoice(v => !v); }} />
-          {showNavChoice && (
-            <div className="absolute left-0 bottom-full mb-1 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "apple"); }}
-                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
-              >
-                🍎 Apple Maps
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "google"); }}
-                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
-              >
-                📍 Google Maps
-              </button>
-            </div>
-          )}
-        </div>
+        {!post.is_mobile && (
+          <div className="relative">
+            <ActionCapsule icon={<Navigation className="h-3.5 w-3.5" />} label="路线" primary onClick={(e) => { e.stopPropagation(); setShowNavChoice(v => !v); }} />
+            {showNavChoice && (
+              <div className="absolute left-0 bottom-full mb-1 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "apple"); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+                >
+                  🍎 Apple Maps
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "google"); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
+                >
+                  📍 Google Maps
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <ActionCapsule icon={<Send className="h-3.5 w-3.5" />} label="私聊" onClick={handleStartChat} />
         <ActionCapsule icon={<Phone className="h-3.5 w-3.5" />} label="致电" onClick={(e) => {
           e.stopPropagation();
