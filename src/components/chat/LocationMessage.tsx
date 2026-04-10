@@ -113,35 +113,29 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
 
             {/* Options */}
             <div className="px-4 flex flex-col gap-2">
-              <a
-                href={googleUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                onClick={() => setShowPicker(false)}
+              <button
+                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors w-full text-left"
+                onClick={() => { setShowPicker(false); openMapNavigation(loc.lat, loc.lng, "google"); }}
               >
                 <span className="text-2xl">🗺️</span>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-foreground">Google 地图</span>
-                  <span className="text-xs text-muted-foreground">在浏览器中打开</span>
+                  <span className="text-xs text-muted-foreground">打开地图导航</span>
                 </div>
                 <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
-              </a>
+              </button>
 
-              <a
-                href={appleUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                onClick={() => setShowPicker(false)}
+              <button
+                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors w-full text-left"
+                onClick={() => { setShowPicker(false); openMapNavigation(loc.lat, loc.lng, "apple"); }}
               >
                 <span className="text-2xl">🍎</span>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-foreground">Apple 地图</span>
-                  <span className="text-xs text-muted-foreground">在浏览器中打开</span>
+                  <span className="text-xs text-muted-foreground">打开地图导航</span>
                 </div>
                 <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
-              </a>
+              </button>
             </div>
 
             {/* Cancel */}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Navigation, MapPin } from "lucide-react";
 import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl/mapbox";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
+import { openMapNavigation } from "@/lib/mapNavigation";
 import AvatarMarker from "@/components/AvatarMarker";
 import "mapbox-gl/dist/mapbox-gl.css";
 
