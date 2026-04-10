@@ -279,7 +279,7 @@ export default function MapHome() {
             <AvatarMarker avatarUrl={avatarUrl} name={user?.user_metadata?.name} size={40} />
           </Marker>
         )}
-        <PostMarkers posts={filtered} onSelectPost={setSelectedPost} favoriteIds={favoriteIds} />
+        <PostMarkers posts={filtered} onSelectPost={setSelectedPost} favoriteIds={favoriteIds} selectedPostId={selectedPost?.id} />
       </MapGL>
 
       <ControlBar
