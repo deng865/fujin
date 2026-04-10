@@ -146,8 +146,14 @@ export default function CreatePost() {
         if (error) throw error;
         toast.success("修改成功！ / Updated successfully!");
       } else {
-        const { error } = await supabase.from("posts").insert({ ...postPayload, user_id: user.id });
-        if (error) throw error;
+        const { error } = await supabase.from("posts").insert({ ...postPayload, user_id: user.id, device_id: getDeviceId() });
+        if (error) {
+          if (error.message?.includes("DEVICE_DUPLICATE")) {
+            toast.error("该设备在此分类下已有活跃信息，请勿重复发布");
+            return;
+          }
+          throw error;
+        }
         toast.success("发布成功！ / Posted successfully!");
       }
       navigate(editId ? "/profile" : "/");
