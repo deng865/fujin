@@ -24,6 +24,9 @@ interface Post {
   longitude: number;
   image_urls: string[] | null;
   created_at: string;
+  is_mobile?: boolean;
+  operating_hours?: any;
+  live_updated_at?: string | null;
 }
 
 interface PostProfile {
