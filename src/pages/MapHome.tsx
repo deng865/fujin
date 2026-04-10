@@ -206,16 +206,24 @@ export default function MapHome() {
     else if (result === false) toast({ title: "已取消收藏" });
   };
 
-  // Apply category + radius + filter chips
+  // Apply category + radius + filter chips + operating hours
   const filtered = posts.filter((p) => {
     if (selectedCategory && p.category !== selectedCategory) return false;
-    if (haversine(center.lat, center.lng, p.latitude, p.longitude) > searchRadius) return false;
+    // Use live coordinates for mobile merchants in distance calc
+    const pLat = p.is_mobile && p.live_latitude != null ? p.live_latitude : p.latitude;
+    const pLng = p.is_mobile && p.live_longitude != null ? p.live_longitude : p.longitude;
+    if (haversine(center.lat, center.lng, pLat, pLng) > searchRadius) return false;
     // Price filter
     if (filters.price) {
       const price = p.price ?? 0;
       if (filters.price === "$" && price > 50) return false;
       if (filters.price === "$$" && (price <= 50 || price > 200)) return false;
       if (filters.price === "$$$" && price <= 200) return false;
+    }
+    // Operating hours filter for fixed merchants
+    if (!p.is_mobile && p.operating_hours) {
+      const open = isCurrentlyOpen(p.operating_hours);
+      if (open === false) return false;
     }
     return true;
   });
