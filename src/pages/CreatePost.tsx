@@ -7,6 +7,7 @@ import { ArrowLeft, Send } from "lucide-react";
 import CategoryGrid from "@/components/create-post/CategoryGrid";
 import DynamicForm from "@/components/create-post/DynamicForm";
 import LocationPicker from "@/components/create-post/LocationPicker";
+import { getDeviceId } from "@/lib/deviceId";
 
 const initialFormData = {
   title: "", description: "", price: "", phone: "", wechatId: "",
