@@ -1,44 +1,24 @@
 
 
-# 列表卡片布局重构 + 详情页按钮排列优化
+# 收藏按钮位置调整 + 关闭按钮
 
-## 改动概述
+## 改动内容
 
-### 1. 列表卡片 (`MapListSheet.tsx` - `ListCard` 组件)
+### 1. 操作胶囊行统一添加收藏按钮（MapListSheet.tsx）
 
-**当前问题**：图片固定 96x96，不管上传几张都一样大小；操作按钮缺失。
+当前 `ListCard` 和 `PreviewCard` 的操作胶囊行顺序是：路线、私聊、致电、分享（没有收藏）。
 
-**改造为**：
-- **标题** (加粗) → **评分 · 价格 · 分类** → **距离** → **图片** → **操作按钮行**
-- 图片逻辑：
-  - 1 张图：全宽横幅，高度 160px，`object-cover`
-  - 2-3 张图：均分屏幕宽度（`flex` 等分），高度 120px
-  - 4+ 张图：前 3 张等分显示 + 向右滑动查看更多（`overflow-x-auto`）
-- 底部添加操作胶囊按钮行：`[🧭 路线] [💬 私聊] [📞 致电] [↗ 分享]`
-- 这些按钮功能与详情页对应（路线打开导航、私聊发起聊天、致电拨打电话、分享复制链接）
+改为统一顺序：**路线 → 私聊 → 致电 → 收藏 → 分享**，与 `InlinePostDetail` 保持一致。收藏按钮放在致电和分享之间。
 
-### 2. 预览卡 (`MapListSheet.tsx` - `PreviewCard` 组件)
+### 2. 预览卡和详情页右上角增加 ✕ 关闭按钮
 
-同样调整图片逻辑（1张全宽，2-3张等分，4+可滑动），与列表卡片保持一致。
-
-### 3. 详情页按钮排列 (`InlinePostDetail.tsx`)
-
-**当前**：底部固定栏，收藏 + 电话 + 私聊按钮。
-
-**改造为 Google Maps 风格**：
-- 移除底部固定栏
-- 在标题/价格下方添加**横向滚动操作胶囊行**：`[🧭 路线] [💬 私聊] [📞 致电] [🔖 收藏] [↗ 分享]`
-- 「路线」用 primary 填充色，其他用浅灰背景
-- 路线按钮点击弹出 Apple Maps / Google Maps 选择
-- 私聊按钮调用现有 `handleStartChat`
-- 致电按钮调用 `tel:` 链接
-- 收藏按钮调用 `onToggleFavorite`
-- 分享按钮复制链接或调用 `navigator.share`
+- **PreviewCard**（半屏预览）：在标题行右侧增加 X 按钮，点击调用 `onBack` 关闭预览回到列表
+- **InlinePostDetail**（全屏详情）：在顶部 header 右侧增加 X 按钮，点击调用 `onBack` 关闭详情
 
 ## 涉及文件
 
 | 文件 | 改动 |
 |------|------|
-| `src/components/MapListSheet.tsx` | 重构 `ListCard` 图片布局（1张全宽/2-3张等分/4+可滑动）；添加操作按钮行；同步调整 `PreviewCard` |
-| `src/components/InlinePostDetail.tsx` | 移除底部固定栏，改为标题下方横向操作胶囊行 |
+| `src/components/MapListSheet.tsx` | ListCard 和 PreviewCard 胶囊行增加收藏按钮；PreviewCard 标题行右侧加 X 关闭按钮 |
+| `src/components/InlinePostDetail.tsx` | 顶部 header 右侧加 X 关闭按钮 |
 
