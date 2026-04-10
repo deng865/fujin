@@ -120,8 +120,8 @@ export default function CreatePost() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      let finalLat = location.lat;
-      let finalLng = location.lng;
+      let finalLat = submitLocation.lat;
+      let finalLng = submitLocation.lng;
       if (locationType === "approximate") {
         finalLat += (Math.random() - 0.5) * 0.01;
         finalLng += (Math.random() - 0.5) * 0.01;
