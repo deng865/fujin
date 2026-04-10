@@ -6,6 +6,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
+import { isCurrentlyOpen } from "@/lib/operatingHours";
 import AvatarMarker from "@/components/AvatarMarker";
 import ControlBar from "@/components/ControlBar";
 import CategoryScroll from "@/components/CategoryScroll";
@@ -28,6 +29,11 @@ interface Post {
   longitude: number;
   image_urls: string[] | null;
   created_at: string;
+  is_mobile?: boolean;
+  operating_hours?: any;
+  live_latitude?: number | null;
+  live_longitude?: number | null;
+  live_updated_at?: string | null;
 }
 
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
