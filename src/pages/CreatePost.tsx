@@ -14,7 +14,7 @@ const initialFormData = {
   imageUrls: [] as string[], bedrooms: "", bathrooms: "", priceUnit: "month",
   carModel: "", availableTime: "", driverPriceUnit: "trip",
   salaryRange: "", jobType: "",
-  openTime: "", closeTime: "", timezone: "America/Chicago",
+  openTime: "", closeTime: "", timezone: "",
 };
 
 export default function CreatePost() {
@@ -146,8 +146,9 @@ export default function CreatePost() {
       }
 
       // Build operating hours for fixed merchants
+      const detectedTz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "America/Chicago"; } })();
       const operatingHours = (!isMobile && formData.openTime && formData.closeTime)
-        ? { open: formData.openTime, close: formData.closeTime, timezone: formData.timezone }
+        ? { open: formData.openTime, close: formData.closeTime, timezone: detectedTz }
         : null;
 
       const postPayload = {

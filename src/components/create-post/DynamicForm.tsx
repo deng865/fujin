@@ -4,12 +4,13 @@ import { Label } from "@/components/ui/label";
 import { DollarSign, Phone, MessageCircle, Clock } from "lucide-react";
 import MediaUpload from "./MediaUpload";
 
-const TIMEZONE_OPTIONS = [
-  { value: "America/New_York", label: "东部 ET" },
-  { value: "America/Chicago", label: "中部 CT" },
-  { value: "America/Denver", label: "山区 MT" },
-  { value: "America/Los_Angeles", label: "太平洋 PT" },
-];
+function getLocalTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return "America/Chicago";
+  }
+}
 
 interface FormData {
   title: string;
@@ -132,38 +133,6 @@ export default function DynamicForm({ category, data, onChange, isMobile = false
               className="rounded-xl h-11"
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">可接单时间</Label>
-            <Input
-              value={data.availableTime}
-              onChange={(e) => onChange({ availableTime: e.target.value })}
-              placeholder="如：周一至周五 9am-5pm"
-              className="rounded-xl h-11"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">价格 Price</Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={data.price}
-                  onChange={(e) => onChange({ price: e.target.value })}
-                  type="number"
-                  placeholder="金额"
-                  className="pl-9 rounded-xl h-11"
-                />
-              </div>
-              <select
-                value={data.driverPriceUnit}
-                onChange={(e) => onChange({ driverPriceUnit: e.target.value })}
-                className="w-24 h-11 rounded-xl border border-border bg-background px-2 text-sm"
-              >
-                <option value="trip">按次</option>
-                <option value="hour">按时</option>
-              </select>
-            </div>
-          </div>
         </div>
       )}
 
@@ -243,8 +212,8 @@ export default function DynamicForm({ category, data, onChange, isMobile = false
             <Clock className="h-3.5 w-3.5" />
             营业时间 / Operating Hours
           </Label>
-          <div className="grid grid-cols-5 gap-2">
-            <div className="col-span-2 space-y-1">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">开门</Label>
               <Input
                 type="time"
@@ -253,7 +222,7 @@ export default function DynamicForm({ category, data, onChange, isMobile = false
                 className="rounded-xl h-11"
               />
             </div>
-            <div className="col-span-2 space-y-1">
+            <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">关门</Label>
               <Input
                 type="time"
@@ -261,18 +230,6 @@ export default function DynamicForm({ category, data, onChange, isMobile = false
                 onChange={(e) => onChange({ closeTime: e.target.value })}
                 className="rounded-xl h-11"
               />
-            </div>
-            <div className="col-span-1 space-y-1">
-              <Label className="text-xs text-muted-foreground">时区</Label>
-              <select
-                value={data.timezone}
-                onChange={(e) => onChange({ timezone: e.target.value })}
-                className="w-full h-11 rounded-xl border border-border bg-background px-1 text-xs"
-              >
-                {TIMEZONE_OPTIONS.map((tz) => (
-                  <option key={tz.value} value={tz.value}>{tz.label}</option>
-                ))}
-              </select>
             </div>
           </div>
           <p className="text-[11px] text-muted-foreground">设置后，非营业时间将在地图上隐藏</p>
