@@ -40,8 +40,6 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
 
   const mapPreviewUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${loc.lng},${loc.lat},14,0/280x160@2x?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || ""}`;
 
-  const googleUrl = `https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}`;
-  const appleUrl = `https://maps.apple.com/?ll=${loc.lat},${loc.lng}&q=${loc.address ? encodeURIComponent(loc.address) : `${loc.lat},${loc.lng}`}`;
 
   return (
     <>
