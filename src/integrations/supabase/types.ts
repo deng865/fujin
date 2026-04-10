@@ -585,9 +585,14 @@ export type Database = {
           device_id: string | null
           id: string
           image_urls: string[] | null
+          is_mobile: boolean
           is_visible: boolean | null
           latitude: number
+          live_latitude: number | null
+          live_longitude: number | null
+          live_updated_at: string | null
           longitude: number
+          operating_hours: Json | null
           price: number | null
           title: string
           updated_at: string
@@ -602,9 +607,14 @@ export type Database = {
           device_id?: string | null
           id?: string
           image_urls?: string[] | null
+          is_mobile?: boolean
           is_visible?: boolean | null
           latitude: number
+          live_latitude?: number | null
+          live_longitude?: number | null
+          live_updated_at?: string | null
           longitude: number
+          operating_hours?: Json | null
           price?: number | null
           title: string
           updated_at?: string
@@ -619,9 +629,14 @@ export type Database = {
           device_id?: string | null
           id?: string
           image_urls?: string[] | null
+          is_mobile?: boolean
           is_visible?: boolean | null
           latitude?: number
+          live_latitude?: number | null
+          live_longitude?: number | null
+          live_updated_at?: string | null
           longitude?: number
+          operating_hours?: Json | null
           price?: number | null
           title?: string
           updated_at?: string
