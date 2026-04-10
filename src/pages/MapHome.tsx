@@ -12,7 +12,7 @@ import ControlBar from "@/components/ControlBar";
 import CategoryScroll from "@/components/CategoryScroll";
 import MapControls from "@/components/MapControls";
 import PostMarkers from "@/components/PostMarkers";
-import PostBottomSheet from "@/components/PostBottomSheet";
+
 import MapFilterChips, { defaultFilters, type MapFilters } from "@/components/MapFilterChips";
 import MapListSheet from "@/components/MapListSheet";
 import { toast } from "@/hooks/use-toast";
@@ -292,6 +292,7 @@ export default function MapHome() {
         posts={filtered}
         userLat={center.lat}
         userLng={center.lng}
+        selectedPost={selectedPost}
         onSelectPost={setSelectedPost}
         favoriteIds={favoriteIds}
         onToggleFavorite={handleToggleFavorite}
@@ -300,15 +301,6 @@ export default function MapHome() {
         selectedCategory={selectedCategory}
         mapTapped={mapTapped}
         onSheetHeightChange={setSheetHeight}
-      />
-
-      <PostBottomSheet
-        post={selectedPost}
-        onClose={() => setSelectedPost(null)}
-        isFavorite={selectedPost ? isFavorite(selectedPost.id) : false}
-        onToggleFavorite={handleToggleFavorite}
-        userLat={center.lat}
-        userLng={center.lng}
       />
     </div>
   );
