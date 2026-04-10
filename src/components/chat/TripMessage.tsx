@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle, Loader2, Car } from "lucide-react";
 import { TripRatingInput } from "./TripRating";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
+import { openMapNavigationWithQuery } from "@/lib/mapNavigation";
 import Map, { Marker, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
