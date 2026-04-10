@@ -207,6 +207,21 @@ export default function MapHome() {
     else if (result === false) toast({ title: "已取消收藏" });
   };
 
+  // Fly to selected post (offset up to avoid drawer covering it)
+  useEffect(() => {
+    if (selectedPost && mapRef.current) {
+      const lat = selectedPost.is_mobile && selectedPost.live_latitude != null
+        ? selectedPost.live_latitude : selectedPost.latitude;
+      const lng = selectedPost.is_mobile && selectedPost.live_longitude != null
+        ? selectedPost.live_longitude : selectedPost.longitude;
+      mapRef.current.flyTo({
+        center: [lng, lat],
+        offset: [0, -80], // shift up so marker is above the drawer
+        duration: 600,
+      });
+    }
+  }, [selectedPost]);
+
   // Apply category + radius + filter chips + operating hours
   const filtered = posts.filter((p) => {
     if (selectedCategory && p.category !== selectedCategory) return false;

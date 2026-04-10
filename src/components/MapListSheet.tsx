@@ -1,11 +1,11 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { MapPin, Clock, Play, X } from "lucide-react";
-import MapFilterChips, { type MapFilters } from "@/components/MapFilterChips";
+import { MapPin, Clock, Play, X, Navigation, Send, Phone, Share2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import FavoriteButton from "@/components/FavoriteButton";
 import InlinePostDetail from "@/components/InlinePostDetail";
+import { isCurrentlyOpen } from "@/lib/operatingHours";
 
 interface Post {
   id: string;
@@ -64,7 +64,9 @@ interface MapListSheetProps {
   onSheetHeightChange?: (height: number) => void;
 }
 
-type SheetState = "hidden" | "peek" | "half" | "full";
+import { type MapFilters } from "@/components/MapFilterChips";
+
+type SheetState = "hidden" | "peek" | "half" | "preview" | "full";
 
 const BOTTOM_NAV = 72;
 const HANDLE_HEIGHT = 28;
@@ -77,10 +79,10 @@ export default function MapListSheet({
   const [state, setState] = useState<SheetState>("peek");
   const prevMapTapped = useRef(mapTapped);
 
-  // Auto-expand to full when a post is selected
+  // When a post is selected, go to preview (not full)
   useEffect(() => {
     if (selectedPost) {
-      setState("full");
+      setState("preview");
     }
   }, [selectedPost]);
 
@@ -91,7 +93,7 @@ export default function MapListSheet({
     }
   }, [selectedCategory, selectedPost]);
 
-  // Collapse when map is tapped (only on new taps)
+  // Collapse when map is tapped
   useEffect(() => {
     if (mapTapped > 0 && mapTapped !== prevMapTapped.current) {
       prevMapTapped.current = mapTapped;
@@ -115,6 +117,7 @@ export default function MapListSheet({
       case "hidden": return HANDLE_HEIGHT;
       case "peek": return 100;
       case "half": return Math.round(vh * 0.45);
+      case "preview": return Math.round(vh * 0.45);
       case "full": return Math.round(vh * 0.85);
     }
   }, []);
@@ -122,13 +125,12 @@ export default function MapListSheet({
   const currentHeight = getHeight(state);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
-    // In detail mode, only allow drag from handle area or when scrolled to top
+    // In full detail mode, only drag from handle or when scrolled to top
     if (selectedPost && state === "full") {
       const detailEl = detailScrollRef.current;
       const touchY = e.touches[0].clientY;
       const sheetTop = sheetRef.current?.getBoundingClientRect().top ?? 0;
       const handleZone = sheetTop + HANDLE_HEIGHT + 20;
-      // Allow drag if touching the handle area or detail content is scrolled to top
       if (touchY > handleZone && detailEl && detailEl.scrollTop > 0) return;
     }
 
@@ -157,10 +159,22 @@ export default function MapListSheet({
     const dy = dragOffset;
     const threshold = 50;
 
-    // In detail mode, swipe down dismisses detail → back to list
-    if (selectedPost && dy < -threshold) {
-      onSelectPost(null);
-      setState("half");
+    if (selectedPost) {
+      // In preview: swipe up → full, swipe down → dismiss
+      if (state === "preview") {
+        if (dy > threshold) {
+          setState("full");
+        } else if (dy < -threshold) {
+          onSelectPost(null);
+          setState("half");
+        }
+      }
+      // In full: swipe down → preview → dismiss
+      else if (state === "full") {
+        if (dy < -threshold) {
+          setState("preview");
+        }
+      }
       setDragOffset(0);
       return;
     }
@@ -181,7 +195,7 @@ export default function MapListSheet({
       });
     }
     setDragOffset(0);
-  }, [isDragging, dragOffset, selectedPost, onSelectPost]);
+  }, [isDragging, dragOffset, selectedPost, onSelectPost, state]);
 
   const displayHeight = isDragging
     ? Math.max(HANDLE_HEIGHT, Math.min(window.innerHeight * 0.85, currentHeight + dragOffset))
@@ -202,12 +216,16 @@ export default function MapListSheet({
     setState("half");
   }, [onSelectPost]);
 
+  const isPreview = state === "preview" && selectedPost;
+  const isFull = state === "full" && selectedPost;
+
   return (
     <div
       ref={sheetRef}
       className={cn(
         "absolute left-0 right-0 z-20 bg-background rounded-t-2xl flex flex-col",
         "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
+        "will-change-transform",
         selectedPost ? "" : "touch-none select-none",
         !isDragging && "transition-[height] duration-300 ease-out"
       )}
@@ -219,7 +237,7 @@ export default function MapListSheet({
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Drag handle area */}
+      {/* Drag handle */}
       <div className="shrink-0">
         <div className="flex justify-center pt-2.5 pb-1">
           <div className="w-9 h-1 rounded-full bg-muted-foreground/25" />
@@ -241,8 +259,21 @@ export default function MapListSheet({
         )}
       </div>
 
-      {/* Detail mode: render inline detail */}
-      {selectedPost && (state === "half" || state === "full") && (
+      {/* Preview mode: compact card */}
+      {isPreview && (
+        <PreviewCard
+          post={selectedPost}
+          userLat={userLat}
+          userLng={userLng}
+          isFavorite={favoriteIds.has(selectedPost.id)}
+          onToggleFavorite={onToggleFavorite}
+          onExpand={() => setState("full")}
+          onBack={handleBackToList}
+        />
+      )}
+
+      {/* Full detail mode */}
+      {isFull && (
         <InlinePostDetail
           post={selectedPost}
           onBack={handleBackToList}
@@ -269,81 +300,19 @@ export default function MapListSheet({
               )}
             </div>
           ) : (
-            <div className="px-4 pb-[calc(16px+env(safe-area-inset-bottom))]">
-              {sorted.map((post, idx) => {
-                const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
-                const distMi = kmToMiles(distKm);
-                const coverUrls = post.image_urls?.slice(0, 3) || [];
-                const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: zhCN });
-                const isFav = favoriteIds.has(post.id);
-
-                return (
-                  <div key={post.id}>
-                    {idx > 0 && <div className="border-t border-border/20 my-1" />}
-                    <div
-                      onClick={() => onSelectPost(post)}
-                      className="py-3 active:bg-accent/50 transition-colors cursor-pointer rounded-lg"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-[15px] font-semibold text-foreground line-clamp-1">{post.title}</h4>
-                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            {post.price != null && (
-                              <span className="text-xs text-muted-foreground">${post.price.toLocaleString()}</span>
-                            )}
-                            <span className="text-[10px] text-muted-foreground">·</span>
-                            <span className="text-xs text-muted-foreground">{categoryLabels[post.category] || post.category}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-xs text-primary font-medium">
-                              {distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">·</span>
-                            <span className="text-xs text-muted-foreground">{timeAgo}</span>
-                          </div>
-                          {post.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{post.description}</p>
-                          )}
-                        </div>
-                        <FavoriteButton
-                          isFavorite={isFav}
-                          onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
-                          size="sm"
-                        />
-                      </div>
-
-                      {coverUrls.length > 0 && (
-                        <div className="flex gap-1.5 mt-2.5 overflow-hidden rounded-xl">
-                          {coverUrls.map((url, i) => (
-                            <div
-                              key={i}
-                              className={cn(
-                                "relative bg-muted overflow-hidden",
-                                coverUrls.length === 1
-                                  ? "w-full aspect-[2/1] rounded-xl"
-                                  : i === 0
-                                    ? "flex-[2] aspect-[4/3] rounded-l-xl"
-                                    : "flex-1 aspect-[3/4] last:rounded-r-xl"
-                              )}
-                            >
-                              {isVideo(url) ? (
-                                <>
-                                  <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                                    <Play className="h-6 w-6 text-white drop-shadow-lg" />
-                                  </div>
-                                </>
-                              ) : (
-                                <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="pb-[calc(16px+env(safe-area-inset-bottom))]">
+              {sorted.map((post, idx) => (
+                <ListCard
+                  key={post.id}
+                  post={post}
+                  userLat={userLat}
+                  userLng={userLng}
+                  isFavorite={favoriteIds.has(post.id)}
+                  onToggleFavorite={onToggleFavorite}
+                  onSelect={() => onSelectPost(post)}
+                  showDivider={idx > 0}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -371,5 +340,231 @@ export default function MapListSheet({
         </div>
       )}
     </div>
+  );
+}
+
+/* ─── Google Maps style list card ─── */
+function ListCard({
+  post, userLat, userLng, isFavorite, onToggleFavorite, onSelect, showDivider,
+}: {
+  post: Post;
+  userLat: number;
+  userLng: number;
+  isFavorite: boolean;
+  onToggleFavorite: (id: string) => void;
+  onSelect: () => void;
+  showDivider: boolean;
+}) {
+  const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
+  const distMi = kmToMiles(distKm);
+  const coverUrls = post.image_urls?.slice(0, 4) || [];
+
+  // Operating status
+  let statusText = "";
+  let statusColor = "";
+  if (!post.is_mobile && post.operating_hours) {
+    const open = isCurrentlyOpen(post.operating_hours);
+    statusText = open ? "营业中" : "已打烊";
+    statusColor = open ? "text-emerald-600" : "text-destructive";
+  } else if (post.is_mobile) {
+    statusText = "移动服务";
+    statusColor = "text-primary";
+  }
+
+  return (
+    <>
+      {showDivider && <div className="border-t border-border/30 mx-4" />}
+      <div
+        onClick={onSelect}
+        className="px-4 py-3 active:bg-accent/50 transition-colors cursor-pointer"
+      >
+        {/* Row 1: Title + favorite */}
+        <div className="flex items-start justify-between gap-2">
+          <h4 className="text-[15px] font-bold text-foreground line-clamp-1 flex-1">{post.title}</h4>
+          <FavoriteButton
+            isFavorite={isFavorite}
+            onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
+            size="sm"
+          />
+        </div>
+
+        {/* Row 2: Price · Category */}
+        <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+          {post.price != null && (
+            <>
+              <span className="font-medium text-foreground">${post.price.toLocaleString()}</span>
+              <span>·</span>
+            </>
+          )}
+          <span>{categoryLabels[post.category] || post.category}</span>
+        </div>
+
+        {/* Row 3: Status · Distance */}
+        <div className="flex items-center gap-1 mt-0.5 text-xs">
+          {statusText && (
+            <>
+              <span className={cn("font-medium", statusColor)}>{statusText}</span>
+              <span className="text-muted-foreground">·</span>
+            </>
+          )}
+          <span className="text-muted-foreground">
+            {distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
+          </span>
+        </div>
+
+        {/* Horizontal scrollable images */}
+        {coverUrls.length > 0 && (
+          <div className="flex gap-1.5 mt-2 overflow-x-auto scrollbar-hide">
+            {coverUrls.map((url, i) => (
+              <div
+                key={i}
+                className="w-24 h-24 shrink-0 rounded-lg overflow-hidden bg-muted"
+              >
+                {isVideo(url) ? (
+                  <div className="relative w-full h-full">
+                    <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <Play className="h-5 w-5 text-white drop-shadow-lg" />
+                    </div>
+                  </div>
+                ) : (
+                  <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ─── Preview card (45% height, Google Maps style) ─── */
+function PreviewCard({
+  post, userLat, userLng, isFavorite, onToggleFavorite, onExpand, onBack,
+}: {
+  post: Post;
+  userLat: number;
+  userLng: number;
+  isFavorite: boolean;
+  onToggleFavorite: (id: string) => void;
+  onExpand: () => void;
+  onBack: () => void;
+}) {
+  const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
+  const distMi = kmToMiles(distKm);
+  const coverUrls = post.image_urls?.slice(0, 5) || [];
+
+  let statusText = "";
+  let statusColor = "";
+  if (!post.is_mobile && post.operating_hours) {
+    const open = isCurrentlyOpen(post.operating_hours);
+    statusText = open ? "🟢 营业中" : "🔴 已打烊";
+    statusColor = open ? "text-emerald-600" : "text-destructive";
+  } else if (post.is_mobile) {
+    statusText = "📍 移动服务中";
+    statusColor = "text-primary";
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto overscroll-contain touch-auto px-4 pb-4">
+      {/* Title row */}
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <h3 className="text-lg font-bold text-foreground line-clamp-2 flex-1">{post.title}</h3>
+        <FavoriteButton
+          isFavorite={isFavorite}
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(post.id); }}
+          size="md"
+        />
+      </div>
+
+      {/* Info line */}
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-wrap">
+        {post.price != null && (
+          <>
+            <span className="font-semibold text-foreground">${post.price.toLocaleString()}</span>
+            <span>·</span>
+          </>
+        )}
+        <span>{categoryLabels[post.category] || post.category}</span>
+      </div>
+
+      {/* Status + distance */}
+      <div className="flex items-center gap-1.5 mt-0.5 text-sm">
+        {statusText && (
+          <>
+            <span className={cn("font-medium", statusColor)}>{statusText}</span>
+            <span className="text-muted-foreground">·</span>
+          </>
+        )}
+        <span className="text-muted-foreground">
+          {distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
+        </span>
+      </div>
+
+      {/* Action capsules — Google Maps style */}
+      <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide pb-1">
+        <ActionCapsule icon={<Navigation className="h-3.5 w-3.5" />} label="路线" primary />
+        <ActionCapsule icon={<Send className="h-3.5 w-3.5" />} label="私聊" />
+        {/* Phone - only show if we have contact */}
+        <ActionCapsule icon={<Phone className="h-3.5 w-3.5" />} label="致电" />
+        <ActionCapsule icon={<Share2 className="h-3.5 w-3.5" />} label="分享" />
+      </div>
+
+      {/* Horizontal scrollable images */}
+      {coverUrls.length > 0 && (
+        <div className="flex gap-1.5 mt-3 overflow-x-auto scrollbar-hide">
+          {coverUrls.map((url, i) => (
+            <div
+              key={i}
+              className="w-28 h-28 shrink-0 rounded-xl overflow-hidden bg-muted"
+              onClick={onExpand}
+            >
+              {isVideo(url) ? (
+                <div className="relative w-full h-full">
+                  <video src={url} className="w-full h-full object-cover" muted preload="metadata" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                    <Play className="h-5 w-5 text-white drop-shadow-lg" />
+                  </div>
+                </div>
+              ) : (
+                <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tap to see more */}
+      <button
+        onClick={onExpand}
+        className="w-full mt-3 py-2 text-sm font-medium text-primary text-center active:bg-accent/50 rounded-lg transition-colors"
+      >
+        查看详情 ↑
+      </button>
+    </div>
+  );
+}
+
+/* ─── Action capsule button ─── */
+function ActionCapsule({ icon, label, primary = false, onClick }: {
+  icon: React.ReactNode;
+  label: string;
+  primary?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      className={cn(
+        "flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 active:scale-95 transition-transform",
+        primary
+          ? "bg-primary text-primary-foreground"
+          : "bg-secondary text-secondary-foreground"
+      )}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
