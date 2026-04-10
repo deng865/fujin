@@ -28,6 +28,7 @@ export default function CreatePost() {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState("");
   const [locationType, setLocationType] = useState<"precise" | "approximate">("precise");
+  const [isMobile, setIsMobile] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
