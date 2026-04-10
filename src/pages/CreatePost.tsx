@@ -131,6 +131,11 @@ export default function CreatePost() {
         desc = (desc ? desc + "\n\n" : "") + extras.join(" | ");
       }
 
+      // Build operating hours for fixed merchants
+      const operatingHours = (!isMobile && formData.openTime && formData.closeTime)
+        ? { open: formData.openTime, close: formData.closeTime, timezone: formData.timezone }
+        : null;
+
       const postPayload = {
         title: formData.title.trim(),
         description: desc?.trim() || null,
@@ -141,6 +146,8 @@ export default function CreatePost() {
         image_urls: formData.imageUrls.length > 0 ? formData.imageUrls : null,
         contact_phone: formData.phone.trim() || null,
         contact_wechat: formData.wechatId.trim() || null,
+        is_mobile: isMobile,
+        operating_hours: operatingHours,
       };
 
       if (editId) {
