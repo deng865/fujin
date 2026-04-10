@@ -1,5 +1,6 @@
 import { Marker } from "react-map-gl/mapbox";
 import { Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, MapPin, Scale, Heart } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const categoryIcons: Record<string, any> = {
   housing: Home, jobs: Briefcase, auto: Car, food: UtensilsCrossed,
@@ -33,9 +34,10 @@ interface PostMarkersProps {
   posts: Post[];
   onSelectPost: (post: Post) => void;
   favoriteIds?: Set<string>;
+  selectedPostId?: string | null;
 }
 
-export default function PostMarkers({ posts, onSelectPost, favoriteIds }: PostMarkersProps) {
+export default function PostMarkers({ posts, onSelectPost, favoriteIds, selectedPostId }: PostMarkersProps) {
   return (
     <>
       {posts.map((post) => {
@@ -43,8 +45,8 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds }: PostMa
         const color = categoryColors[post.category] || "bg-muted";
         const isFav = favoriteIds?.has(post.id);
         const isMobile = post.is_mobile === true;
+        const isSelected = selectedPostId === post.id;
 
-        // For mobile merchants, use live coordinates if available
         const lat = isMobile && post.live_latitude != null ? post.live_latitude : post.latitude;
         const lng = isMobile && post.live_longitude != null ? post.live_longitude : post.longitude;
 
@@ -59,22 +61,30 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds }: PostMa
               onSelectPost(post);
             }}
           >
-            <div className="relative cursor-pointer">
+            <div
+              className={cn(
+                "relative cursor-pointer transition-transform duration-200",
+                isSelected && "scale-[1.35] z-10"
+              )}
+            >
               {isMobile ? (
-                /* Mobile merchant: fuzzy pulse circle */
                 <div className="relative flex items-center justify-center">
-                  {/* Outer pulse ring */}
                   <div className="absolute h-12 w-12 rounded-full bg-primary/20 animate-ping" style={{ animationDuration: "2s" }} />
-                  {/* Static blur circle */}
                   <div className="absolute h-10 w-10 rounded-full bg-primary/15 backdrop-blur-sm" />
-                  {/* Center icon */}
-                  <div className={`${color} text-white rounded-full p-2 shadow-lg z-10 ring-2 ring-white/50`}>
+                  <div className={cn(
+                    `${color} text-white rounded-full p-2 shadow-lg z-10`,
+                    isSelected ? "ring-[3px] ring-white shadow-xl" : "ring-2 ring-white/50"
+                  )}>
                     <Icon className="h-4 w-4" />
                   </div>
                 </div>
               ) : (
-                /* Fixed merchant: standard pin */
-                <div className={`${color} text-white rounded-full p-2 shadow-lg hover:scale-110 transition-transform`}>
+                <div className={cn(
+                  `${color} text-white rounded-full p-2 shadow-lg transition-all duration-200`,
+                  isSelected
+                    ? "ring-[3px] ring-white shadow-xl"
+                    : "hover:scale-110"
+                )}>
                   <Icon className="h-4 w-4" />
                 </div>
               )}
