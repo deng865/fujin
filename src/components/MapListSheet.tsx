@@ -107,6 +107,7 @@ export default function MapListSheet({
   const dragRef = useRef({ startY: 0, startState: state as SheetState });
   const sheetRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const detailScrollRef = useRef<HTMLDivElement>(null);
 
   const getHeight = useCallback((s: SheetState) => {
     const vh = window.innerHeight;
@@ -121,12 +122,19 @@ export default function MapListSheet({
   const currentHeight = getHeight(state);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
-    // Don't allow drag when in detail mode (let content scroll)
-    if (selectedPost && state === "full") return;
+    // In detail mode, only allow drag from handle area or when scrolled to top
+    if (selectedPost && state === "full") {
+      const detailEl = detailScrollRef.current;
+      const touchY = e.touches[0].clientY;
+      const sheetTop = sheetRef.current?.getBoundingClientRect().top ?? 0;
+      const handleZone = sheetTop + HANDLE_HEIGHT + 20;
+      // Allow drag if touching the handle area or detail content is scrolled to top
+      if (touchY > handleZone && detailEl && detailEl.scrollTop > 0) return;
+    }
 
     const list = listRef.current;
-    if (list && state === "full" && list.scrollTop > 0) return;
-    if (list && (state === "half" || state === "full")) {
+    if (!selectedPost && list && state === "full" && list.scrollTop > 0) return;
+    if (!selectedPost && list && (state === "half" || state === "full")) {
       const listRect = list.getBoundingClientRect();
       const touchY = e.touches[0].clientY;
       if (touchY >= listRect.top && touchY <= listRect.bottom && list.scrollTop > 0) return;
@@ -148,6 +156,15 @@ export default function MapListSheet({
     setIsDragging(false);
     const dy = dragOffset;
     const threshold = 50;
+
+    // In detail mode, swipe down dismisses detail → back to list
+    if (selectedPost && dy < -threshold) {
+      onSelectPost(null);
+      setState("half");
+      setDragOffset(0);
+      return;
+    }
+
     if (dy > threshold) {
       setState((s) => {
         if (s === "hidden") return "peek";
@@ -164,7 +181,7 @@ export default function MapListSheet({
       });
     }
     setDragOffset(0);
-  }, [isDragging, dragOffset]);
+  }, [isDragging, dragOffset, selectedPost, onSelectPost]);
 
   const displayHeight = isDragging
     ? Math.max(HANDLE_HEIGHT, Math.min(window.innerHeight * 0.85, currentHeight + dragOffset))
@@ -233,6 +250,7 @@ export default function MapListSheet({
           onToggleFavorite={onToggleFavorite}
           userLat={userLat}
           userLng={userLng}
+          scrollRef={detailScrollRef}
         />
       )}
 

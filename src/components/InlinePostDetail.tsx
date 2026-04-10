@@ -44,6 +44,7 @@ interface InlinePostDetailProps {
   onToggleFavorite: (postId: string) => void;
   userLat: number;
   userLng: number;
+  scrollRef?: React.RefObject<HTMLDivElement>;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -144,7 +145,7 @@ function LazyMediaCarousel({ urls, title }: { urls: string[]; title: string }) {
   );
 }
 
-export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFavorite, userLat, userLng }: InlinePostDetailProps) {
+export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFavorite, userLat, userLng, scrollRef }: InlinePostDetailProps) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PostProfile | null>(null);
   const [startingChat, setStartingChat] = useState(false);
@@ -216,7 +217,7 @@ export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFav
   return (
     <div className="flex flex-col h-full">
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto overscroll-contain touch-auto pb-20">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain touch-auto pb-20">
         {/* Back button header */}
         <div className="sticky top-0 z-10 flex items-center gap-2 px-3 py-2 bg-background/90 backdrop-blur-sm">
           <button
