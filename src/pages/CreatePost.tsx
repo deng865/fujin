@@ -99,7 +99,21 @@ export default function CreatePost() {
   const handleSubmit = async () => {
     if (!category) return toast.error("请选择分类 / Category required");
     if (!formData.title.trim()) return toast.error("请输入标题 / Title required");
-    if (!location) return toast.error("请选择位置 / Location required");
+
+    // For mobile merchants, auto-detect location if not set
+    let submitLocation = location;
+    if (isMobile && !submitLocation) {
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true })
+        );
+        submitLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setLocation(submitLocation);
+      } catch {
+        return toast.error("无法获取位置，请允许定位权限");
+      }
+    }
+    if (!submitLocation) return toast.error("请选择位置 / Location required");
 
     setLoading(true);
     try {
