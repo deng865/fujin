@@ -156,6 +156,15 @@ export default function MapListSheet({
     setIsDragging(false);
     const dy = dragOffset;
     const threshold = 50;
+
+    // In detail mode, swipe down dismisses detail → back to list
+    if (selectedPost && dy < -threshold) {
+      onSelectPost(null);
+      setState("half");
+      setDragOffset(0);
+      return;
+    }
+
     if (dy > threshold) {
       setState((s) => {
         if (s === "hidden") return "peek";
@@ -172,7 +181,7 @@ export default function MapListSheet({
       });
     }
     setDragOffset(0);
-  }, [isDragging, dragOffset]);
+  }, [isDragging, dragOffset, selectedPost, onSelectPost]);
 
   const displayHeight = isDragging
     ? Math.max(HANDLE_HEIGHT, Math.min(window.innerHeight * 0.85, currentHeight + dragOffset))
