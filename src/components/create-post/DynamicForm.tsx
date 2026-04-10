@@ -39,9 +39,10 @@ interface DynamicFormProps {
   category: string;
   data: FormData;
   onChange: (data: Partial<FormData>) => void;
+  isMobile?: boolean;
 }
 
-export default function DynamicForm({ category, data, onChange }: DynamicFormProps) {
+export default function DynamicForm({ category, data, onChange, isMobile = false }: DynamicFormProps) {
   return (
     <div className="space-y-5">
       {/* Title */}
