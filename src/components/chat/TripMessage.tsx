@@ -556,17 +556,10 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
     );
   }
 
-  const getNavUrl = (target: "from" | "to", app: "apple" | "google") => {
+  const handleNav = (target: "from" | "to", app: "apple" | "google") => {
     const query = target === "from" ? trip.from : trip.to;
     const coords = target === "from" ? trip.fromCoords : trip.toCoords;
-    if (app === "apple") {
-      return coords
-        ? `https://maps.apple.com/?daddr=${coords.lat},${coords.lng}&q=${encodeURIComponent(query)}`
-        : `https://maps.apple.com/?daddr=${encodeURIComponent(query)}`;
-    }
-    return coords
-      ? `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`
-      : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
+    openMapNavigationWithQuery(query, coords, app);
   };
 
   return (
@@ -696,26 +689,20 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
             <div className="px-3 py-1.5 text-[11px] text-muted-foreground border-b border-border/50">
               {navTarget === "from" ? "导航到出发地" : "导航到目的地"}
             </div>
-            <a
-              href={getNavUrl(navTarget, "apple")}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setNavTarget(null)}
+            <button
+              onClick={() => { handleNav(navTarget, "apple"); setNavTarget(null); }}
               className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2 transition-colors"
             >
               <Navigation className="h-4 w-4" />
               Apple Maps
-            </a>
-            <a
-              href={getNavUrl(navTarget, "google")}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setNavTarget(null)}
+            </button>
+            <button
+              onClick={() => { handleNav(navTarget, "google"); setNavTarget(null); }}
               className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2 border-t border-border/50 transition-colors"
             >
               <Navigation className="h-4 w-4" />
               Google Maps
-            </a>
+            </button>
           </div>
         </>
       )}
