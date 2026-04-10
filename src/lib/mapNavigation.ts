@@ -1,7 +1,6 @@
 /**
  * Unified map navigation helper.
- * Uses window.location.href to avoid popup blockers and target="_blank" issues
- * in iOS WebViews, PWAs, and embedded browsers.
+ * Opens the selected map app in a new tab. Falls back to clipboard copy.
  */
 export function openMapNavigation(lat: number, lng: number, app: "apple" | "google") {
   const urls = {
@@ -9,34 +8,30 @@ export function openMapNavigation(lat: number, lng: number, app: "apple" | "goog
     google: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`,
   };
 
-  // Use a temporary anchor element to trigger navigation
-  // This is more reliable than window.location.href in WebViews
-  // because it preserves the current page in history
-  const a = document.createElement("a");
-  a.href = urls[app];
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  // Some WebViews block programmatic .click() on anchors not in DOM
-  document.body.appendChild(a);
-  a.click();
-  // Clean up after a tick
-  setTimeout(() => {
-    document.body.removeChild(a);
-  }, 100);
+  const url = urls[app];
 
-  // Fallback: if the above didn't work, try window.open
-  setTimeout(() => {
-    if (document.hasFocus()) {
-      const win = window.open(urls[app], "_blank");
-      // Final fallback: copy coordinates to clipboard
-      if (!win) {
+  // Try window.open first (must be synchronous from user click)
+  const win = window.open(url, "_blank", "noopener,noreferrer");
+
+  if (!win) {
+    // Fallback: inject a real <a> and click it
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => document.body.removeChild(a), 100);
+
+    // Final fallback after a short delay: copy coords
+    setTimeout(() => {
+      if (document.hasFocus()) {
         navigator.clipboard.writeText(`${lat}, ${lng}`).then(() => {
-          // Use a simple alert as toast may not be available here
           alert("坐标已复制到剪贴板，请打开地图App粘贴搜索");
         }).catch(() => {
           prompt("请复制以下坐标到地图App中搜索：", `${lat}, ${lng}`);
         });
       }
-    }
-  }, 500);
+    }, 800);
+  }
 }
