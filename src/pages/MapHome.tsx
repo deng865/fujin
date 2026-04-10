@@ -284,6 +284,7 @@ export default function MapHome() {
         currentMapType={mapType}
         bearing={bearing}
         onResetNorth={() => mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: 500 })}
+        bottomOffset={sheetHeight}
       />
 
       {/* Bottom sheet with list of nearby posts */}
@@ -298,6 +299,7 @@ export default function MapHome() {
         onFiltersChange={setFilters}
         selectedCategory={selectedCategory}
         mapTapped={mapTapped}
+        onSheetHeightChange={setSheetHeight}
       />
 
       <PostBottomSheet
