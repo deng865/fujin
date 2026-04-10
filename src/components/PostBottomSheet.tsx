@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Navigation, Heart, Phone, MessageCircle, Send, Clock, MapPin, ChevronLeft, ChevronRight, Flag, X, Play } from "lucide-react";
+import { Navigation, Heart, Phone, MessageCircle, Send, Clock, MapPin, ChevronLeft, ChevronRight, Flag, X, Play, Truck, Store } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
 import { openMapNavigation } from "@/lib/mapNavigation";
+import { isCurrentlyOpen } from "@/lib/operatingHours";
 import FavoriteButton from "@/components/FavoriteButton";
 import {
   Drawer,
