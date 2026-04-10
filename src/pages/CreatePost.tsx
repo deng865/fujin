@@ -152,6 +152,10 @@ export default function CreatePost() {
             toast.error("该设备在此分类下已有活跃信息，请勿重复发布");
             return;
           }
+          if (error.message?.includes("CONTACT_DUPLICATE")) {
+            toast.error("该联系方式在此分类下已有活跃信息，请勿重复发布");
+            return;
+          }
           throw error;
         }
         toast.success("发布成功！ / Posted successfully!");
