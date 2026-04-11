@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { openMapNavigation } from "@/lib/mapNavigation";
+import { buildAppleMapsUrl, buildGoogleMapsUrl } from "@/lib/mapNavigation";
+import MapChoiceSheet from "@/components/MapChoiceSheet";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";

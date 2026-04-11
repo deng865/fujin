@@ -1,5 +1,6 @@
 import { MapPin, Navigation, X } from "lucide-react";
-import { openMapNavigation } from "@/lib/mapNavigation";
+import { buildAppleMapsUrl, buildGoogleMapsUrl } from "@/lib/mapNavigation";
+import MapChoiceSheet from "@/components/MapChoiceSheet";
 import { useState } from "react";
 import AvatarMarker from "../AvatarMarker";
 
