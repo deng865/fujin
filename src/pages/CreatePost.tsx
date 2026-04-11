@@ -100,6 +100,23 @@ export default function CreatePost() {
     if (!category) return toast.error("请选择分类 / Category required");
     if (!formData.title.trim()) return toast.error("请输入标题 / Title required");
 
+    // Check for existing active post in same category (new posts only)
+    if (!editId) {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        const { count } = await supabase
+          .from("posts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", currentUser.id)
+          .eq("category", category)
+          .eq("is_visible", true);
+        if (count && count > 0) {
+          toast.error("您在该分类下已有一条活跃信息，请先下架后再发布新的");
+          return;
+        }
+      }
+    }
+
     // For mobile merchants, auto-detect location if not set
     let submitLocation = location;
     if (isMobile && !submitLocation) {
@@ -172,6 +189,10 @@ export default function CreatePost() {
       } else {
         const { error } = await supabase.from("posts").insert({ ...postPayload, user_id: user.id, device_id: getDeviceId() });
         if (error) {
+          if (error.message?.includes("idx_posts_one_active_per_user_category") || error.code === "23505") {
+            toast.error("您在该分类下已有一条活跃信息，请先下架后再发布新的");
+            return;
+          }
           if (error.message?.includes("DEVICE_DUPLICATE")) {
             toast.error("该设备在此分类下已有活跃信息，请勿重复发布");
             return;
