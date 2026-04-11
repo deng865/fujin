@@ -1,6 +1,6 @@
-import { MapPin, Navigation, X } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useMapChoice } from "@/components/MapChoiceSheet";
-import { useState } from "react";
+import AvatarMarker from "../AvatarMarker";
 import AvatarMarker from "../AvatarMarker";
 
 interface LocationData {
