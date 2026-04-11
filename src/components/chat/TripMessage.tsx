@@ -556,7 +556,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
               </div>
               <span className="break-words flex-1 min-w-0">{trip.from}</span>
               <button
-                onClick={() => setNavTarget(navTarget === "from" ? null : "from")}
+                onClick={() => handleNav("from")}
                 className={`p-1 rounded-md shrink-0 transition-colors ${isMe ? "hover:bg-primary-foreground/20" : "hover:bg-accent"}`}
                 title="导航到出发地"
               >
@@ -572,7 +572,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
               </div>
               <span className="break-words flex-1 min-w-0">{trip.to}</span>
               <button
-                onClick={() => setNavTarget(navTarget === "to" ? null : "to")}
+                onClick={() => handleNav("to")}
                 className={`p-1 rounded-md shrink-0 transition-colors ${isMe ? "hover:bg-primary-foreground/20" : "hover:bg-accent"}`}
                 title="导航到目的地"
               >
@@ -658,30 +658,6 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
         </div>
       </div>
 
-      {navTarget && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setNavTarget(null)} />
-          <div className={`absolute z-50 top-0 ${isMe ? "right-full mr-1" : "left-full ml-1"} bg-background border border-border rounded-xl shadow-lg overflow-hidden min-w-[160px]`}>
-            <div className="px-3 py-1.5 text-[11px] text-muted-foreground border-b border-border/50">
-              {navTarget === "from" ? "导航到出发地" : "导航到目的地"}
-            </div>
-            <button
-              onClick={() => { handleNav(navTarget, "apple"); setNavTarget(null); }}
-              className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2 transition-colors"
-            >
-              <Navigation className="h-4 w-4" />
-              Apple Maps
-            </button>
-            <button
-              onClick={() => { handleNav(navTarget, "google"); setNavTarget(null); }}
-              className="w-full px-4 py-3 text-sm text-left hover:bg-accent flex items-center gap-2 border-t border-border/50 transition-colors"
-            >
-              <Navigation className="h-4 w-4" />
-              Google Maps
-            </button>
-          </div>
-        </>
-      )}
     </div>
   );
 }
