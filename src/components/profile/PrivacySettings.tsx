@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
-import { MapPin, Trash2, ArrowLeft } from "lucide-react";
+import { MapPin, Trash2, ArrowLeft, FileText, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -77,6 +78,23 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
             <p className="text-xs text-muted-foreground">注销后所有数据将被清空</p>
           </div>
         </button>
+      </div>
+
+      <div className="bg-card border border-border rounded-2xl divide-y divide-border">
+        <Link
+          to="/privacy-policy"
+          className="flex items-center gap-3 p-4 hover:bg-accent/50 transition-colors"
+        >
+          <Shield className="h-5 w-5 text-muted-foreground" />
+          <p className="text-sm font-medium">隐私政策</p>
+        </Link>
+        <Link
+          to="/terms-of-service"
+          className="flex items-center gap-3 p-4 hover:bg-accent/50 transition-colors"
+        >
+          <FileText className="h-5 w-5 text-muted-foreground" />
+          <p className="text-sm font-medium">服务条款</p>
+        </Link>
       </div>
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

@@ -17,6 +17,8 @@ import ChatRoom from "./pages/ChatRoom";
 import AdminPortal from "./pages/AdminPortal";
 import Discovery from "./pages/Discovery";
 import NotFound from "./pages/NotFound";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +43,8 @@ const App = () => (
               <Route path="/chat/:id" element={<ChatRoom />} />
               <Route path="/admin" element={<AdminPortal />} />
               <Route path="/admin-portal" element={<AdminPortal />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
