@@ -1,8 +1,15 @@
+import { useState, useCallback } from "react";
 import { MapPin } from "lucide-react";
 import {
   Drawer,
   DrawerContent,
 } from "@/components/ui/drawer";
+import {
+  buildAppleMapsUrl,
+  buildGoogleMapsUrl,
+  buildAppleMapsUrlWithQuery,
+  buildGoogleMapsUrlWithQuery,
+} from "@/lib/mapNavigation";
 
 interface MapChoiceSheetProps {
   open: boolean;
@@ -11,7 +18,7 @@ interface MapChoiceSheetProps {
   googleMapsUrl: string;
 }
 
-export default function MapChoiceSheet({ open, onClose, appleMapsUrl, googleMapsUrl }: MapChoiceSheetProps) {
+function MapChoiceSheet({ open, onClose, appleMapsUrl, googleMapsUrl }: MapChoiceSheetProps) {
   const go = (url: string) => {
     window.location.href = url;
     onClose();
@@ -45,4 +52,57 @@ export default function MapChoiceSheet({ open, onClose, appleMapsUrl, googleMaps
       </DrawerContent>
     </Drawer>
   );
+}
+
+export default MapChoiceSheet;
+
+/**
+ * Hook that manages MapChoiceSheet state.
+ * Returns { openMapChoice, MapChoice } where:
+ * - openMapChoice(lat, lng) opens the sheet
+ * - MapChoice is the JSX element to render
+ */
+export function useMapChoice() {
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  const openMapChoice = useCallback((lat: number, lng: number) => {
+    setCoords({ lat, lng });
+  }, []);
+
+  const close = useCallback(() => setCoords(null), []);
+
+  const MapChoice = coords ? (
+    <MapChoiceSheet
+      open
+      onClose={close}
+      appleMapsUrl={buildAppleMapsUrl(coords.lat, coords.lng)}
+      googleMapsUrl={buildGoogleMapsUrl(coords.lat, coords.lng)}
+    />
+  ) : null;
+
+  return { openMapChoice, MapChoice };
+}
+
+/**
+ * Hook variant for query-based navigation (TripMessage).
+ */
+export function useMapChoiceWithQuery() {
+  const [target, setTarget] = useState<{ query: string; coords: { lat: number; lng: number } | null | undefined } | null>(null);
+
+  const openMapChoiceWithQuery = useCallback((query: string, coords: { lat: number; lng: number } | null | undefined) => {
+    setTarget({ query, coords });
+  }, []);
+
+  const close = useCallback(() => setTarget(null), []);
+
+  const MapChoice = target ? (
+    <MapChoiceSheet
+      open
+      onClose={close}
+      appleMapsUrl={buildAppleMapsUrlWithQuery(target.query, target.coords)}
+      googleMapsUrl={buildGoogleMapsUrlWithQuery(target.query, target.coords)}
+    />
+  ) : null;
+
+  return { openMapChoiceWithQuery, MapChoice };
 }
