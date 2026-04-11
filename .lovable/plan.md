@@ -1,20 +1,61 @@
 
 
-## 修复地图选择弹窗底部遮挡
+# 限制每用户每类目仅一条活跃帖子
 
-当前 `pb-8`（2rem）不够，Google 地图按钮被 iPhone 底部安全区遮住。只需把底部内边距从 `pb-8` 改成 `pb-14`（3.5rem），把按钮整体往上推，不影响其他底部布局。
+## 现状
 
-### 改动
+数据库已有 `device_id` 和联系方式的去重触发器，但没有 `user_id + category` 的唯一约束。前端 `CreatePost.tsx` 的 `handleSubmit` 也没有预先检查同类目是否已有活跃帖子。
 
-**文件**: `src/components/MapChoiceSheet.tsx` 第 31 行
+## 改动
 
+### 1. 数据库：添加唯一部分索引
+
+创建一个 partial unique index，仅对 `is_visible = true` 的行生效：
+
+```sql
+CREATE UNIQUE INDEX idx_posts_one_active_per_user_category
+ON public.posts (user_id, category)
+WHERE is_visible = true;
 ```
-// 之前
-<div className="px-5 pt-4 pb-8 space-y-3">
 
-// 之后
-<div className="px-5 pt-4 pb-14 space-y-3">
+这样每个用户在每个类目下最多只能有一条 `is_visible = true` 的帖子。已下架的帖子不受限制。
+
+### 2. 前端：提交前预检查（CreatePost.tsx）
+
+在 `handleSubmit` 函数开头（校验完 category 和 title 之后），新增一个查询：
+
+```typescript
+// 编辑模式不需要检查
+if (!editId) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { count } = await supabase
+    .from("posts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("category", category)
+    .eq("is_visible", true);
+  if (count && count > 0) {
+    toast.error("您在该分类下已有一条活跃信息，请先下架后再发布新的");
+    return;
+  }
+}
 ```
 
-仅增加弹窗内部的底部 padding，不涉及任何全局布局或其他组件。
+### 3. 前端：捕获数据库层错误
+
+在 `handleSubmit` 的 insert 错误处理中，增加对唯一索引冲突的捕获（与现有 DEVICE_DUPLICATE 处理同级）：
+
+```typescript
+if (error.message?.includes("idx_posts_one_active_per_user_category") || error.code === "23505") {
+  toast.error("您在该分类下已有一条活跃信息，请先下架后再发布新的");
+  return;
+}
+```
+
+## 涉及文件
+
+| 文件 | 改动 |
+|------|------|
+| 新建迁移 SQL | 添加 partial unique index |
+| `src/pages/CreatePost.tsx` | handleSubmit 添加预检查 + 错误捕获 |
 
