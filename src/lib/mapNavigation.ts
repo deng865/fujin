@@ -1,41 +1,41 @@
 /**
- * Unified map navigation helper.
+ * Map navigation URL builders.
  * 
- * Strategy: Always use maps:// scheme via window.location.href.
- * The iOS native shell has been configured to intercept maps:// URLs
- * and hand them off to the system (Apple Maps).
- *
- * No popups, no window.open, no choice dialog.
+ * These functions build URLs for Apple Maps and Google Maps.
+ * The actual navigation is triggered by MapChoiceSheet component.
  */
 
-function buildMapsUrl(lat: number, lng: number): string {
+export function buildAppleMapsUrl(lat: number, lng: number): string {
   return `maps://?daddr=${lat},${lng}&dirflg=d`;
 }
 
-function buildMapsUrlWithQuery(
+export function buildGoogleMapsUrl(lat: number, lng: number): string {
+  return `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
+}
+
+export function buildAppleMapsUrlWithQuery(
   query: string,
   coords: { lat: number; lng: number } | null | undefined
 ): string {
-  if (coords) {
-    return `maps://?daddr=${coords.lat},${coords.lng}&dirflg=d`;
-  }
+  if (coords) return `maps://?daddr=${coords.lat},${coords.lng}&dirflg=d`;
   return `maps://?daddr=${encodeURIComponent(query)}`;
 }
 
-/**
- * Open map navigation for coordinates.
- * Directly navigates via maps:// scheme.
- */
-export function openMapNavigation(lat: number, lng: number) {
-  window.location.href = buildMapsUrl(lat, lng);
+export function buildGoogleMapsUrlWithQuery(
+  query: string,
+  coords: { lat: number; lng: number } | null | undefined
+): string {
+  if (coords) return `comgooglemaps://?daddr=${coords.lat},${coords.lng}&directionsmode=driving`;
+  return `comgooglemaps://?daddr=${encodeURIComponent(query)}&directionsmode=driving`;
 }
 
 /**
- * Open map navigation with a query string (address text) or coordinates.
+ * Navigate to Apple Maps (legacy helper, used by MapChoiceSheet internally).
  */
-export function openMapNavigationWithQuery(
-  query: string,
-  coords: { lat: number; lng: number } | null | undefined
-) {
-  window.location.href = buildMapsUrlWithQuery(query, coords);
+export function navigateToAppleMaps(lat: number, lng: number) {
+  window.location.href = buildAppleMapsUrl(lat, lng);
+}
+
+export function navigateToGoogleMaps(lat: number, lng: number) {
+  window.location.href = buildGoogleMapsUrl(lat, lng);
 }

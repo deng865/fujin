@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle, Loader2, Car } from "lucide-react";
 import { TripRatingInput } from "./TripRating";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
-import { openMapNavigationWithQuery } from "@/lib/mapNavigation";
+import { useMapChoiceWithQuery } from "@/components/MapChoiceSheet";
 import Map, { Marker, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -198,6 +198,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
 }) {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [routeFailed, setRouteFailed] = useState(false);
+  const { openMapChoiceWithQuery, MapChoice } = useMapChoiceWithQuery();
   const tripEnded = isCancelled || isCompleted;
   const showRouteSection = !tripEnded && !!acceptData.fromCoords && !!acceptData.toCoords;
   const buttonsDisabled = completingTrip || cancellingTrip;
@@ -205,7 +206,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
   const handleNav = (target: "from" | "to") => {
     const query = target === "from" ? acceptData.from : acceptData.to;
     const coords = target === "from" ? acceptData.fromCoords : acceptData.toCoords;
-    openMapNavigationWithQuery(query, coords);
+    openMapChoiceWithQuery(query, coords);
   };
 
   return (
@@ -320,7 +321,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
           )}
         </div>
       </div>
-
+      {MapChoice}
     </div>
   );
 }
@@ -351,6 +352,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [mainRouteFailed, setMainRouteFailed] = useState(false);
   const [counterSending, setCounterSending] = useState(false);
+  const { openMapChoiceWithQuery: openMainMapChoice, MapChoice: MainMapChoice } = useMapChoiceWithQuery();
 
   // Handle trip_accept_notify type
   const notifyData = parseTripAcceptNotify(content);
@@ -534,7 +536,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
   const handleNav = (target: "from" | "to") => {
     const query = target === "from" ? trip.from : trip.to;
     const coords = target === "from" ? trip.fromCoords : trip.toCoords;
-    openMapNavigationWithQuery(query, coords);
+    openMainMapChoice(query, coords);
   };
 
   return (
@@ -656,7 +658,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
           )}
         </div>
       </div>
-
+      {MainMapChoice}
     </div>
   );
 }

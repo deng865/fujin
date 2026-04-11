@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import FavoriteButton from "@/components/FavoriteButton";
 import InlinePostDetail from "@/components/InlinePostDetail";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
-import { openMapNavigation } from "@/lib/mapNavigation";
+import { useMapChoice } from "@/components/MapChoiceSheet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
@@ -427,6 +427,7 @@ function ListCard({
   showDivider: boolean;
 }) {
   const navigate = useNavigate();
+  const { openMapChoice, MapChoice } = useMapChoice();
   const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
   const distMi = kmToMiles(distKm);
   const coverUrls = post.image_urls || [];
@@ -536,7 +537,7 @@ function ListCard({
               icon={<Navigation className="h-3.5 w-3.5" />}
               label="路线"
               primary
-              onClick={(e) => { e.stopPropagation(); openMapNavigation(post.latitude, post.longitude); }}
+              onClick={(e) => { e.stopPropagation(); openMapChoice(post.latitude, post.longitude); }}
             />
           )}
           <ActionCapsule icon={<Send className="h-3.5 w-3.5" />} label="私聊" onClick={handleStartChat} />
@@ -561,6 +562,7 @@ function ListCard({
           <ActionCapsule icon={<Share2 className="h-3.5 w-3.5" />} label="分享" onClick={handleShare} />
         </div>
       </div>
+      {MapChoice}
     </>
   );
 }
@@ -578,6 +580,7 @@ function PreviewCard({
   onBack: () => void;
 }) {
   const navigate = useNavigate();
+  const { openMapChoice, MapChoice: MapChoice2 } = useMapChoice();
   const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
   const distMi = kmToMiles(distKm);
   const coverUrls = post.image_urls || [];
@@ -670,7 +673,7 @@ function PreviewCard({
       {/* Action capsules */}
       <div className="flex gap-2 mt-3 overflow-x-auto scrollbar-hide pb-1">
         {!post.is_mobile && (
-          <ActionCapsule icon={<Navigation className="h-3.5 w-3.5" />} label="路线" primary onClick={(e) => { e.stopPropagation(); openMapNavigation(post.latitude, post.longitude); }} />
+          <ActionCapsule icon={<Navigation className="h-3.5 w-3.5" />} label="路线" primary onClick={(e) => { e.stopPropagation(); openMapChoice(post.latitude, post.longitude); }} />
         )}
         <ActionCapsule icon={<Send className="h-3.5 w-3.5" />} label="私聊" onClick={handleStartChat} />
         <ActionCapsule icon={<Phone className="h-3.5 w-3.5" />} label="致电" onClick={(e) => {
@@ -704,6 +707,7 @@ function PreviewCard({
       >
         查看详情 ↑
       </button>
+      {MapChoice2}
     </div>
   );
 }

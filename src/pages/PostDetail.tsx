@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { openMapNavigation } from "@/lib/mapNavigation";
+import { useMapChoice } from "@/components/MapChoiceSheet";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,7 @@ export default function PostDetail() {
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [reporting, setReporting] = useState(false);
+  const { openMapChoice, MapChoice } = useMapChoice();
   const { isFavorite, toggleFavorite, userId: favUserId } = useFavorites();
 
   const handleFavorite = async (e: React.MouseEvent) => {
@@ -241,7 +242,7 @@ export default function PostDetail() {
             </span>
             <div className="ml-auto">
               <button
-                onClick={() => openMapNavigation(post.latitude, post.longitude)}
+                onClick={() => openMapChoice(post.latitude, post.longitude)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-xl active:scale-95 transition-transform"
               >
                 <Navigation className="h-3.5 w-3.5" />
@@ -418,6 +419,7 @@ export default function PostDetail() {
           receiverName={post.profiles?.name}
         />
       )}
+      {MapChoice}
     </div>
   );
 }

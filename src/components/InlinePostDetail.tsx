@@ -10,7 +10,7 @@ import { zhCN } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
-import { openMapNavigation } from "@/lib/mapNavigation";
+import { useMapChoice } from "@/components/MapChoiceSheet";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
 import FavoriteButton from "@/components/FavoriteButton";
 import { cn } from "@/lib/utils";
@@ -172,6 +172,7 @@ export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFav
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PostProfile | null>(null);
   const [startingChat, setStartingChat] = useState(false);
+  const { openMapChoice, MapChoice } = useMapChoice();
   
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [liveDistMi, setLiveDistMi] = useState<number | null>(null);
@@ -313,7 +314,7 @@ export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFav
                 icon={<Navigation className="h-4 w-4" />}
                 label="路线"
                 primary
-                onClick={() => openMapNavigation(post.latitude, post.longitude)}
+                onClick={() => openMapChoice(post.latitude, post.longitude)}
               />
             )}
             <ActionCapsule
@@ -387,6 +388,7 @@ export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFav
           )}
         </div>
       </div>
+      {MapChoice}
     </div>
   );
 }
