@@ -352,6 +352,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [mainRouteFailed, setMainRouteFailed] = useState(false);
   const [counterSending, setCounterSending] = useState(false);
+  const { openMapChoiceWithQuery: openMainMapChoice, MapChoice: MainMapChoice } = useMapChoiceWithQuery();
 
   // Handle trip_accept_notify type
   const notifyData = parseTripAcceptNotify(content);
@@ -535,7 +536,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
   const handleNav = (target: "from" | "to") => {
     const query = target === "from" ? trip.from : trip.to;
     const coords = target === "from" ? trip.fromCoords : trip.toCoords;
-    openMapNavigationWithQuery(query, coords);
+    openMainMapChoice(query, coords);
   };
 
   return (
