@@ -130,7 +130,7 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PostProfile | null>(null);
   const [startingChat, setStartingChat] = useState(false);
-  const [showNavChoice, setShowNavChoice] = useState(false);
+  
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -277,31 +277,13 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
                     </span>
                   )}
                 </div>
-                <div className="relative">
-                  <button
-                    onClick={() => setShowNavChoice((v) => !v)}
-                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground rounded-xl active:scale-95 transition-transform"
-                  >
-                    <Navigation className="h-3.5 w-3.5" />
-                    导航
-                  </button>
-                  {showNavChoice && (
-                    <div className="absolute right-0 bottom-full mb-2 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
-                      <button
-                        onClick={() => { setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "apple"); }}
-                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
-                      >
-                        🍎 Apple Maps
-                      </button>
-                      <button
-                        onClick={() => { setShowNavChoice(false); openMapNavigation(post.latitude, post.longitude, "google"); }}
-                        className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors whitespace-nowrap"
-                      >
-                        📍 Google Maps
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <button
+                  onClick={() => openMapNavigation(post.latitude, post.longitude)}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground rounded-xl active:scale-95 transition-transform"
+                >
+                  <Navigation className="h-3.5 w-3.5" />
+                  导航
+                </button>
               </div>
 
               {/* Description */}

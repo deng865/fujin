@@ -1,4 +1,4 @@
-import { MapPin, ExternalLink, X } from "lucide-react";
+import { MapPin, Navigation, X } from "lucide-react";
 import { openMapNavigation } from "@/lib/mapNavigation";
 import { useState } from "react";
 import AvatarMarker from "../AvatarMarker";
@@ -83,7 +83,7 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
         </div>
       </div>
 
-      {/* Full-screen modal picker */}
+      {/* Tap to navigate directly */}
       {showPicker && (
         <div
           className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/40 animate-in fade-in duration-200"
@@ -93,50 +93,21 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
             className="w-full max-w-sm mb-safe bg-background rounded-t-2xl shadow-xl animate-in slide-in-from-bottom duration-300 pb-6"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Handle bar */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
             </div>
-
-            {/* Title */}
-            <div className="flex items-center justify-between px-5 py-3">
-              <span className="text-sm font-semibold text-foreground">选择地图应用</span>
-              <button
-                onClick={() => setShowPicker(false)}
-                className="p-1 rounded-full hover:bg-muted transition-colors"
-              >
-                <X className="h-4 w-4 text-muted-foreground" />
-              </button>
+            <div className="px-5 py-3 text-center">
+              <span className="text-sm font-semibold text-foreground">即将打开地图导航</span>
             </div>
-
-            {/* Options */}
             <div className="px-4 flex flex-col gap-2">
               <button
-                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors w-full text-left"
-                onClick={() => { setShowPicker(false); openMapNavigation(loc.lat, loc.lng, "google"); }}
+                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-primary text-primary-foreground transition-colors w-full justify-center"
+                onClick={() => { setShowPicker(false); openMapNavigation(loc.lat, loc.lng); }}
               >
-                <span className="text-2xl">🗺️</span>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-foreground">Google 地图</span>
-                  <span className="text-xs text-muted-foreground">打开地图导航</span>
-                </div>
-                <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
-              </button>
-
-              <button
-                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors w-full text-left"
-                onClick={() => { setShowPicker(false); openMapNavigation(loc.lat, loc.lng, "apple"); }}
-              >
-                <span className="text-2xl">🍎</span>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-foreground">Apple 地图</span>
-                  <span className="text-xs text-muted-foreground">打开地图导航</span>
-                </div>
-                <ExternalLink className="h-4 w-4 text-muted-foreground ml-auto" />
+                <Navigation className="h-5 w-5" />
+                <span className="text-sm font-medium">开始导航</span>
               </button>
             </div>
-
-            {/* Cancel */}
             <div className="px-4 mt-3">
               <button
                 onClick={() => setShowPicker(false)}
