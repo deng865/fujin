@@ -1,66 +1,64 @@
 
-结论先说清楚：这次问题基本已经定位了，不是单一按钮没绑好，而是“两层都存在问题”。
 
-1. Web 端当前的统一导航函数 `src/lib/mapNavigation.ts` 仍然依赖 `window.open` 和新窗口思路；这在 iPhone 测试 App 这类内嵌 WebView 场景里，经常会被直接忽略，所以点击后看起来“完全没反应”。
-2. 项目里还有多处地图跳转没有完全统一，除了商家浏览页外，聊天里的位置/行程导航仍有直接 `target="_blank"` 的写法。
-3. 我检查了当前仓库，没有任何 iOS 包壳代码；也就是说，测试 App 那一层如果没有接管外部链接，单改这个网页仓库，无法把“测试 App 内稳定拉起地图”彻底修好。这也是前两次为什么没修住的核心原因。
+# 路线按钮增加地图选择（Apple Maps / Google Maps）
 
-实施计划
+## 改动内容
 
-1. 重做统一导航能力
-- 重写 `src/lib/mapNavigation.ts`
-- 不再把跳转成功与否寄托在 `_blank`
-- 统一生成 Apple Maps / Google Maps 的链接、失败兜底文案、复制坐标兜底
+### 1. 重写 `src/lib/mapNavigation.ts`
 
-2. 把所有地图入口彻底统一到这一套
-- 商家浏览相关：
-  - `src/components/MapListSheet.tsx`
-  - `src/components/InlinePostDetail.tsx`
-  - `src/pages/PostDetail.tsx`
-  - `src/components/PostBottomSheet.tsx`
-- 聊天相关也一起收口：
-  - `src/components/chat/InAppNavMap.tsx`
-  - `src/components/chat/LocationMessage.tsx`
-  - `src/components/chat/TripMessage.tsx`
-- 清掉分散的 `target="_blank"`、局部 `window.open`、各自手写地图 URL
+不再直接跳转 `maps://`，改为导出一个 React 组件 `MapChoiceDialog`（或独立的选择函数）：
 
-3. 同步修测试 App 的 iPhone 包壳
-- 在 iOS 壳层接管 WebView 的外链与新窗口
-- 重点处理：
-  - `WKUIDelegate.createWebViewWith`
-  - `WKNavigationDelegate.decidePolicyFor`
-- 命中 Apple Maps、Google Maps 或对应 scheme 时，不在 WebView 内打开，而是交给系统外部打开
-- 这样用户点“路线”才会真正拉起地图 App，而不是卡在当前 WebView 里
+- 点击"路线"时，弹出一个轻量底部弹窗，显示两个选项：
+  - **Apple Maps** → `maps://?daddr=${lat},${lng}&dirflg=d`
+  - **Google Maps** → `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`
+- 两个按钮都使用 `window.location.href` 触发 scheme，iOS 壳层已配置拦截
+- iOS 壳层需要同步增加对 `comgooglemaps://` scheme 的拦截（与 `maps://` 同理）
 
-4. 保留安全兜底
-- 继续保留 Apple / Google 选择层
-- 若外跳失败，明确提示“无法直接打开地图，已复制坐标”
-- 不把 `window.location.href` 作为默认方案，因为这会重现你之前说的“进了地图退不回来”
+### 2. 创建选择组件 `src/components/MapChoiceSheet.tsx`
 
-5. 验证范围
-- iPhone 测试 App 里逐个测试：
-  - 列表卡片
-  - 半屏预览
-  - 全屏详情
-  - 旧详情页
-  - 底部帖子卡
-  - 聊天里的位置卡和行程卡
-- 重点确认：
-  - Apple Maps 能否拉起
-  - Google Maps 装/没装时是否都有结果
-  - 回到 App 后原页面是否还在
-  - 失败时是否正确复制坐标
+- 使用项目已有的 `Drawer` 组件，底部弹出两个按钮
+- Apple 地图图标 + "Apple Maps"
+- Google 地图图标 + "Google Maps"
+- 点击后直接 `window.location.href` 跳转对应 scheme，然后关闭弹窗
 
-涉及文件
-- `src/lib/mapNavigation.ts`
-- `src/components/MapListSheet.tsx`
-- `src/components/InlinePostDetail.tsx`
-- `src/pages/PostDetail.tsx`
-- `src/components/PostBottomSheet.tsx`
-- `src/components/chat/InAppNavMap.tsx`
-- `src/components/chat/LocationMessage.tsx`
-- `src/components/chat/TripMessage.tsx`
+### 3. 修改所有调用点
 
-技术说明
-- 当前仓库里没有 iOS 包壳代码，所以网页侧我可以统一并补强；但“测试 App 内稳定外跳地图”这件事，必须连同 iPhone 壳层一起处理，单改前端网页不够。
-- 如果你能提供测试 App 的壳工程，下一步就可以按这个方案把 Web 端和 iOS 包壳一起闭环修掉。
+所有 7 个文件中的 `openMapNavigation(lat, lng)` 改为打开选择弹窗：
+
+| 文件 | 说明 |
+|------|------|
+| `MapListSheet.tsx` | ListCard + PreviewCard 的路线按钮 |
+| `InlinePostDetail.tsx` | 全屏详情的路线按钮 |
+| `PostBottomSheet.tsx` | 底部帖子预览的路线按钮 |
+| `PostDetail.tsx` | 旧详情页的路线按钮 |
+| `LocationMessage.tsx` | 聊天位置卡导航 |
+| `TripMessage.tsx` | 聊天行程卡导航 |
+| `InAppNavMap.tsx` | 聊天内嵌地图导航 |
+
+### 4. iOS 壳层需要同步修改
+
+在 `Coordinator` 的 `decidePolicyFor` 中增加 `comgooglemaps` scheme 拦截：
+
+```swift
+if let url = navigationAction.request.url,
+   ["maps", "comgooglemaps"].contains(url.scheme) {
+    UIApplication.shared.open(url)
+    decisionHandler(.cancel)
+    return
+}
+```
+
+同时在 `Info.plist` 中添加 `LSApplicationQueriesSchemes`：
+```xml
+<key>LSApplicationQueriesSchemes</key>
+<array>
+    <string>comgooglemaps</string>
+</array>
+```
+
+## 涉及文件
+
+- `src/lib/mapNavigation.ts` — 保留 URL 构建，去掉直接跳转
+- `src/components/MapChoiceSheet.tsx` — 新建选择弹窗组件
+- 上述 7 个调用文件 — 改为使用选择弹窗
+
