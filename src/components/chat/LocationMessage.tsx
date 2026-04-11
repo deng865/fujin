@@ -32,6 +32,7 @@ export function parseLocationMessage(content: string): LocationData | null {
 
 export default function LocationMessage({ content, isMe, senderName, senderAvatarUrl }: LocationMessageProps) {
   const [showPicker, setShowPicker] = useState(false);
+  const { openMapChoice, MapChoice } = useMapChoice();
   const loc = parseLocationMessage(content);
   if (!loc) return null;
 
@@ -85,40 +86,12 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
 
       {/* Tap to navigate directly */}
       {showPicker && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/40 animate-in fade-in duration-200"
-          onClick={() => setShowPicker(false)}
-        >
-          <div
-            className="w-full max-w-sm mb-safe bg-background rounded-t-2xl shadow-xl animate-in slide-in-from-bottom duration-300 pb-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
-            </div>
-            <div className="px-5 py-3 text-center">
-              <span className="text-sm font-semibold text-foreground">即将打开地图导航</span>
-            </div>
-            <div className="px-4 flex flex-col gap-2">
-              <button
-                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-primary text-primary-foreground transition-colors w-full justify-center"
-                onClick={() => { setShowPicker(false); openMapNavigation(loc.lat, loc.lng); }}
-              >
-                <Navigation className="h-5 w-5" />
-                <span className="text-sm font-medium">开始导航</span>
-              </button>
-            </div>
-            <div className="px-4 mt-3">
-              <button
-                onClick={() => setShowPicker(false)}
-                className="w-full py-3 rounded-xl bg-muted text-sm font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
+        <>
+          {openMapChoice(loc.lat, loc.lng)}
+          {(() => { setShowPicker(false); return null; })()}
+        </>
       )}
+      {MapChoice}
     </>
   );
 }
