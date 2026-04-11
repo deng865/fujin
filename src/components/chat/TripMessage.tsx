@@ -344,7 +344,7 @@ interface TripMessageProps {
 }
 
 export default function TripMessage({ content, isMe, isActive, onAccept, onCounter, onRate, onCancel, onComplete, onCounterOpen, hasRated, isCancelled, isCompleted, acceptingTrip, completingTrip, cancellingTrip }: TripMessageProps) {
-  const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
+  
   const [showCounterInput, setShowCounterInput] = useState(false);
   const [counterPrice, setCounterPrice] = useState("");
   const [showRatingInput, setShowRatingInput] = useState(false);
