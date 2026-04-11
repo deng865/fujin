@@ -129,10 +129,7 @@ export default function InAppNavMap({ lat, lng, address, myAvatarUrl, onClose }:
             )}
           </div>
           <button
-            onClick={() => {
-              const app = /iphone|ipad/i.test(navigator.userAgent) ? "apple" as const : "google" as const;
-              openMapNavigation(lat, lng, app);
-            }}
+            onClick={() => openMapNavigation(lat, lng)}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shrink-0 text-center"
           >
             开始导航
