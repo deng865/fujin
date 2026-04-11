@@ -198,7 +198,6 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
 }) {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [routeFailed, setRouteFailed] = useState(false);
-  const [navTarget, setNavTarget] = useState<"from" | "to" | null>(null);
   const tripEnded = isCancelled || isCompleted;
   const showRouteSection = !tripEnded && !!acceptData.fromCoords && !!acceptData.toCoords;
   const buttonsDisabled = completingTrip || cancellingTrip;
