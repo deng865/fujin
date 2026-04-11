@@ -28,7 +28,7 @@ function MapChoiceSheet({ open, onClose, appleMapsUrl, googleMapsUrl }: MapChoic
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
       <DrawerContent className="rounded-t-3xl focus:outline-none">
         <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-muted-foreground/20" />
-        <div className="px-5 pt-4 pb-8 space-y-3">
+        <div className="px-5 pt-4 pb-14 space-y-3">
           <h3 className="text-base font-semibold text-foreground text-center">选择地图应用</h3>
           <button
             onClick={() => go(appleMapsUrl)}
