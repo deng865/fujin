@@ -1,7 +1,6 @@
 import { MapPin } from "lucide-react";
 import { useMapChoice } from "@/components/MapChoiceSheet";
 import AvatarMarker from "../AvatarMarker";
-import AvatarMarker from "../AvatarMarker";
 
 interface LocationData {
   type: "location";
