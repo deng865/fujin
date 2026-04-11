@@ -80,6 +80,23 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
         </button>
       </div>
 
+      <div className="bg-card border border-border rounded-2xl divide-y divide-border">
+        <Link
+          to="/privacy-policy"
+          className="flex items-center gap-3 p-4 hover:bg-accent/50 transition-colors"
+        >
+          <Shield className="h-5 w-5 text-muted-foreground" />
+          <p className="text-sm font-medium">隐私政策</p>
+        </Link>
+        <Link
+          to="/terms-of-service"
+          className="flex items-center gap-3 p-4 hover:bg-accent/50 transition-colors"
+        >
+          <FileText className="h-5 w-5 text-muted-foreground" />
+          <p className="text-sm font-medium">服务条款</p>
+        </Link>
+      </div>
+
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
