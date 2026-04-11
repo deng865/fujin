@@ -198,6 +198,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
 }) {
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [routeFailed, setRouteFailed] = useState(false);
+  const { openMapChoiceWithQuery, MapChoice } = useMapChoiceWithQuery();
   const tripEnded = isCancelled || isCompleted;
   const showRouteSection = !tripEnded && !!acceptData.fromCoords && !!acceptData.toCoords;
   const buttonsDisabled = completingTrip || cancellingTrip;
@@ -205,7 +206,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
   const handleNav = (target: "from" | "to") => {
     const query = target === "from" ? acceptData.from : acceptData.to;
     const coords = target === "from" ? acceptData.fromCoords : acceptData.toCoords;
-    openMapNavigationWithQuery(query, coords);
+    openMapChoiceWithQuery(query, coords);
   };
 
   return (

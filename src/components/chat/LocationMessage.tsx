@@ -31,7 +31,6 @@ export function parseLocationMessage(content: string): LocationData | null {
 }
 
 export default function LocationMessage({ content, isMe, senderName, senderAvatarUrl }: LocationMessageProps) {
-  const [showPicker, setShowPicker] = useState(false);
   const { openMapChoice, MapChoice } = useMapChoice();
   const loc = parseLocationMessage(content);
   if (!loc) return null;
@@ -49,7 +48,7 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
         className={`rounded-2xl overflow-hidden cursor-pointer active:opacity-80 transition-opacity ${
           isMe ? "rounded-br-md" : "rounded-bl-md"
         }`}
-        onClick={() => setShowPicker(true)}
+        onClick={() => openMapChoice(loc.lat, loc.lng)}
       >
         {/* Map preview */}
         <div className="relative w-[220px] h-[120px] bg-muted">
@@ -84,13 +83,6 @@ export default function LocationMessage({ content, isMe, senderName, senderAvata
         </div>
       </div>
 
-      {/* Tap to navigate directly */}
-      {showPicker && (
-        <>
-          {openMapChoice(loc.lat, loc.lng)}
-          {(() => { setShowPicker(false); return null; })()}
-        </>
-      )}
       {MapChoice}
     </>
   );
