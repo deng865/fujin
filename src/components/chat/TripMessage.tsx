@@ -321,7 +321,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
           )}
         </div>
       </div>
-
+      {MapChoice}
     </div>
   );
 }
@@ -658,7 +658,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
           )}
         </div>
       </div>
-
+      {MainMapChoice}
     </div>
   );
 }
