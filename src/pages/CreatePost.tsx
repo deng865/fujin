@@ -189,6 +189,10 @@ export default function CreatePost() {
       } else {
         const { error } = await supabase.from("posts").insert({ ...postPayload, user_id: user.id, device_id: getDeviceId() });
         if (error) {
+          if (error.message?.includes("idx_posts_one_active_per_user_category") || error.code === "23505") {
+            toast.error("您在该分类下已有一条活跃信息，请先下架后再发布新的");
+            return;
+          }
           if (error.message?.includes("DEVICE_DUPLICATE")) {
             toast.error("该设备在此分类下已有活跃信息，请勿重复发布");
             return;
