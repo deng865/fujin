@@ -707,6 +707,7 @@ function PreviewCard({
       >
         查看详情 ↑
       </button>
+      {MapChoice2}
     </div>
   );
 }

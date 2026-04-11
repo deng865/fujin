@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Navigation, MapPin } from "lucide-react";
 import Map, { Marker, Source, Layer, NavigationControl } from "react-map-gl/mapbox";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
-import { buildAppleMapsUrl, buildGoogleMapsUrl } from "@/lib/mapNavigation";
-import MapChoiceSheet from "@/components/MapChoiceSheet";
+import { useMapChoice } from "@/components/MapChoiceSheet";
 import AvatarMarker from "@/components/AvatarMarker";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -17,6 +16,7 @@ interface InAppNavMapProps {
 
 export default function InAppNavMap({ lat, lng, address, myAvatarUrl, onClose }: InAppNavMapProps) {
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
+  const { openMapChoice, MapChoice } = useMapChoice();
   const [route, setRoute] = useState<any>(null);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const mapRef = useRef<any>(null);
@@ -130,13 +130,14 @@ export default function InAppNavMap({ lat, lng, address, myAvatarUrl, onClose }:
             )}
           </div>
           <button
-            onClick={() => openMapNavigation(lat, lng)}
+            onClick={() => openMapChoice(lat, lng)}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shrink-0 text-center"
           >
             开始导航
           </button>
         </div>
       </div>
+      {MapChoice}
     </div>
   );
 }
