@@ -88,6 +88,19 @@ export default function MyPostsList({ posts, onPostsChange }: Props) {
     toast.success("自动上下线时间已保存 ⏰");
   };
 
+  const clearSchedule = async () => {
+    if (!schedulePost) return;
+    const { error } = await supabase
+      .from("posts")
+      .update({ operating_hours: null })
+      .eq("id", schedulePost.id);
+
+    if (error) { toast.error("清除失败"); return; }
+    onPostsChange(posts.map(p => p.id === schedulePost.id ? { ...p, operating_hours: null } : p));
+    setSchedulePost(null);
+    toast.success("已清除自动上下线设置");
+  };
+
   // --- Delete ---
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -129,9 +142,14 @@ export default function MyPostsList({ posts, onPostsChange }: Props) {
                     {post.price != null && `$${post.price} · `}
                     {new Date(post.created_at).toLocaleDateString()}
                     {post.is_mobile ? (
-                      <span className={`ml-1.5 ${post.is_visible ? "text-emerald-500" : "text-muted-foreground"}`}>
-                        · {post.is_visible ? "在线" : "离线"}
-                      </span>
+                      <>
+                        <span className={`ml-1.5 ${post.is_visible ? "text-emerald-500" : "text-muted-foreground"}`}>
+                          · {post.is_visible ? "在线" : "离线"}
+                        </span>
+                        {post.operating_hours && (
+                          <span className="ml-1 text-amber-500">· ⏰ 已定时</span>
+                        )}
+                      </>
                     ) : (
                       post.operating_hours && (
                         <span className="ml-1.5 text-muted-foreground">
@@ -162,10 +180,16 @@ export default function MyPostsList({ posts, onPostsChange }: Props) {
                     </button>
                     <button
                       onClick={() => openScheduleDialog(post)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors ${
+                        post.operating_hours
+                          ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                          : "bg-muted text-muted-foreground hover:bg-accent"
+                      }`}
                     >
                       <Clock className="h-3.5 w-3.5" />
-                      自动上下线
+                      {post.operating_hours
+                        ? `${post.operating_hours.open}-${post.operating_hours.close}`
+                        : "自动上下线"}
                     </button>
                     <button
                       onClick={() => navigate(`/create-post?edit=${post.id}`)}
@@ -250,7 +274,12 @@ export default function MyPostsList({ posts, onPostsChange }: Props) {
               </p>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
+            {schedulePost?.operating_hours && (
+              <Button variant="ghost" className="text-destructive" onClick={clearSchedule}>
+                清除设置
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setSchedulePost(null)}>取消</Button>
             <Button onClick={saveSchedule}>保存</Button>
           </DialogFooter>
