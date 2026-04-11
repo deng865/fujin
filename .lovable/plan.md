@@ -1,82 +1,71 @@
 
 
-# 优化自动上下线按钮的状态展示
+# 添加隐私政策与服务条款页面（应用商店合规）
 
-## 问题
+## 背景
 
-当前"自动上下线"按钮无论是否已设置，样式完全一致，用户无法一眼判断是否已配置成功。
+Google Play 和 Apple App Store 上架均要求应用提供可访问的隐私政策和服务条款页面。当前项目没有这两个页面，Auth 页面的"登录即表示同意"文字也没有链接。
 
 ## 改动
 
-### 文件：`src/components/profile/MyPostsList.tsx`
+### 1. 新建两个页面
 
-**1. 按钮样式区分已设置/未设置状态**
+**`src/pages/PrivacyPolicy.tsx`** — 隐私政策页面，内容涵盖：
+- 收集的信息（账号信息、位置数据、设备 ID、聊天记录）
+- 信息用途（提供服务、定位附近服务、安全保障）
+- 信息共享与披露
+- 数据存储与安全
+- 用户权利（访问、修改、删除账号）
+- Cookie 与本地存储
+- 儿童隐私（不面向13岁以下）
+- 联系方式
+- 政策更新
 
-- **已设置**：按钮背景改为 `bg-emerald-500/10 text-emerald-600`，显示具体时间段，如 `⏰ 09:00-21:00`
-- **未设置**：保持当前灰色/primary 样式，显示 `自动上下线`
+**`src/pages/TermsOfService.tsx`** — 服务条款页面，内容涵盖：
+- 服务描述（华人社区本地化服务平台）
+- 用户账号与责任
+- 禁止行为（欺诈、敏感词相关内容）
+- 用户发布内容的权利与义务
+- 免责声明与责任限制
+- 帐号终止
+- 适用法律
+- 联系方式
 
-**2. 帖子信息行增加定时标记**
+两个页面使用简洁的排版，支持中文内容，顶部有返回按钮。
 
-在已设置自动上下线的移动帖子信息行中，显示一个小标签如 `⏰ 已定时`，与在线/离线状态并列。
+### 2. 注册路由（`src/App.tsx`）
 
-**3. 对话框中增加"清除设置"按钮**
+新增两条路由：
+```
+/privacy-policy → PrivacyPolicy
+/terms-of-service → TermsOfService
+```
+放在 `AppLayout` 路由组内。
 
-在自动上下线设置对话框中增加一个"清除"按钮，将 `operating_hours` 置为 `null`，让用户可以取消定时。
+### 3. Auth 页面增加链接（`src/pages/Auth.tsx`）
 
-### 具体代码变化
-
-按钮部分（约第 163-169 行）改为：
+将第 337 行的纯文本改为带链接的版本：
 
 ```tsx
-<button
-  onClick={() => openScheduleDialog(post)}
-  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors ${
-    post.operating_hours
-      ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
-      : "bg-muted text-muted-foreground hover:bg-accent"
-  }`}
->
-  <Clock className="h-3.5 w-3.5" />
-  {post.operating_hours
-    ? `${post.operating_hours.open}-${post.operating_hours.close}`
-    : "自动上下线"}
-</button>
+<p className="text-center text-xs text-muted-foreground">
+  登录即表示同意我们的
+  <Link to="/terms-of-service" className="underline">服务条款</Link>
+  和
+  <Link to="/privacy-policy" className="underline">隐私政策</Link>
+</p>
 ```
 
-信息行（约第 131-141 行），移动帖子增加定时提示：
+### 4. Profile 页面增加入口（`src/components/profile/PrivacySettings.tsx`）
 
-```tsx
-{post.is_mobile ? (
-  <>
-    <span className={`ml-1.5 ${post.is_visible ? "text-emerald-500" : "text-muted-foreground"}`}>
-      · {post.is_visible ? "在线" : "离线"}
-    </span>
-    {post.operating_hours && (
-      <span className="ml-1 text-amber-500">· ⏰ 已定时</span>
-    )}
-  </>
-) : ( ... )}
-```
-
-对话框底部增加清除按钮：
-
-```tsx
-<DialogFooter className="gap-2">
-  {schedulePost?.operating_hours && (
-    <Button variant="ghost" className="text-destructive" onClick={clearSchedule}>
-      清除设置
-    </Button>
-  )}
-  <Button variant="outline" onClick={() => setSchedulePost(null)}>取消</Button>
-  <Button onClick={saveSchedule}>保存</Button>
-</DialogFooter>
-```
-
-新增 `clearSchedule` 函数，将 `operating_hours` 设为 `null`。
+在隐私设置面板底部添加两个链接按钮，方便用户随时查阅隐私政策和服务条款。
 
 ## 涉及文件
 
-| 文件 | 改动 |
+| 文件 | 操作 |
 |------|------|
-| `src/components/profile/MyPostsList.tsx` | 按钮样式区分、信息行标记、清除设置功能 |
+| `src/pages/PrivacyPolicy.tsx` | 新建 |
+| `src/pages/TermsOfService.tsx` | 新建 |
+| `src/App.tsx` | 添加路由 |
+| `src/pages/Auth.tsx` | 文本改为链接 |
+| `src/components/profile/PrivacySettings.tsx` | 底部增加链接入口 |
 
