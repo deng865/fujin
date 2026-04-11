@@ -203,10 +203,10 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
   const showRouteSection = !tripEnded && !!acceptData.fromCoords && !!acceptData.toCoords;
   const buttonsDisabled = completingTrip || cancellingTrip;
 
-  const handleNav = (target: "from" | "to", app: "apple" | "google") => {
+  const handleNav = (target: "from" | "to") => {
     const query = target === "from" ? acceptData.from : acceptData.to;
     const coords = target === "from" ? acceptData.fromCoords : acceptData.toCoords;
-    openMapNavigationWithQuery(query, coords, app);
+    openMapNavigationWithQuery(query, coords);
   };
 
   return (
@@ -556,10 +556,10 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
     );
   }
 
-  const handleNav = (target: "from" | "to", app: "apple" | "google") => {
+  const handleNav = (target: "from" | "to") => {
     const query = target === "from" ? trip.from : trip.to;
     const coords = target === "from" ? trip.fromCoords : trip.toCoords;
-    openMapNavigationWithQuery(query, coords, app);
+    openMapNavigationWithQuery(query, coords);
   };
 
   return (
