@@ -1,61 +1,82 @@
 
 
-# 限制每用户每类目仅一条活跃帖子
+# 优化自动上下线按钮的状态展示
 
-## 现状
+## 问题
 
-数据库已有 `device_id` 和联系方式的去重触发器，但没有 `user_id + category` 的唯一约束。前端 `CreatePost.tsx` 的 `handleSubmit` 也没有预先检查同类目是否已有活跃帖子。
+当前"自动上下线"按钮无论是否已设置，样式完全一致，用户无法一眼判断是否已配置成功。
 
 ## 改动
 
-### 1. 数据库：添加唯一部分索引
+### 文件：`src/components/profile/MyPostsList.tsx`
 
-创建一个 partial unique index，仅对 `is_visible = true` 的行生效：
+**1. 按钮样式区分已设置/未设置状态**
 
-```sql
-CREATE UNIQUE INDEX idx_posts_one_active_per_user_category
-ON public.posts (user_id, category)
-WHERE is_visible = true;
+- **已设置**：按钮背景改为 `bg-emerald-500/10 text-emerald-600`，显示具体时间段，如 `⏰ 09:00-21:00`
+- **未设置**：保持当前灰色/primary 样式，显示 `自动上下线`
+
+**2. 帖子信息行增加定时标记**
+
+在已设置自动上下线的移动帖子信息行中，显示一个小标签如 `⏰ 已定时`，与在线/离线状态并列。
+
+**3. 对话框中增加"清除设置"按钮**
+
+在自动上下线设置对话框中增加一个"清除"按钮，将 `operating_hours` 置为 `null`，让用户可以取消定时。
+
+### 具体代码变化
+
+按钮部分（约第 163-169 行）改为：
+
+```tsx
+<button
+  onClick={() => openScheduleDialog(post)}
+  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors ${
+    post.operating_hours
+      ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+      : "bg-muted text-muted-foreground hover:bg-accent"
+  }`}
+>
+  <Clock className="h-3.5 w-3.5" />
+  {post.operating_hours
+    ? `${post.operating_hours.open}-${post.operating_hours.close}`
+    : "自动上下线"}
+</button>
 ```
 
-这样每个用户在每个类目下最多只能有一条 `is_visible = true` 的帖子。已下架的帖子不受限制。
+信息行（约第 131-141 行），移动帖子增加定时提示：
 
-### 2. 前端：提交前预检查（CreatePost.tsx）
-
-在 `handleSubmit` 函数开头（校验完 category 和 title 之后），新增一个查询：
-
-```typescript
-// 编辑模式不需要检查
-if (!editId) {
-  const { data: { user } } = await supabase.auth.getUser();
-  const { count } = await supabase
-    .from("posts")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("category", category)
-    .eq("is_visible", true);
-  if (count && count > 0) {
-    toast.error("您在该分类下已有一条活跃信息，请先下架后再发布新的");
-    return;
-  }
-}
+```tsx
+{post.is_mobile ? (
+  <>
+    <span className={`ml-1.5 ${post.is_visible ? "text-emerald-500" : "text-muted-foreground"}`}>
+      · {post.is_visible ? "在线" : "离线"}
+    </span>
+    {post.operating_hours && (
+      <span className="ml-1 text-amber-500">· ⏰ 已定时</span>
+    )}
+  </>
+) : ( ... )}
 ```
 
-### 3. 前端：捕获数据库层错误
+对话框底部增加清除按钮：
 
-在 `handleSubmit` 的 insert 错误处理中，增加对唯一索引冲突的捕获（与现有 DEVICE_DUPLICATE 处理同级）：
-
-```typescript
-if (error.message?.includes("idx_posts_one_active_per_user_category") || error.code === "23505") {
-  toast.error("您在该分类下已有一条活跃信息，请先下架后再发布新的");
-  return;
-}
+```tsx
+<DialogFooter className="gap-2">
+  {schedulePost?.operating_hours && (
+    <Button variant="ghost" className="text-destructive" onClick={clearSchedule}>
+      清除设置
+    </Button>
+  )}
+  <Button variant="outline" onClick={() => setSchedulePost(null)}>取消</Button>
+  <Button onClick={saveSchedule}>保存</Button>
+</DialogFooter>
 ```
+
+新增 `clearSchedule` 函数，将 `operating_hours` 设为 `null`。
 
 ## 涉及文件
 
 | 文件 | 改动 |
 |------|------|
-| 新建迁移 SQL | 添加 partial unique index |
-| `src/pages/CreatePost.tsx` | handleSubmit 添加预检查 + 错误捕获 |
+| `src/components/profile/MyPostsList.tsx` | 按钮样式区分、信息行标记、清除设置功能 |
 
