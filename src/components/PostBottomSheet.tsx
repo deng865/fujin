@@ -6,8 +6,7 @@ import { zhCN } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
-import { buildAppleMapsUrl, buildGoogleMapsUrl } from "@/lib/mapNavigation";
-import MapChoiceSheet from "@/components/MapChoiceSheet";
+import { useMapChoice } from "@/components/MapChoiceSheet";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
 import FavoriteButton from "@/components/FavoriteButton";
 import {
@@ -131,7 +130,7 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PostProfile | null>(null);
   const [startingChat, setStartingChat] = useState(false);
-  const [mapChoiceOpen, setMapChoiceOpen] = useState(false);
+  const { openMapChoice, MapChoice } = useMapChoice();
   
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -281,7 +280,7 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
                   )}
                 </div>
                 <button
-                  onClick={() => setMapChoiceOpen(true)}
+                  onClick={() => openMapChoice(post.latitude, post.longitude)}
                   className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground rounded-xl active:scale-95 transition-transform"
                 >
                   <Navigation className="h-3.5 w-3.5" />
@@ -360,14 +359,7 @@ export default function PostBottomSheet({ post, onClose, isFavorite = false, onT
       </DrawerContent>
     </Drawer>
 
-    {post && (
-      <MapChoiceSheet
-        open={mapChoiceOpen}
-        onClose={() => setMapChoiceOpen(false)}
-        appleMapsUrl={buildAppleMapsUrl(post.latitude, post.longitude)}
-        googleMapsUrl={buildGoogleMapsUrl(post.latitude, post.longitude)}
-      />
-    )}
+    {MapChoice}
     </>
   );
 }

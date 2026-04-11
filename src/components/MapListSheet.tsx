@@ -7,8 +7,7 @@ import { cn } from "@/lib/utils";
 import FavoriteButton from "@/components/FavoriteButton";
 import InlinePostDetail from "@/components/InlinePostDetail";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
-import { buildAppleMapsUrl, buildGoogleMapsUrl } from "@/lib/mapNavigation";
-import MapChoiceSheet from "@/components/MapChoiceSheet";
+import { useMapChoice } from "@/components/MapChoiceSheet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
@@ -428,6 +427,7 @@ function ListCard({
   showDivider: boolean;
 }) {
   const navigate = useNavigate();
+  const { openMapChoice, MapChoice } = useMapChoice();
   const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
   const distMi = kmToMiles(distKm);
   const coverUrls = post.image_urls || [];
@@ -537,7 +537,7 @@ function ListCard({
               icon={<Navigation className="h-3.5 w-3.5" />}
               label="路线"
               primary
-              onClick={(e) => { e.stopPropagation(); openMapNavigation(post.latitude, post.longitude); }}
+              onClick={(e) => { e.stopPropagation(); openMapChoice(post.latitude, post.longitude); }}
             />
           )}
           <ActionCapsule icon={<Send className="h-3.5 w-3.5" />} label="私聊" onClick={handleStartChat} />
@@ -562,6 +562,7 @@ function ListCard({
           <ActionCapsule icon={<Share2 className="h-3.5 w-3.5" />} label="分享" onClick={handleShare} />
         </div>
       </div>
+      {MapChoice}
     </>
   );
 }
