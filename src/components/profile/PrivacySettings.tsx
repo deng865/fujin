@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
-import { MapPin, Trash2, ArrowLeft } from "lucide-react";
+import { MapPin, Trash2, ArrowLeft, FileText, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
   AlertDialog,

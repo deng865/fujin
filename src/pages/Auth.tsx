@@ -334,7 +334,10 @@ const Auth = () => {
         </Tabs>
 
         <p className="text-center text-xs text-muted-foreground">
-          登录即表示同意我们的服务条款和隐私政策
+          登录即表示同意我们的
+          <Link to="/terms-of-service" className="underline hover:text-foreground transition-colors">服务条款</Link>
+          和
+          <Link to="/privacy-policy" className="underline hover:text-foreground transition-colors">隐私政策</Link>
         </p>
       </div>
     </div>
