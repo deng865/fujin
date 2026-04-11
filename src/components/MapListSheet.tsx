@@ -430,7 +430,6 @@ function ListCard({
   const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
   const distMi = kmToMiles(distKm);
   const coverUrls = post.image_urls || [];
-  const [showNavChoice, setShowNavChoice] = useState(false);
 
   let statusText = "";
   let statusColor = "";
