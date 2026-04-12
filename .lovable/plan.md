@@ -1,71 +1,124 @@
 
 
-# 添加隐私政策与服务条款页面（应用商店合规）
+# 商家类型区分与位置共享智能警告
 
-## 背景
+## 现状
 
-Google Play 和 Apple App Store 上架均要求应用提供可访问的隐私政策和服务条款页面。当前项目没有这两个页面，Auth 页面的"登录即表示同意"文字也没有链接。
+- `profiles.user_type` 枚举目前只有 `passenger` 和 `driver`，没有商家类型区分
+- `posts.is_mobile` 布尔值已区分固定/移动帖子
+- 位置共享开关仅是 localStorage 切换，无任何上下文警告
+- 行程状态通过聊天消息中的 `trip_accept`/`trip_cancel`/`trip_complete` JSON 追踪，已有 `checkActiveTripLock` 函数
+
+## 方案
+
+不修改数据库枚举——商家类型已通过 `posts.is_mobile` 字段隐式定义：有移动帖子的用户即为 Mobile_Merchant，有固定帖子的用户即为 Static_Merchant，无帖子的普通用户视为乘客/消费者。这样避免额外的数据库迁移，且与现有数据模型一致。
 
 ## 改动
 
-### 1. 新建两个页面
+### 文件：`src/pages/Profile.tsx`
 
-**`src/pages/PrivacyPolicy.tsx`** — 隐私政策页面，内容涵盖：
-- 收集的信息（账号信息、位置数据、设备 ID、聊天记录）
-- 信息用途（提供服务、定位附近服务、安全保障）
-- 信息共享与披露
-- 数据存储与安全
-- 用户权利（访问、修改、删除账号）
-- Cookie 与本地存储
-- 儿童隐私（不面向13岁以下）
-- 联系方式
-- 政策更新
+**加载用户的帖子类型信息，传递给 PrivacySettings：**
 
-**`src/pages/TermsOfService.tsx`** — 服务条款页面，内容涵盖：
-- 服务描述（华人社区本地化服务平台）
-- 用户账号与责任
-- 禁止行为（欺诈、敏感词相关内容）
-- 用户发布内容的权利与义务
-- 免责声明与责任限制
-- 帐号终止
-- 适用法律
-- 联系方式
+- 根据已加载的 `posts` 数据判断用户是否拥有移动帖子（`hasMobilePosts`）
+- 使用 `checkActiveTripLock` 判断是否有进行中的行程（`hasActiveTrip`）
+- 将 `hasMobilePosts`、`hasActiveTrip` 传递给 `PrivacySettings` 组件
 
-两个页面使用简洁的排版，支持中文内容，顶部有返回按钮。
+### 文件：`src/components/profile/PrivacySettings.tsx`
 
-### 2. 注册路由（`src/App.tsx`）
+**核心改动——位置共享开关增加三种分支逻辑：**
 
-新增两条路由：
+1. **Mobile Merchant（有移动帖子）关闭定位时**：
+   - 弹出黄色警告 AlertDialog："关闭位置共享后，您的移动服务帖子将从地图下架（设为离线）"
+   - 确认后：调用 `onLocationSharingChange(false)` 并批量将该用户的移动帖子 `is_visible` 设为 `false`
+
+2. **有进行中行程的用户关闭定位时**：
+   - 弹出橙色警告 AlertDialog："您有进行中的行程，关闭定位将增加司机寻找您的难度"
+   - 确认后：仅关闭定位，不改变帖子状态
+
+3. **固定商家 / 普通用户关闭定位时**：
+   - 无弹窗，直接切换，保持固定坐标显示
+
+**新增 Props：**
+
+```typescript
+interface Props {
+  locationSharing: boolean;
+  onLocationSharingChange: (val: boolean) => void;
+  onBack: () => void;
+  hasMobilePosts: boolean;     // 新增
+  hasActiveTrip: boolean;      // 新增
+  userId?: string;             // 新增，用于批量下架
+}
 ```
-/privacy-policy → PrivacyPolicy
-/terms-of-service → TermsOfService
-```
-放在 `AppLayout` 路由组内。
 
-### 3. Auth 页面增加链接（`src/pages/Auth.tsx`）
-
-将第 337 行的纯文本改为带链接的版本：
+**新增两个确认对话框状态和处理函数：**
 
 ```tsx
-<p className="text-center text-xs text-muted-foreground">
-  登录即表示同意我们的
-  <Link to="/terms-of-service" className="underline">服务条款</Link>
-  和
-  <Link to="/privacy-policy" className="underline">隐私政策</Link>
-</p>
+// 黄色警告 - 移动商家
+<AlertDialog open={showMobileWarning}>
+  <AlertDialogContent className="border-amber-400">
+    <AlertDialogHeader>
+      <AlertDialogTitle>⚠️ 移动服务将下架</AlertDialogTitle>
+      <AlertDialogDescription>
+        关闭位置共享后，您的移动服务帖子将从地图上消失（设为离线状态）。
+        如需重新上线，请前往"我的发布"手动操作。
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    ...
+  </AlertDialogContent>
+</AlertDialog>
+
+// 橙色警告 - 进行中行程
+<AlertDialog open={showTripWarning}>
+  <AlertDialogContent className="border-orange-400">
+    <AlertDialogHeader>
+      <AlertDialogTitle>🚗 行程进行中</AlertDialogTitle>
+      <AlertDialogDescription>
+        您有进行中的行程，关闭位置共享将增加司机寻找您的难度，建议行程结束后再关闭。
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    ...
+  </AlertDialogContent>
+</AlertDialog>
 ```
 
-### 4. Profile 页面增加入口（`src/components/profile/PrivacySettings.tsx`）
+**Switch 的 onCheckedChange 逻辑：**
 
-在隐私设置面板底部添加两个链接按钮，方便用户随时查阅隐私政策和服务条款。
+```typescript
+const handleToggle = (val: boolean) => {
+  if (val) { // 开启 — 无需警告
+    onLocationSharingChange(true);
+    return;
+  }
+  // 关闭逻辑
+  if (hasMobilePosts) {
+    setShowMobileWarning(true);
+  } else if (hasActiveTrip) {
+    setShowTripWarning(true);
+  } else {
+    onLocationSharingChange(false); // 固定商家/普通用户，直接关闭
+  }
+};
+```
+
+**移动商家确认后的下架逻辑：**
+
+```typescript
+const confirmMobileOffline = async () => {
+  if (userId) {
+    await supabase.from("posts").update({ is_visible: false })
+      .eq("user_id", userId).eq("is_mobile", true);
+  }
+  onLocationSharingChange(false);
+  toast.success("位置共享已关闭，移动服务已下架");
+  setShowMobileWarning(false);
+};
+```
 
 ## 涉及文件
 
-| 文件 | 操作 |
+| 文件 | 改动 |
 |------|------|
-| `src/pages/PrivacyPolicy.tsx` | 新建 |
-| `src/pages/TermsOfService.tsx` | 新建 |
-| `src/App.tsx` | 添加路由 |
-| `src/pages/Auth.tsx` | 文本改为链接 |
-| `src/components/profile/PrivacySettings.tsx` | 底部增加链接入口 |
+| `src/pages/Profile.tsx` | 计算 hasMobilePosts/hasActiveTrip，传入 PrivacySettings |
+| `src/components/profile/PrivacySettings.tsx` | 增加智能分支警告逻辑与对话框 |
 
