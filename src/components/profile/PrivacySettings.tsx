@@ -53,7 +53,7 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
         返回
       </button>
 
-      <div className="bg-card border border-border rounded-2xl divide-y divide-border">
+      <div className="bg-card border border-border rounded-2xl">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
             <MapPin className="h-5 w-5 text-muted-foreground" />
@@ -67,17 +67,6 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
             onCheckedChange={onLocationSharingChange}
           />
         </div>
-
-        <button
-          onClick={() => setShowDeleteConfirm(true)}
-          className="w-full flex items-center gap-3 p-4 text-left hover:bg-destructive/5 transition-colors"
-        >
-          <Trash2 className="h-5 w-5 text-destructive" />
-          <div>
-            <p className="text-sm font-medium text-destructive">注销账号</p>
-            <p className="text-xs text-muted-foreground">注销后所有数据将被清空</p>
-          </div>
-        </button>
       </div>
 
       <div className="bg-card border border-border rounded-2xl divide-y divide-border">
@@ -95,6 +84,19 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
           <FileText className="h-5 w-5 text-muted-foreground" />
           <p className="text-sm font-medium">服务条款</p>
         </Link>
+      </div>
+
+      <div className="bg-card border border-border rounded-2xl">
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="w-full flex items-center gap-3 p-4 text-left hover:bg-destructive/5 transition-colors rounded-2xl"
+        >
+          <Trash2 className="h-5 w-5 text-destructive" />
+          <div>
+            <p className="text-sm font-medium text-destructive">注销账号</p>
+            <p className="text-xs text-muted-foreground">注销后所有数据将被清空</p>
+          </div>
+        </button>
       </div>
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
