@@ -463,7 +463,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
           {!isMe && onAccept && (
             <div className="flex gap-2 mt-2">
               <button
-                onClick={() => !acceptingTrip && onAccept({ from: counterData.from, to: counterData.to, price: counterData.price })}
+                onClick={() => !acceptingTrip && onAccept({ from: counterData.from, to: counterData.to, price: counterData.price, tripId: counterData.tripId })}
                 disabled={acceptingTrip}
                 className="flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors disabled:opacity-50"
               >
@@ -497,7 +497,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
                 onClick={async () => {
                   if (counterPrice.trim() && !counterSending) {
                     setCounterSending(true);
-                    await onCounter({ from: counterData.from, to: counterData.to, originalPrice: counterData.price }, counterPrice.trim());
+                    await onCounter({ from: counterData.from, to: counterData.to, originalPrice: counterData.price, tripId: counterData.tripId }, counterPrice.trim());
                     setCounterSending(false);
                     setShowCounterInput(false);
                   }
@@ -645,7 +645,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
                 onClick={async () => {
                   if (counterPrice.trim() && !counterSending) {
                     setCounterSending(true);
-                    await onCounter({ from: trip.from, to: trip.to, originalPrice: trip.price }, counterPrice.trim());
+                    await onCounter({ from: trip.from, to: trip.to, originalPrice: trip.price, tripId: trip.tripId }, counterPrice.trim());
                     setCounterSending(false);
                     setShowCounterInput(false);
                   }
