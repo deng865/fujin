@@ -1,49 +1,90 @@
 
 
-# 修复：新发布行程被误标记为"已结束"
+# 修复：行程进行中不显示实时追踪地图
 
 ## 问题根因
 
-行程状态匹配使用 `from|to` 文本组合作为唯一键（如 `"350 Continental Drive|200 Lake Park Road"`）。当用户发布一个与之前已完成/已取消行程**相同出发地和目的地**的新行程时，系统会在 `completedSet` 或 `cancelledSet` 中找到匹配，错误地将新行程标记为"已结束"。
+通过数据库验证，**最新的 `trip_accept` 消息缺少 `fromCoords`/`toCoords` 坐标数据**：
 
-数据库中可以看到用户多次发布了 "350 Continental Drive" 出发的行程，之前的行程已完成（`trip_complete`），导致后续相同路线的新行程一发布就显示"订单已完成"或"已结束预约"。
+```json
+// trip_accept（❌ 无坐标 → DriverTracking 不渲染）
+{"type":"trip_accept","from":"350 Continental Drive...","to":"425 Jones Street...","price":"28","tripId":"f07f7d7d-..."}
 
-## 解决方案
+// 原始 trip 消息（✅ 有坐标）
+{"type":"trip","from":"350 Continental Drive...","to":"425 Jones Street...","fromCoords":{"lat":33.01,"lng":-96.99},"toCoords":{"lat":33.06,"lng":-97.00},...}
+```
 
-为每个行程生成唯一 ID（`tripId`），用 `tripId` 替代 `from|to` 作为状态匹配键。
+**两个断裂点：**
 
-### 改动
+1. **还价流程丢失坐标**：`handleCounterTrip` 构建 `trip_counter` 消息时没有携带 `fromCoords`/`toCoords`，导致从还价消息点"接受"时传入 `handleAcceptTrip` 的对象也没有坐标。
 
-#### 1. `src/pages/ChatRoom.tsx`
+2. **DriverTracking 渲染条件过严**：`if (!activeAccept?.fromCoords) return null;`（第 1162 行）——只要 accept 消息没坐标就不渲染，但没有回退到原始 trip 消息查找坐标。
 
-**发送行程时生成 `tripId`：**
-- `handleSendTrip`：在构建 trip JSON 时加入 `tripId: crypto.randomUUID()`
-- `handleAcceptTrip`：将接受消息中的 `tripId` 从原始行程传递过来
-- `handleCounterTrip`：同理传递 `tripId`
-- `handleCancelTrip`、`confirmCompleteTrip`：从行程数据中取 `tripId` 写入消息
+## 修复方案
 
-**状态计算改用 `tripId`：**
-- `tripState` useMemo 中，`cancelledSet`/`completedSet`/`ratedByMe` 改用 `tripId` 作为 key（保留 `from|to` 作为 fallback 兼容旧数据）
-- `isActiveForTrip`、`isCancelledForAccept`、`isCompletedForAccept`、`hasRatedForAccept` 都优先使用 `tripId` 匹配
+### 1. `src/pages/ChatRoom.tsx` — 坐标补全
 
-#### 2. `src/components/chat/TripMessage.tsx`
+在 `handleAcceptTrip` 中，如果传入的 trip 对象缺少坐标，**从消息历史中查找同 tripId（或同路线）的原始 trip 消息获取坐标**：
 
-- 各 parse 函数增加 `tripId` 可选字段
-- `AcceptTripCard` 接收并传递 `tripId`
+```typescript
+const handleAcceptTrip = async (trip) => {
+  let { fromCoords, toCoords } = trip;
+  
+  // 如果缺少坐标，从原始 trip 消息中补全
+  if (!fromCoords || !toCoords) {
+    for (const m of messages) {
+      const t = parseTripMessage(m.content);
+      if (t && t.from === trip.from && t.to === trip.to && t.fromCoords && t.toCoords) {
+        fromCoords = t.fromCoords;
+        toCoords = t.toCoords;
+        break;
+      }
+    }
+  }
+  
+  // 使用补全后的坐标构建 accept 消息
+  const acceptContent = JSON.stringify({
+    type: "trip_accept", from: trip.from, to: trip.to, 
+    price: trip.price, fromCoords, toCoords, tripId
+  });
+};
+```
 
-#### 3. `src/lib/tripLock.ts`
+### 2. `src/pages/ChatRoom.tsx` — DriverTracking 坐标回退
 
-- 匹配逻辑同步改用 `tripId`（保留 `from|to` fallback 兼容旧数据）
+修改 DriverTracking 渲染逻辑（第 1151-1172 行），当 accept 消息缺少坐标时，从原始 trip 消息或 `tripState.activeAcceptData` 回退查找：
 
-### 兼容性
+```typescript
+// 如果 activeAccept 没有坐标，从原始 trip 消息中查找
+if (!activeAccept?.fromCoords) {
+  for (const m of messages) {
+    const t = parseTripMessage(m.content);
+    if (t && t.from === activeAccept.from && t.to === activeAccept.to && t.fromCoords) {
+      activeAccept = { ...activeAccept, fromCoords: t.fromCoords, toCoords: t.toCoords };
+      break;
+    }
+  }
+}
+if (!activeAccept?.fromCoords) return null;
+```
 
-旧消息没有 `tripId` 字段，系统 fallback 到 `from|to` 匹配，不影响历史数据显示。只有新创建的行程会使用 `tripId`，彻底解决相同路线重复发布的状态混淆问题。
+### 3. `src/pages/ChatRoom.tsx` — 还价也携带坐标
+
+修改 `handleCounterTrip`，将 `fromCoords`/`toCoords` 传入 counter 消息，防止后续丢失。同时修改 `TripMessage.tsx` 中还价接受按钮的 `onAccept` 调用，传入已有的坐标字段。
+
+### 4. `src/components/chat/TripMessage.tsx` — 还价接受传递坐标
+
+修改还价消息的"接受"按钮（第 466 行），把 `fromCoords`/`toCoords` 也传入：
+
+```typescript
+onAccept({ from: counterData.from, to: counterData.to, price: counterData.price, 
+           tripId: counterData.tripId, fromCoords: counterData.fromCoords, toCoords: counterData.toCoords })
+```
 
 ## 涉及文件
 
 | 文件 | 改动 |
 |------|------|
-| `src/pages/ChatRoom.tsx` | 发送时生成 tripId，状态匹配优先用 tripId |
-| `src/components/chat/TripMessage.tsx` | parse 函数增加 tripId 字段 |
-| `src/lib/tripLock.ts` | 匹配逻辑增加 tripId 支持 |
+| `src/pages/ChatRoom.tsx` | handleAcceptTrip 坐标补全 + handleCounterTrip 携带坐标 + DriverTracking 渲染回退 |
+| `src/components/chat/TripMessage.tsx` | counter 解析/接受按钮传递坐标，parseTripCounterMessage 增加坐标字段 |
 
