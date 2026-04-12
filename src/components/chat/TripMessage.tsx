@@ -331,11 +331,11 @@ interface TripMessageProps {
   content: string;
   isMe: boolean;
   isActive?: boolean;
-  onAccept?: (trip: { from: string; to: string; price?: string }) => void;
-  onCounter?: (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => void;
-  onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
-  onCancel?: (trip: { from: string; to: string; price?: string }) => void;
-  onComplete?: (trip: { from: string; to: string; price?: string }) => void;
+  onAccept?: (trip: { from: string; to: string; price?: string; tripId?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } }) => void;
+  onCounter?: (trip: { from: string; to: string; originalPrice?: string; tripId?: string }, newPrice: string) => void;
+  onRate?: (trip: { from: string; to: string; price?: string; tripId?: string }, rating: number, comment: string) => void;
+  onCancel?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
+  onComplete?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
   onCounterOpen?: () => void;
   hasRated?: boolean;
   isCancelled?: boolean;
