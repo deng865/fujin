@@ -200,7 +200,7 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="max-w-lg mx-auto px-4 py-4">
-          <MyPostsList posts={posts} onPostsChange={setPosts} />
+          <MyPostsList posts={posts} onPostsChange={setPosts} locationSharing={locationSharing} />
         </div>
       </div>
     );

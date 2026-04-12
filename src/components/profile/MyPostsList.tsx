@@ -44,9 +44,10 @@ const categoryEmoji: Record<string, string> = {
 interface Props {
   posts: UserPost[];
   onPostsChange: (posts: UserPost[]) => void;
+  locationSharing: boolean;
 }
 
-export default function MyPostsList({ posts, onPostsChange }: Props) {
+export default function MyPostsList({ posts, onPostsChange, locationSharing }: Props) {
   const navigate = useNavigate();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [schedulePost, setSchedulePost] = useState<UserPost | null>(null);
@@ -56,6 +57,10 @@ export default function MyPostsList({ posts, onPostsChange }: Props) {
   // --- Mobile: toggle online/offline ---
   const handleToggleOnline = async (post: UserPost) => {
     const newVisible = !post.is_visible;
+    if (newVisible && !locationSharing) {
+      toast.warning("请先开启位置共享，移动服务才能在地图上显示");
+      return;
+    }
     const { error } = await supabase
       .from("posts")
       .update({ is_visible: newVisible })
@@ -172,7 +177,9 @@ export default function MyPostsList({ posts, onPostsChange }: Props) {
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors ${
                         post.is_visible
                           ? "bg-orange-500/10 text-orange-600 hover:bg-orange-500/20"
-                          : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                          : !locationSharing
+                            ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                            : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
                       }`}
                     >
                       {post.is_visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
