@@ -1239,31 +1239,28 @@ export default function ChatRoom() {
           const { callData, liveLocData, locData, mediaData, voiceData, tripRatingData, tripNotifyData, tripData, tripAcceptData, tripCounterData, tripCancelData, parsedJson } = msg._parsed;
 
           // Skip trip_complete and render system messages inline
-          try {
-            const parsed = JSON.parse(msg.content);
-            if (parsed?.type === "trip_complete") return null;
-            if (parsed?.type === "system") {
-              return (
-                <div key={msg.id}>
-                  {showDate && (
-                    <div className="text-center text-[11px] text-muted-foreground py-2">
-                      {new Date(msg.created_at).toLocaleDateString("zh-CN", { month: "long", day: "numeric" })}
-                    </div>
-                  )}
-                  <div className="text-center text-[12px] text-muted-foreground py-1">{parsed.text}</div>
-                </div>
-              );
-            }
-            if (parsed?.type === "trip_accept_notify") {
-              for (let j = i - 1; j >= 0; j--) {
-                const ad = parseTripAcceptMessage(messages[j].content);
-                if (ad) {
-                  if (isCancelledForAccept(messages[j].content) || isCompletedForAccept(messages[j].content)) return null;
-                  break;
-                }
+          if (parsedJson?.type === "trip_complete") return null;
+          if (parsedJson?.type === "system") {
+            return (
+              <div key={msg.id}>
+                {showDate && (
+                  <div className="text-center text-[11px] text-muted-foreground py-2">
+                    {new Date(msg.created_at).toLocaleDateString("zh-CN", { month: "long", day: "numeric" })}
+                  </div>
+                )}
+                <div className="text-center text-[12px] text-muted-foreground py-1">{parsedJson.text}</div>
+              </div>
+            );
+          }
+          if (parsedJson?.type === "trip_accept_notify") {
+            for (let j = i - 1; j >= 0; j--) {
+              const ad = parsedMessages[j]._parsed.tripAcceptData;
+              if (ad) {
+                if (isCancelledForAccept(parsedMessages[j].content) || isCompletedForAccept(parsedMessages[j].content)) return null;
+                break;
               }
             }
-          } catch {}
+          }
 
           // Recalled message
           if (msg.is_recalled) {
