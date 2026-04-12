@@ -725,7 +725,20 @@ export default function ChatRoom() {
       return;
     }
     const tripId = (trip as any).tripId || crypto.randomUUID();
-    const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price, fromCoords: trip.fromCoords, toCoords: trip.toCoords, tripId });
+    // Backfill missing coords from original trip message
+    let fromCoords = trip.fromCoords;
+    let toCoords = trip.toCoords;
+    if (!fromCoords || !toCoords) {
+      for (const m of messages) {
+        const t = parseTripMessage(m.content);
+        if (t && t.fromCoords && t.toCoords && ((t as any).tripId === tripId || (t.from === trip.from && t.to === trip.to))) {
+          fromCoords = fromCoords || t.fromCoords;
+          toCoords = toCoords || t.toCoords;
+          break;
+        }
+      }
+    }
+    const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price, fromCoords, toCoords, tripId });
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
       sender_id: userId,
@@ -795,9 +808,9 @@ export default function ChatRoom() {
     }
   };
 
-  const handleCounterTrip = async (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => {
+  const handleCounterTrip = async (trip: { from: string; to: string; originalPrice?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } }, newPrice: string) => {
     if (!userId || !conversationId) return;
-    const counterContent = JSON.stringify({ type: "trip_counter", from: trip.from, to: trip.to, price: newPrice, originalPrice: trip.originalPrice, tripId: (trip as any).tripId });
+    const counterContent = JSON.stringify({ type: "trip_counter", from: trip.from, to: trip.to, price: newPrice, originalPrice: trip.originalPrice, tripId: (trip as any).tripId, fromCoords: (trip as any).fromCoords, toCoords: (trip as any).toCoords });
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
       sender_id: userId,
@@ -1157,6 +1170,16 @@ export default function ChatRoom() {
           if (!isCancelledForAccept(acceptMsg.content) && !isCompletedForAccept(acceptMsg.content)) {
             activeAccept = parseTripAcceptMessage(acceptMsg.content);
             break;
+          }
+        }
+        // Backfill missing coords from original trip message
+        if (activeAccept && !activeAccept.fromCoords) {
+          for (const m of messages) {
+            const t = parseTripMessage(m.content);
+            if (t && t.fromCoords && t.toCoords && (t.from === activeAccept.from && t.to === activeAccept.to)) {
+              activeAccept = { ...activeAccept, fromCoords: t.fromCoords, toCoords: t.toCoords };
+              break;
+            }
           }
         }
         if (!activeAccept?.fromCoords) return null;
