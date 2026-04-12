@@ -120,7 +120,7 @@ export default function CategoryScroll({ selectedCategory, onSelectCategory }: C
           </div>
 
           {/* Category list */}
-          <div className="flex-1 overflow-y-auto pb-20">
+          <div className="flex-1 overflow-y-auto pb-32">
             {/* "All" option */}
             <button
               onClick={() => handleSelect(null)}
