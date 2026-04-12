@@ -1230,13 +1230,13 @@ export default function ChatRoom() {
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 max-w-lg mx-auto w-full">
-        {messages.length === 0 && (
+        {parsedMessages.length === 0 && (
           <div className="text-center text-muted-foreground text-xs py-8">开始聊天吧 👋</div>
         )}
-        {messages.map((msg, i) => {
+        {parsedMessages.map((msg, i) => {
           const isMe = msg.sender_id === userId;
-          const showDate = i === 0 || new Date(msg.created_at).toDateString() !== new Date(messages[i - 1].created_at).toDateString();
-          const callData = parseCallMessage(msg.content);
+          const showDate = i === 0 || new Date(msg.created_at).toDateString() !== new Date(parsedMessages[i - 1].created_at).toDateString();
+          const { callData, liveLocData, locData, mediaData, voiceData, tripRatingData, tripNotifyData, tripData, tripAcceptData, tripCounterData, tripCancelData, parsedJson } = msg._parsed;
 
           // Skip trip_complete and render system messages inline
           try {
