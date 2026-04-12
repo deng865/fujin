@@ -1322,12 +1322,11 @@ export default function ChatRoom() {
                         </button>
                       </div>
                     )}
-                    {parseLiveLocationMessage(msg.content) ? (
+                    {liveLocData ? (
                       <LiveLocationMessage content={msg.content} isMe={isMe} messageId={msg.id} onAccept={handleAcceptLiveShare} onOpen={() => {
-                        const liveData = parseLiveLocationMessage(msg.content);
-                        if (liveData && liveData.status === "accepted") {
-                          const coords = { lat: liveData.lat, lng: liveData.lng };
-                          const isMeSender = liveData.sharedBy === userId;
+                        if (liveLocData && liveLocData.status === "accepted") {
+                          const coords = { lat: liveLocData.lat, lng: liveLocData.lng };
+                          const isMeSender = liveLocData.sharedBy === userId;
                           setSelectedLiveLocation({
                             myPos: isMeSender ? coords : cachedMyPos || undefined,
                             otherPos: isMeSender ? undefined : coords,
@@ -1335,39 +1334,31 @@ export default function ChatRoom() {
                           setShowLiveMap(true);
                         }
                       }} />
-                    ) : parseLocationMessage(msg.content) ? (
+                    ) : locData ? (
                       <LocationMessage content={msg.content} isMe={isMe} senderName={isMe ? myName : otherUser?.name} senderAvatarUrl={isMe ? myAvatarUrl : otherUser?.avatar_url} />
-                    ) : parseMediaMessage(msg.content) ? (
+                    ) : mediaData ? (
                       <MediaMessage content={msg.content} isMe={isMe} />
-                    ) : parseVoiceMessage(msg.content) ? (
+                    ) : voiceData ? (
                       <VoiceMessage content={msg.content} isMe={isMe} />
-                    ) : parseTripRatingMessage(msg.content) ? (
+                    ) : tripRatingData ? (
                       <TripRatingDisplay content={msg.content} isMe={isMe} currentUserId={userId || undefined} />
-                    ) : parseTripAcceptNotify(msg.content) ? (
+                    ) : tripNotifyData ? (
                         <TripMessage content={msg.content} isMe={isMe} isCancelled={false} isCompleted={false} />
-                    ) : (parseTripMessage(msg.content) || parseTripAcceptMessage(msg.content) || parseTripCounterMessage(msg.content) || parseTripCancelMessage(msg.content)) ? (
+                    ) : (tripData || tripAcceptData || tripCounterData || tripCancelData) ? (
                         <TripMessage content={msg.content} isMe={isMe} isActive={isActiveForTrip(msg.content)} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onCounterOpen={scrollToBottom} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} acceptingTrip={acceptingTrip} completingTrip={completingTrip} cancellingTrip={cancellingTrip} />
-                    ) : (() => {
-                      try {
-                        const parsed = JSON.parse(msg.content);
-                        if (parsed?.type === "contact") {
-                          return (
-                            <div className={`px-3 py-2 rounded-2xl text-sm ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
-                              <div className="flex items-center gap-1.5">
-                                <UserCircle className="h-4 w-4 shrink-0" />
-                                <span className="font-medium">{parsed.contactType === "phone" ? "手机号" : "微信号"}</span>
-                              </div>
-                              <p className="mt-1 font-mono text-xs select-all">{parsed.value}</p>
-                            </div>
-                          );
-                        }
-                      } catch {}
-                      return (
-                        <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
-                          {msg.content}
+                    ) : parsedJson?.type === "contact" ? (
+                      <div className={`px-3 py-2 rounded-2xl text-sm ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
+                        <div className="flex items-center gap-1.5">
+                          <UserCircle className="h-4 w-4 shrink-0" />
+                          <span className="font-medium">{parsedJson.contactType === "phone" ? "手机号" : "微信号"}</span>
                         </div>
-                      );
-                    })()}
+                        <p className="mt-1 font-mono text-xs select-all">{parsedJson.value}</p>
+                      </div>
+                    ) : (
+                      <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
+                        {msg.content}
+                      </div>
+                    )}
                     <p className={`text-[10px] text-muted-foreground mt-0.5 ${isMe ? "text-right" : "text-left"}`}>
                       {formatTime(msg.created_at)}
                     </p>
