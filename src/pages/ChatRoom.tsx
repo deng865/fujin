@@ -1119,13 +1119,15 @@ export default function ChatRoom() {
           </div>
           <div className="flex items-center gap-1">
             {otherUser?.phone && (
-              <a
-                href={`tel:${otherUser.phone}`}
+              <button
+                onClick={() => {
+                  window.open(`tel:${otherUser.phone}`, '_self');
+                }}
                 className="p-2 hover:bg-accent rounded-xl text-green-600"
                 title="致电"
               >
                 <Phone className="h-5 w-5" />
-              </a>
+              </button>
             )}
             <button
               onClick={() => setShowReviewDialog(true)}
