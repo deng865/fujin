@@ -1,43 +1,64 @@
 
 
-# 修复：已关门的固定商家仍然出现在地图上
+# 营业时间改为每周排班 + 必填项强化
 
-## 问题分析
+## 需求总结
 
-当前代码（MapHome.tsx 第 240-243 行）的过滤逻辑有缺陷：
+1. **固定商家**：营业时间必填（含24小时选项），描述必填，图片必填
+2. **移动服务**：描述必填，图片必填
+3. **营业时间升级**：从简单的开/关时间改为每周排班——每天可设不同营业时间，可标记休息日
 
-```typescript
-if (!p.is_mobile && p.operating_hours) {
-  const open = isCurrentlyOpen(p.operating_hours);
-  if (open === false) return false;
+## 数据格式变更
+
+`operating_hours` JSONB 字段格式从：
+```json
+{ "open": "09:00", "close": "21:00", "timezone": "America/Chicago" }
+```
+改为：
+```json
+{
+  "is24h": false,
+  "timezone": "America/Chicago",
+  "schedule": [
+    { "day": 0, "open": "09:00", "close": "21:00", "closed": false },
+    { "day": 1, "open": "09:00", "close": "21:00", "closed": false },
+    { "day": 2, "open": "09:00", "close": "21:00", "closed": false },
+    { "day": 3, "open": "09:00", "close": "21:00", "closed": true },
+    ...
+  ]
 }
 ```
+`is24h: true` 时忽略 schedule，直接判定为营业中。
 
-问题在于：只有当 `open === false` 时才过滤掉。如果 `isCurrentlyOpen` 返回 `null`（解析出错），商家仍然显示。而且 **没有设置 operating_hours 的固定商家完全不受过滤**。
+## 改动方案
 
-根据用户原则："只要不在营业时间之内，就在地图上消失"。
+### 文件 1：`src/components/create-post/DynamicForm.tsx`
+- 描述 Label 加 `*`
+- 图片 Label 加 `*`
+- 营业时间区域重构为每周排班表：
+  - 顶部：24小时营业 Switch 开关
+  - 未勾选24h时，显示周一到周日的列表，每天一行：日期名 + 开门时间 + 关门时间 + 休息日复选框
+  - 提供"统一设置"快捷操作：设好第一天后可一键应用到所有工作日
+- FormData 接口移除 `openTime/closeTime`，改为 `weeklySchedule` 数组 + `is24Hours` 布尔值
 
-## 方案
+### 文件 2：`src/pages/CreatePost.tsx`
+- `initialFormData` 更新：添加 `is24Hours: false`，`weeklySchedule` 默认7天数据
+- `handleSubmit` 验证逻辑：
+  - 描述为空 → 提示错误
+  - 图片为空 → 提示错误
+  - 固定商家：未勾选24h且未填任何营业时间 → 提示错误
+- 构建 `operating_hours` 时使用新的 schedule 格式
 
-将过滤条件改为：固定商家必须有 operating_hours 且当前处于营业状态才显示。
-
-### 改动 1：MapHome.tsx 地图标记过滤
-
-```typescript
-// 固定商家：必须有营业时间且当前营业中才显示
-if (!p.is_mobile) {
-  const open = isCurrentlyOpen(p.operating_hours);
-  if (open !== true) return false;  // null 或 false 都隐藏
-}
-```
-
-### 改动 2：MapListSheet.tsx 列表过滤（如有独立过滤逻辑）
-
-同步更新列表中的过滤逻辑，确保一致性。
+### 文件 3：`src/lib/operatingHours.ts`
+- `isCurrentlyOpen` 兼容新旧两种格式：
+  - 新格式：检查 `is24h`，或根据当前星期几查找对应 schedule 条目判断
+  - 旧格式：保持原有逻辑（向后兼容已有数据）
 
 ## 涉及文件
 
 | 文件 | 改动 |
 |------|------|
-| `src/pages/MapHome.tsx` | 固定商家过滤条件从 `open === false` 改为 `open !== true` |
+| `src/components/create-post/DynamicForm.tsx` | 必填标记 + 每周排班表 UI + 24h开关 |
+| `src/pages/CreatePost.tsx` | 表单数据结构 + 提交验证 + operating_hours 构建 |
+| `src/lib/operatingHours.ts` | 支持新 schedule 格式 + 兼容旧格式 |
 
