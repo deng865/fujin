@@ -695,7 +695,8 @@ export default function ChatRoom() {
     if (!userId || !conversationId) return;
     setSendingTrip(true);
     try {
-      const tripContent = JSON.stringify({ type: "trip", from, to, fromCoords, toCoords, price });
+      const tripId = crypto.randomUUID();
+      const tripContent = JSON.stringify({ type: "trip", from, to, fromCoords, toCoords, price, tripId });
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: userId,
@@ -723,7 +724,8 @@ export default function ChatRoom() {
       toast({ title: "你有进行中的行程", description: "请先结束当前预约后再接受新行程" });
       return;
     }
-    const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price, fromCoords: trip.fromCoords, toCoords: trip.toCoords });
+    const tripId = (trip as any).tripId || crypto.randomUUID();
+    const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price, fromCoords: trip.fromCoords, toCoords: trip.toCoords, tripId });
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
       sender_id: userId,
@@ -795,7 +797,7 @@ export default function ChatRoom() {
 
   const handleCounterTrip = async (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => {
     if (!userId || !conversationId) return;
-    const counterContent = JSON.stringify({ type: "trip_counter", from: trip.from, to: trip.to, price: newPrice, originalPrice: trip.originalPrice });
+    const counterContent = JSON.stringify({ type: "trip_counter", from: trip.from, to: trip.to, price: newPrice, originalPrice: trip.originalPrice, tripId: (trip as any).tripId });
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
       sender_id: userId,
@@ -821,7 +823,7 @@ export default function ChatRoom() {
     if (!trip || !userId || !conversationId) return;
     setCancellingTrip(true);
     try {
-      const cancelContent = JSON.stringify({ type: "trip_cancel", from: trip.from, to: trip.to, cancelledBy: userId });
+      const cancelContent = JSON.stringify({ type: "trip_cancel", from: trip.from, to: trip.to, cancelledBy: userId, tripId: (trip as any).tripId });
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: userId,
@@ -851,7 +853,7 @@ export default function ChatRoom() {
     if (!trip || !userId || !conversationId) return;
     setCompletingTrip(true);
     try {
-      const completeContent = JSON.stringify({ type: "trip_complete", from: trip.from, to: trip.to, price: trip.price, completedBy: userId });
+      const completeContent = JSON.stringify({ type: "trip_complete", from: trip.from, to: trip.to, price: trip.price, completedBy: userId, tripId: (trip as any).tripId });
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: userId,
@@ -875,13 +877,15 @@ export default function ChatRoom() {
     const ratedByMe = new Set<string>();
     const acceptEntries: { msg: Message; data: ReturnType<typeof parseTripAcceptMessage> }[] = [];
 
+    const tripKey = (parsed: any) => parsed.tripId || `${parsed.from}|${parsed.to}`;
+
     for (const m of messages) {
       const cd = parseTripCancelMessage(m.content);
-      if (cd) cancelledSet.add(`${cd.from}|${cd.to}`);
+      if (cd) cancelledSet.add(tripKey(cd));
 
       try {
         const parsed = JSON.parse(m.content);
-        if (parsed?.type === "trip_complete") completedSet.add(`${parsed.from}|${parsed.to}`);
+        if (parsed?.type === "trip_complete") completedSet.add(tripKey(parsed));
       } catch {}
 
       const ad = parseTripAcceptMessage(m.content);
@@ -889,46 +893,45 @@ export default function ChatRoom() {
 
       if (m.sender_id === userId) {
         const rd = parseTripRatingMessage(m.content);
-        if (rd) ratedByMe.add(`${rd.from}|${rd.to}`);
+        if (rd) ratedByMe.add(tripKey(rd));
       }
     }
 
     const isTerminal = (key: string) => cancelledSet.has(key) || completedSet.has(key);
 
     let activeAcceptData: ReturnType<typeof parseTripAcceptMessage> = null;
-    let activeTrip: { from: string; to: string; price?: string } | null = null;
+    let activeTrip: { from: string; to: string; price?: string; tripId?: string } | null = null;
     for (const entry of acceptEntries) {
-      const key = `${entry.data!.from}|${entry.data!.to}`;
+      const key = tripKey(entry.data);
       if (!isTerminal(key)) {
         activeAcceptData = entry.data;
-        activeTrip = { from: entry.data!.from, to: entry.data!.to, price: entry.data!.price };
+        activeTrip = { from: entry.data!.from, to: entry.data!.to, price: entry.data!.price, tripId: (entry.data as any)?.tripId };
         break;
       }
     }
 
-    return { cancelledSet, completedSet, ratedByMe, activeAcceptData, activeTrip, hasActive: !!activeTrip };
+    return { cancelledSet, completedSet, ratedByMe, activeAcceptData, activeTrip, hasActive: !!activeTrip, tripKey };
   }, [messages, userId]);
 
   const isCancelledForAccept = useCallback((content: string) => {
-    try { const a = JSON.parse(content); return tripState.cancelledSet.has(`${a.from}|${a.to}`); } catch { return false; }
-  }, [tripState.cancelledSet]);
+    try { const a = JSON.parse(content); return tripState.cancelledSet.has(tripState.tripKey(a)); } catch { return false; }
+  }, [tripState]);
 
   const isCompletedForAccept = useCallback((content: string) => {
-    try { const a = JSON.parse(content); return tripState.completedSet.has(`${a.from}|${a.to}`); } catch { return false; }
-  }, [tripState.completedSet]);
+    try { const a = JSON.parse(content); return tripState.completedSet.has(tripState.tripKey(a)); } catch { return false; }
+  }, [tripState]);
 
   const hasRatedForAccept = useCallback((content: string) => {
-    try { const a = JSON.parse(content); return tripState.ratedByMe.has(`${a.from}|${a.to}`); } catch { return false; }
-  }, [tripState.ratedByMe]);
+    try { const a = JSON.parse(content); return tripState.ratedByMe.has(tripState.tripKey(a)); } catch { return false; }
+  }, [tripState]);
 
   const isActiveForTrip = useCallback((content: string) => {
     try {
       const trip = JSON.parse(content);
       if (!trip?.from || !trip?.to) return false;
-      const key = `${trip.from}|${trip.to}`;
-      // Check if there's an accepted entry for this trip that is not terminal
+      const key = tripState.tripKey(trip);
       return !tripState.cancelledSet.has(key) && !tripState.completedSet.has(key) &&
-        messages.some((m) => { const a = parseTripAcceptMessage(m.content); return !!a && a.from === trip.from && a.to === trip.to; });
+        messages.some((m) => { const a = parseTripAcceptMessage(m.content); return !!a && tripState.tripKey(a) === key; });
     } catch { return false; }
   }, [tripState, messages]);
 
@@ -954,6 +957,7 @@ export default function ChatRoom() {
       rating,
       comment: comment || undefined,
       ratedUserId,
+      tripId: (trip as any).tripId,
     });
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
