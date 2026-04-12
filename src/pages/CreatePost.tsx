@@ -8,13 +8,24 @@ import CategoryGrid from "@/components/create-post/CategoryGrid";
 import DynamicForm from "@/components/create-post/DynamicForm";
 import LocationPicker from "@/components/create-post/LocationPicker";
 import { getDeviceId } from "@/lib/deviceId";
+import type { DaySchedule } from "@/components/create-post/WeeklySchedule";
+
+function defaultSchedule(): DaySchedule[] {
+  return Array.from({ length: 7 }, (_, i) => ({
+    day: i,
+    open: "09:00",
+    close: "21:00",
+    closed: false,
+  }));
+}
 
 const initialFormData = {
   title: "", description: "", price: "", phone: "", wechatId: "",
   imageUrls: [] as string[], bedrooms: "", bathrooms: "", priceUnit: "month",
   carModel: "", vehicleColor: "", licensePlate: "", availableTime: "", driverPriceUnit: "trip",
   salaryRange: "", jobType: "",
-  openTime: "", closeTime: "", timezone: "",
+  is24Hours: false,
+  weeklySchedule: defaultSchedule(),
 };
 
 export default function CreatePost() {
@@ -56,6 +67,21 @@ export default function CreatePost() {
         return;
       }
       setCategory(data.category);
+      setIsMobile(data.is_mobile);
+
+      // Parse operating_hours back into form fields
+      let is24Hours = false;
+      let weeklySchedule = defaultSchedule();
+      const oh = data.operating_hours as any;
+      if (oh) {
+        if (oh.is24h) {
+          is24Hours = true;
+        }
+        if (oh.schedule && Array.isArray(oh.schedule)) {
+          weeklySchedule = oh.schedule;
+        }
+      }
+
       setFormData({
         ...initialFormData,
         title: data.title || "",
@@ -64,6 +90,8 @@ export default function CreatePost() {
         phone: data.contact_phone || "",
         wechatId: data.contact_wechat || "",
         imageUrls: data.image_urls || [],
+        is24Hours,
+        weeklySchedule,
       });
       setLocation({ lat: data.latitude, lng: data.longitude });
       setInitialLoading(false);
@@ -76,7 +104,6 @@ export default function CreatePost() {
 
   const handleCategorySelect = useCallback((cat: string) => {
     setCategory(cat);
-    // Scroll to form after category selected
     setTimeout(() => {
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
@@ -99,6 +126,18 @@ export default function CreatePost() {
   const handleSubmit = async () => {
     if (!category) return toast.error("请选择分类 / Category required");
     if (!formData.title.trim()) return toast.error("请输入标题 / Title required");
+    if (!formData.description.trim()) return toast.error("请填写详细描述 / Description required");
+    if (formData.imageUrls.length === 0) return toast.error("请上传至少一张图片 / At least one photo required");
+
+    // Validate operating hours for fixed merchants
+    if (!isMobile && !formData.is24Hours) {
+      const hasAnyOpen = formData.weeklySchedule.some(
+        (d) => !d.closed && d.open && d.close
+      );
+      if (!hasAnyOpen) {
+        return toast.error("请设置至少一天的营业时间 / Please set operating hours for at least one day");
+      }
+    }
 
     // Check for existing active post in same category (new posts only)
     if (!editId) {
@@ -164,11 +203,20 @@ export default function CreatePost() {
         desc = (desc ? desc + "\n\n" : "") + extras.join(" | ");
       }
 
-      // Build operating hours for fixed merchants
+      // Build operating hours
       const detectedTz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "America/Chicago"; } })();
-      const operatingHours = (!isMobile && formData.openTime && formData.closeTime)
-        ? { open: formData.openTime, close: formData.closeTime, timezone: detectedTz }
-        : null;
+      let operatingHours: any = null;
+      if (!isMobile) {
+        if (formData.is24Hours) {
+          operatingHours = { is24h: true, timezone: detectedTz, schedule: [] };
+        } else {
+          operatingHours = {
+            is24h: false,
+            timezone: detectedTz,
+            schedule: formData.weeklySchedule,
+          };
+        }
+      }
 
       const postPayload = {
         title: formData.title.trim(),
@@ -246,10 +294,8 @@ export default function CreatePost() {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
         <div className="max-w-lg mx-auto px-4 py-5 space-y-8 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
-          {/* Section 1: Category Selection */}
           <CategoryGrid selected={category} onSelect={handleCategorySelect} />
 
-          {/* Merchant type toggle: Fixed vs Mobile */}
           {category && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-200">
               <div className="flex gap-2">
@@ -275,14 +321,12 @@ export default function CreatePost() {
             </div>
           )}
 
-          {/* Section 2: Dynamic Form */}
           {category && (
             <div ref={formRef} className="animate-in fade-in slide-in-from-bottom-4 duration-300">
               <DynamicForm category={category} data={formData} onChange={updateForm} isMobile={isMobile} />
             </div>
           )}
 
-          {/* Section 3: Location Picker */}
           {category && !isMobile && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <LocationPicker
@@ -296,7 +340,6 @@ export default function CreatePost() {
             </div>
           )}
 
-          {/* Mobile service hint */}
           {category && isMobile && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 bg-primary/5 border border-primary/20 rounded-xl p-4 text-center space-y-1">
               <Truck className="h-6 w-6 mx-auto text-primary" />
@@ -305,7 +348,6 @@ export default function CreatePost() {
             </div>
           )}
 
-          {/* Submit Button */}
           {category && (
             <Button
               onClick={handleSubmit}
