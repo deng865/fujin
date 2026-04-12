@@ -144,10 +144,18 @@ export default function ChatRoom() {
         .eq("id", otherId)
         .single();
 
+      const { data: phonePost } = await supabase
+        .from("posts")
+        .select("contact_phone")
+        .eq("user_id", otherId)
+        .not("contact_phone", "is", null)
+        .limit(1)
+        .maybeSingle();
+
       setOtherUser({
         name: profile?.name || "用户",
         avatar_url: profile?.avatar_url || null,
-        phone: null,
+        phone: phonePost?.contact_phone || null,
       });
 
       // Load credit info
@@ -1109,13 +1117,24 @@ export default function ChatRoom() {
               </div>
             </div>
           </div>
-          <button
-            onClick={() => setShowReviewDialog(true)}
-            className="p-2 -mr-2 hover:bg-accent rounded-xl text-primary"
-            title="评价对方"
-          >
-            <Star className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {otherUser?.phone && (
+              <a
+                href={`tel:${otherUser.phone}`}
+                className="p-2 hover:bg-accent rounded-xl text-green-600"
+                title="致电"
+              >
+                <Phone className="h-5 w-5" />
+              </a>
+            )}
+            <button
+              onClick={() => setShowReviewDialog(true)}
+              className="p-2 -mr-2 hover:bg-accent rounded-xl text-primary"
+              title="评价对方"
+            >
+              <Star className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
 
