@@ -236,10 +236,10 @@ export default function MapHome() {
       if (filters.price === "$$" && (price <= 50 || price > 200)) return false;
       if (filters.price === "$$$" && price <= 200) return false;
     }
-    // Operating hours filter for fixed merchants
-    if (!p.is_mobile && p.operating_hours) {
+    // Fixed merchants: must have operating_hours and be currently open
+    if (!p.is_mobile) {
       const open = isCurrentlyOpen(p.operating_hours);
-      if (open === false) return false;
+      if (open !== true) return false;
     }
     return true;
   });
