@@ -67,7 +67,7 @@ const content = {
       },
       {
         heading: "九、联系我们",
-        body: "如果您对本隐私政策有任何疑问，请通过以下方式联系我们：\n电子邮箱：support@fujin.lovable.app",
+        body: "如果您对本隐私政策有任何疑问，请通过以下方式联系我们：\n电子邮箱：tao@shuwenllc.com",
       },
     ],
   },
@@ -135,7 +135,7 @@ const content = {
       },
       {
         heading: "9. Contact Us",
-        body: "If you have any questions about this Privacy Policy, please contact us at:\nEmail: support@fujin.lovable.app",
+        body: "If you have any questions about this Privacy Policy, please contact us at:\nEmail: tao@shuwenllc.com",
       },
     ],
   },
