@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { checkActiveTripLock } from "@/lib/tripLock";
 import { toast } from "sonner";
 import { LogOut, Package, Shield, Headphones, ChevronRight, Edit, Car, Star } from "lucide-react";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -72,6 +73,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [subPage, setSubPage] = useState<SubPage>("main");
   const [locationSharing, setLocationSharing] = useState(true);
+  const [hasActiveTrip, setHasActiveTrip] = useState(false);
 
   // Edit form state
   const [name, setName] = useState("");
@@ -117,6 +119,9 @@ export default function ProfilePage() {
       // Load location sharing preference
       const saved = localStorage.getItem("location_sharing_enabled");
       if (saved !== null) setLocationSharing(saved === "true");
+
+      // Check active trip
+      checkActiveTripLock(user.id).then(convId => setHasActiveTrip(!!convId));
 
       setLoading(false);
     })();
@@ -217,6 +222,9 @@ export default function ProfilePage() {
             locationSharing={locationSharing}
             onLocationSharingChange={handleLocationSharingChange}
             onBack={() => setSubPage("main")}
+            hasMobilePosts={posts.some(p => p.is_mobile)}
+            hasActiveTrip={hasActiveTrip}
+            userId={user?.id}
           />
         </div>
       </div>
