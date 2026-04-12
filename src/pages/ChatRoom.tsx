@@ -1005,10 +1005,36 @@ export default function ChatRoom() {
     }
   };
 
-  const formatTime = (dateStr: string) => {
+  const formatTime = useCallback((dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
-  };
+  }, []);
+
+  // Pre-parse all messages to avoid repeated JSON.parse in render
+  const parsedMessages = useMemo(() => messages.map((msg) => {
+    const callData = parseCallMessage(msg.content);
+    const liveLocData = parseLiveLocationMessage(msg.content);
+    const locData = parseLocationMessage(msg.content);
+    const mediaData = parseMediaMessage(msg.content);
+    const voiceData = parseVoiceMessage(msg.content);
+    const tripRatingData = parseTripRatingMessage(msg.content);
+    const tripNotifyData = parseTripAcceptNotify(msg.content);
+    const tripData = parseTripMessage(msg.content);
+    const tripAcceptData = parseTripAcceptMessage(msg.content);
+    const tripCounterData = parseTripCounterMessage(msg.content);
+    const tripCancelData = parseTripCancelMessage(msg.content);
+    const tripCompleteData = parseTripCompleteMessage(msg.content);
+    let parsedJson: any = null;
+    try { parsedJson = JSON.parse(msg.content); } catch {}
+    return {
+      ...msg,
+      _parsed: {
+        callData, liveLocData, locData, mediaData, voiceData,
+        tripRatingData, tripNotifyData, tripData, tripAcceptData,
+        tripCounterData, tripCancelData, tripCompleteData, parsedJson,
+      },
+    };
+  }), [messages]);
 
   if (loading) {
     return (
