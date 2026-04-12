@@ -202,9 +202,13 @@ export default function ChatRoom() {
     load();
   }, [conversationId, navigate]);
 
+  const prevMsgCountRef = useRef(0);
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    if (messages.length > prevMsgCountRef.current) {
+      scrollToBottom();
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages.length, scrollToBottom]);
 
   useEffect(() => {
     primeAudioNotifications();
