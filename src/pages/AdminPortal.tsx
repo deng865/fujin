@@ -610,6 +610,11 @@ function CategoriesPanel() {
                 <Pencil className="h-4 w-4" />
               </Button>
             )}
+            {!isChild && (
+              <Button size="sm" variant="ghost" title="添加子分类" onClick={() => { setNewParentId(cat.id); setNewName(""); setNewLabel(""); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                <FolderPlus className="h-4 w-4 text-blue-500" />
+              </Button>
+            )}
             <Button size="sm" variant="ghost" onClick={() => handleToggleVisibility(cat.id, cat.is_visible)}>
               {cat.is_visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
@@ -860,7 +865,7 @@ export default function AdminPortal() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="h-screen flex w-full bg-background overflow-hidden">
         <Sidebar collapsible="icon" className="border-r border-border">
           <SidebarContent>
             <SidebarGroup>

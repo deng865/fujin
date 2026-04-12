@@ -107,7 +107,7 @@ export default function CategoryScroll({ selectedCategory, onSelectCategory }: C
 
       {/* Full-screen category panel (Google Maps style) */}
       {showAll && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-md animate-in slide-in-from-bottom duration-200">
+        <div className="fixed inset-0 z-[1000] flex flex-col bg-background/95 backdrop-blur-md animate-in slide-in-from-bottom duration-200">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
             <h2 className="text-base font-bold text-foreground">选择分类</h2>
@@ -120,7 +120,7 @@ export default function CategoryScroll({ selectedCategory, onSelectCategory }: C
           </div>
 
           {/* Category list */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto pb-20">
             {/* "All" option */}
             <button
               onClick={() => handleSelect(null)}
