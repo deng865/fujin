@@ -100,6 +100,7 @@ interface TripData {
   fromCoords?: { lat: number; lng: number };
   toCoords?: { lat: number; lng: number };
   price?: string;
+  tripId?: string;
 }
 
 export function parseTripMessage(content: string): TripData | null {
@@ -110,7 +111,7 @@ export function parseTripMessage(content: string): TripData | null {
   return null;
 }
 
-export function parseTripAcceptMessage(content: string): { type: "trip_accept"; from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } } | null {
+export function parseTripAcceptMessage(content: string): { type: "trip_accept"; from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number }; tripId?: string } | null {
   try {
     const parsed = JSON.parse(content);
     if (parsed?.type === "trip_accept") return parsed;
@@ -118,7 +119,7 @@ export function parseTripAcceptMessage(content: string): { type: "trip_accept"; 
   return null;
 }
 
-export function parseTripCounterMessage(content: string): { type: "trip_counter"; from: string; to: string; price: string; originalPrice?: string } | null {
+export function parseTripCounterMessage(content: string): { type: "trip_counter"; from: string; to: string; price: string; originalPrice?: string; tripId?: string } | null {
   try {
     const parsed = JSON.parse(content);
     if (parsed?.type === "trip_counter") return parsed;
@@ -126,7 +127,7 @@ export function parseTripCounterMessage(content: string): { type: "trip_counter"
   return null;
 }
 
-export function parseTripCancelMessage(content: string): { type: "trip_cancel"; from: string; to: string; cancelledBy: string } | null {
+export function parseTripCancelMessage(content: string): { type: "trip_cancel"; from: string; to: string; cancelledBy: string; tripId?: string } | null {
   try {
     const parsed = JSON.parse(content);
     if (parsed?.type === "trip_cancel") return parsed;
@@ -134,7 +135,7 @@ export function parseTripCancelMessage(content: string): { type: "trip_cancel"; 
   return null;
 }
 
-export function parseTripCompleteMessage(content: string): { type: "trip_complete"; from: string; to: string; price?: string; completedBy: string } | null {
+export function parseTripCompleteMessage(content: string): { type: "trip_complete"; from: string; to: string; price?: string; completedBy: string; tripId?: string } | null {
   try {
     const parsed = JSON.parse(content);
     if (parsed?.type === "trip_complete") return parsed;
@@ -185,13 +186,13 @@ function TripStatusBadge({ isCancelled, isCompleted }: { isCancelled?: boolean; 
 }
 
 function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, onComplete, onRate, hasRated, completingTrip, cancellingTrip }: {
-  acceptData: { from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } };
+  acceptData: { from: string; to: string; price?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number }; tripId?: string };
   isMe: boolean;
   isCancelled?: boolean;
   isCompleted?: boolean;
-  onCancel?: (trip: { from: string; to: string; price?: string }) => void;
-  onComplete?: (trip: { from: string; to: string; price?: string }) => void;
-  onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
+  onCancel?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
+  onComplete?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
+  onRate?: (trip: { from: string; to: string; price?: string; tripId?: string }, rating: number, comment: string) => void;
   hasRated?: boolean;
   completingTrip?: boolean;
   cancellingTrip?: boolean;
@@ -282,7 +283,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
             <div className="flex gap-2 mt-2">
               {onComplete && (
                 <button
-                  onClick={() => !buttonsDisabled && onComplete({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                  onClick={() => !buttonsDisabled && onComplete({ from: acceptData.from, to: acceptData.to, price: acceptData.price, tripId: acceptData.tripId })}
                   disabled={buttonsDisabled}
                   className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
                 >
@@ -292,7 +293,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
               )}
               {onCancel && (
                 <button
-                  onClick={() => !buttonsDisabled && onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price })}
+                  onClick={() => !buttonsDisabled && onCancel({ from: acceptData.from, to: acceptData.to, price: acceptData.price, tripId: acceptData.tripId })}
                   disabled={buttonsDisabled}
                   className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-colors disabled:opacity-50 text-destructive ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" : "bg-accent hover:bg-accent/80"}`}
                 >
@@ -309,7 +310,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
                 请对本次行程评价
               </div>
               <TripRatingInput onSubmit={(rating, comment) => {
-                onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price }, rating, comment);
+                onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price, tripId: acceptData.tripId }, rating, comment);
               }} />
             </div>
           )}
@@ -330,11 +331,11 @@ interface TripMessageProps {
   content: string;
   isMe: boolean;
   isActive?: boolean;
-  onAccept?: (trip: { from: string; to: string; price?: string }) => void;
-  onCounter?: (trip: { from: string; to: string; originalPrice?: string }, newPrice: string) => void;
-  onRate?: (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => void;
-  onCancel?: (trip: { from: string; to: string; price?: string }) => void;
-  onComplete?: (trip: { from: string; to: string; price?: string }) => void;
+  onAccept?: (trip: { from: string; to: string; price?: string; tripId?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } }) => void;
+  onCounter?: (trip: { from: string; to: string; originalPrice?: string; tripId?: string }, newPrice: string) => void;
+  onRate?: (trip: { from: string; to: string; price?: string; tripId?: string }, rating: number, comment: string) => void;
+  onCancel?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
+  onComplete?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
   onCounterOpen?: () => void;
   hasRated?: boolean;
   isCancelled?: boolean;
@@ -462,7 +463,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
           {!isMe && onAccept && (
             <div className="flex gap-2 mt-2">
               <button
-                onClick={() => !acceptingTrip && onAccept({ from: counterData.from, to: counterData.to, price: counterData.price })}
+                onClick={() => !acceptingTrip && onAccept({ from: counterData.from, to: counterData.to, price: counterData.price, tripId: counterData.tripId })}
                 disabled={acceptingTrip}
                 className="flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors disabled:opacity-50"
               >
@@ -496,7 +497,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
                 onClick={async () => {
                   if (counterPrice.trim() && !counterSending) {
                     setCounterSending(true);
-                    await onCounter({ from: counterData.from, to: counterData.to, originalPrice: counterData.price }, counterPrice.trim());
+                    await onCounter({ from: counterData.from, to: counterData.to, originalPrice: counterData.price, tripId: counterData.tripId }, counterPrice.trim());
                     setCounterSending(false);
                     setShowCounterInput(false);
                   }
@@ -644,7 +645,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
                 onClick={async () => {
                   if (counterPrice.trim() && !counterSending) {
                     setCounterSending(true);
-                    await onCounter({ from: trip.from, to: trip.to, originalPrice: trip.price }, counterPrice.trim());
+                    await onCounter({ from: trip.from, to: trip.to, originalPrice: trip.price, tripId: trip.tripId }, counterPrice.trim());
                     setCounterSending(false);
                     setShowCounterInput(false);
                   }

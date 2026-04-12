@@ -23,26 +23,25 @@ export async function checkActiveTripLock(userId: string): Promise<string | null
     if (!msgs) continue;
 
     // Check if there's a trip_accept without a matching trip_cancel or trip_complete
-    const accepts: Array<{ from: string; to: string }> = [];
-    const terminators: Array<{ from: string; to: string }> = [];
+    const accepts: Array<{ from: string; to: string; tripId?: string }> = [];
+    const terminatorKeys = new Set<string>();
+
+    const tripKey = (p: any) => p.tripId || `${p.from}|${p.to}`;
 
     for (const m of msgs) {
       try {
         const parsed = JSON.parse(m.content);
         if (parsed?.type === "trip_accept") {
-          accepts.push({ from: parsed.from, to: parsed.to });
+          accepts.push({ from: parsed.from, to: parsed.to, tripId: parsed.tripId });
         } else if (parsed?.type === "trip_cancel" || parsed?.type === "trip_complete") {
-          terminators.push({ from: parsed.from, to: parsed.to });
+          terminatorKeys.add(tripKey(parsed));
         }
       } catch {}
     }
 
     // Check if any accept doesn't have a matching cancel or complete
     for (const accept of accepts) {
-      const isTerminated = terminators.some(
-        (c) => c.from === accept.from && c.to === accept.to
-      );
-      if (!isTerminated) return conv.id;
+      if (!terminatorKeys.has(tripKey(accept))) return conv.id;
     }
   }
 
