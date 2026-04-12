@@ -25,6 +25,8 @@ interface FormData {
   priceUnit: string;
   // Driver specific
   carModel: string;
+  vehicleColor: string;
+  licensePlate: string;
   availableTime: string;
   driverPriceUnit: string;
   // Jobs specific
@@ -132,6 +134,26 @@ export default function DynamicForm({ category, data, onChange, isMobile = false
               placeholder="如：Toyota Camry 2023"
               className="rounded-xl h-11"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">车色 Color</Label>
+              <Input
+                value={data.vehicleColor}
+                onChange={(e) => onChange({ vehicleColor: e.target.value })}
+                placeholder="如：白色 / White"
+                className="rounded-xl h-11"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">车牌 Plate</Label>
+              <Input
+                value={data.licensePlate}
+                onChange={(e) => onChange({ licensePlate: e.target.value })}
+                placeholder="如：ABC-1234"
+                className="rounded-xl h-11"
+              />
+            </div>
           </div>
         </div>
       )}

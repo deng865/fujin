@@ -12,7 +12,7 @@ import { getDeviceId } from "@/lib/deviceId";
 const initialFormData = {
   title: "", description: "", price: "", phone: "", wechatId: "",
   imageUrls: [] as string[], bedrooms: "", bathrooms: "", priceUnit: "month",
-  carModel: "", availableTime: "", driverPriceUnit: "trip",
+  carModel: "", vehicleColor: "", licensePlate: "", availableTime: "", driverPriceUnit: "trip",
   salaryRange: "", jobType: "",
   openTime: "", closeTime: "", timezone: "",
 };
@@ -152,6 +152,8 @@ export default function CreatePost() {
       }
       if (category === "driver") {
         if (formData.carModel) extras.push(`🚗 ${formData.carModel}`);
+        if (formData.vehicleColor) extras.push(`🎨 ${formData.vehicleColor}`);
+        if (formData.licensePlate) extras.push(`🔢 ${formData.licensePlate}`);
         if (formData.availableTime) extras.push(`🕐 ${formData.availableTime}`);
       }
       if (category === "jobs") {
@@ -204,6 +206,15 @@ export default function CreatePost() {
           throw error;
         }
         toast.success("发布成功！ / Posted successfully!");
+
+        // Sync vehicle info to profile for driver category
+        if (category === "driver" && (formData.carModel || formData.vehicleColor || formData.licensePlate)) {
+          await supabase.from("profiles").update({
+            vehicle_model: formData.carModel || null,
+            vehicle_color: formData.vehicleColor || null,
+            license_plate: formData.licensePlate || null,
+          }).eq("id", user.id);
+        }
       }
       navigate(editId ? "/profile" : "/");
     } catch (err: any) {
