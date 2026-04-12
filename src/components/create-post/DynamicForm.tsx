@@ -1,41 +1,30 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { DollarSign, Phone, MessageCircle, Clock } from "lucide-react";
+import { DollarSign, Phone, MessageCircle } from "lucide-react";
 import MediaUpload from "./MediaUpload";
+import WeeklySchedule, { type DaySchedule } from "./WeeklySchedule";
 
-function getLocalTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return "America/Chicago";
-  }
-}
-
-interface FormData {
+export interface FormData {
   title: string;
   description: string;
   price: string;
   phone: string;
   wechatId: string;
   imageUrls: string[];
-  // Housing specific
   bedrooms: string;
   bathrooms: string;
   priceUnit: string;
-  // Driver specific
   carModel: string;
   vehicleColor: string;
   licensePlate: string;
   availableTime: string;
   driverPriceUnit: string;
-  // Jobs specific
   salaryRange: string;
   jobType: string;
-  // Operating hours (fixed merchants)
-  openTime: string;
-  closeTime: string;
-  timezone: string;
+  // Weekly schedule
+  is24Hours: boolean;
+  weeklySchedule: DaySchedule[];
 }
 
 interface DynamicFormProps {
@@ -61,7 +50,7 @@ export default function DynamicForm({ category, data, onChange, isMobile = false
 
       {/* Description */}
       <div className="space-y-1.5">
-        <Label className="text-sm font-semibold text-muted-foreground">详细描述 / Description</Label>
+        <Label className="text-sm font-semibold text-muted-foreground">详细描述 / Description *</Label>
         <Textarea
           value={data.description}
           onChange={(e) => onChange({ description: e.target.value })}
@@ -193,13 +182,16 @@ export default function DynamicForm({ category, data, onChange, isMobile = false
         <PriceField value={data.price} onChange={(v) => onChange({ price: v })} />
       )}
 
-      {/* Media Upload - below price fields */}
-      <MediaUpload
-        mediaUrls={data.imageUrls}
-        onChange={(urls) => onChange({ imageUrls: urls })}
-      />
+      {/* Media Upload */}
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold text-muted-foreground">图片 / Photos *</Label>
+        <MediaUpload
+          mediaUrls={data.imageUrls}
+          onChange={(urls) => onChange({ imageUrls: urls })}
+        />
+      </div>
 
-      {/* Contact info - always shown */}
+      {/* Contact info */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">电话 Phone</Label>
@@ -229,33 +221,12 @@ export default function DynamicForm({ category, data, onChange, isMobile = false
 
       {/* Operating hours - only for fixed merchants */}
       {!isMobile && (
-        <div className="space-y-3">
-          <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5" />
-            营业时间 / Operating Hours
-          </Label>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">开门</Label>
-              <Input
-                type="time"
-                value={data.openTime}
-                onChange={(e) => onChange({ openTime: e.target.value })}
-                className="rounded-xl h-11"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">关门</Label>
-              <Input
-                type="time"
-                value={data.closeTime}
-                onChange={(e) => onChange({ closeTime: e.target.value })}
-                className="rounded-xl h-11"
-              />
-            </div>
-          </div>
-          <p className="text-[11px] text-muted-foreground">设置后，非营业时间将在地图上隐藏</p>
-        </div>
+        <WeeklySchedule
+          is24Hours={data.is24Hours}
+          schedule={data.weeklySchedule}
+          onToggle24h={(v) => onChange({ is24Hours: v })}
+          onScheduleChange={(s) => onChange({ weeklySchedule: s })}
+        />
       )}
     </div>
   );
