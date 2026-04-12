@@ -131,9 +131,6 @@ export default function ProfilePage() {
     if (!user) return;
     const updateData: any = {
       name, phone: phone || null, wechat_id: wechatId || null,
-      vehicle_model: vehicleModel || null,
-      vehicle_color: vehicleColor || null,
-      license_plate: licensePlate || null,
     };
     const { error } = await supabase.from("profiles").update(updateData).eq("id", user.id);
     if (error) { toast.error("更新失败"); return; }
@@ -288,30 +285,12 @@ export default function ProfilePage() {
           <div className="space-y-1">
             <Label className="text-xs">手机 / Phone</Label>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-xl" />
+            <p className="text-[11px] text-muted-foreground">此信息不显示，用来快捷发送联系方式</p>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">微信 / WeChat</Label>
             <Input value={wechatId} onChange={(e) => setWechatId(e.target.value)} className="rounded-xl" />
-          </div>
-          <div className="pt-3 border-t border-border">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Car className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">车辆信息（司机选填）</span>
-            </div>
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <Label className="text-xs">车型</Label>
-                <Input value={vehicleModel} onChange={(e) => setVehicleModel(e.target.value)} placeholder="如: Toyota Camry" className="rounded-xl" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">车色</Label>
-                <Input value={vehicleColor} onChange={(e) => setVehicleColor(e.target.value)} placeholder="如: 白色" className="rounded-xl" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">车牌</Label>
-                <Input value={licensePlate} onChange={(e) => setLicensePlate(e.target.value)} placeholder="如: ABC-1234" className="rounded-xl" />
-              </div>
-            </div>
+            <p className="text-[11px] text-muted-foreground">此信息不显示，用来快捷发送联系方式</p>
           </div>
           <Button onClick={handleSaveProfile} className="w-full rounded-xl mt-4">
             保存
