@@ -1,45 +1,37 @@
 
 
-# 在"司机已接单"通知卡片中显示车辆信息
+# 编辑资料备注 + 司机发布表单增加车辆信息
 
-## 现状
+## 改动概要
 
-`trip_accept_notify` 消息已经包含了 `vehicleModel`、`vehicleColor`、`licensePlate` 和 `driverName`、`driverAvatar`、`driverRating` 字段（在 ChatRoom.tsx 第 786-796 行构建），但通知卡片的渲染代码（TripMessage.tsx 第 360-381 行）只显示了距离和预计到达时间，没有展示任何车辆或司机信息。
+### 1. 编辑资料页面：手机/微信字段添加提示文字
 
-## 方案
+在 `Profile.tsx` 的编辑资料页面中，手机和微信输入框下方各添加一行灰色小字：
+> "此信息不显示，用来快捷发送联系方式"
 
-修改 `src/components/chat/TripMessage.tsx` 中 `trip_accept_notify` 的渲染部分（约第 360-381 行），在卡片中增加：
+### 2. 编辑资料页面：移除车辆信息区块
 
-1. **司机头像和昵称**（顶部，头像 + 名字 + 信用评分星标）
-2. **车辆信息行**：车型、车身颜色、车牌号（如 "Toyota Camry · 白色 · ABC-1234"）
-3. 如果某项为空则跳过不显示
+将车辆信息（车型、车色、车牌）从编辑资料表单中移除。车辆信息改为在司机发布帖子时填写，存储在帖子维度而非个人资料维度。
 
-### 改动示例
+注意：`profiles` 表仍保留这些字段（用于行程接单时展示），但编辑入口从个人资料页移到发布页。
 
-```tsx
-// 现有的 "🚗 司机已接单，正在赶来" 标题下方新增：
-{/* 司机信息 */}
-<div className="flex items-center gap-2 mb-2">
-  {notifyData.driverAvatar && <img src={notifyData.driverAvatar} className="w-8 h-8 rounded-full" />}
-  <div>
-    <div className="text-sm font-medium">{notifyData.driverName}</div>
-    {notifyData.driverRating && <div className="text-xs text-muted-foreground">⭐ {notifyData.driverRating.toFixed(1)}</div>}
-  </div>
-</div>
+### 3. 司机发布表单：增加车色和车牌字段
 
-{/* 车辆信息 */}
-{(notifyData.vehicleModel || notifyData.licensePlate) && (
-  <div className="bg-emerald-100/50 rounded-lg px-3 py-2 mb-1 text-xs">
-    🚘 {[notifyData.vehicleModel, notifyData.vehicleColor, notifyData.licensePlate].filter(Boolean).join(" · ")}
-  </div>
-)}
-```
+在 `DynamicForm.tsx` 的 driver 分类区块中，在现有"车型"字段后新增：
+- **车色 Color**（文本输入）
+- **车牌 License Plate**（文本输入）
+
+同时在 `FormData` 接口中增加 `vehicleColor` 和 `licensePlate` 字段。
+
+### 4. 发布时保存车辆信息到 profiles
+
+在 `CreatePost.tsx` 提交时，如果分类是 driver，将车型、车色、车牌同步更新到 `profiles` 表（用于后续行程接单通知展示），同时将车辆信息拼接到帖子描述中。
 
 ## 涉及文件
 
 | 文件 | 改动 |
 |------|------|
-| `src/components/chat/TripMessage.tsx` | 在 trip_accept_notify 卡片中展示司机头像、昵称、评分和车辆信息 |
-
-无需数据库改动，所需数据已在消息中传递。
+| `src/pages/Profile.tsx` | 手机/微信字段添加提示文字；移除车辆信息编辑区块 |
+| `src/components/create-post/DynamicForm.tsx` | driver 分类增加车色、车牌字段；FormData 增加对应字段 |
+| `src/pages/CreatePost.tsx` | initialFormData 增加新字段；提交时同步车辆信息到 profiles 表；描述拼接增加车色和车牌 |
 
