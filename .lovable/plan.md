@@ -1,90 +1,45 @@
 
 
-# 修复：行程进行中不显示实时追踪地图
+# 在"司机已接单"通知卡片中显示车辆信息
 
-## 问题根因
+## 现状
 
-通过数据库验证，**最新的 `trip_accept` 消息缺少 `fromCoords`/`toCoords` 坐标数据**：
+`trip_accept_notify` 消息已经包含了 `vehicleModel`、`vehicleColor`、`licensePlate` 和 `driverName`、`driverAvatar`、`driverRating` 字段（在 ChatRoom.tsx 第 786-796 行构建），但通知卡片的渲染代码（TripMessage.tsx 第 360-381 行）只显示了距离和预计到达时间，没有展示任何车辆或司机信息。
 
-```json
-// trip_accept（❌ 无坐标 → DriverTracking 不渲染）
-{"type":"trip_accept","from":"350 Continental Drive...","to":"425 Jones Street...","price":"28","tripId":"f07f7d7d-..."}
+## 方案
 
-// 原始 trip 消息（✅ 有坐标）
-{"type":"trip","from":"350 Continental Drive...","to":"425 Jones Street...","fromCoords":{"lat":33.01,"lng":-96.99},"toCoords":{"lat":33.06,"lng":-97.00},...}
-```
+修改 `src/components/chat/TripMessage.tsx` 中 `trip_accept_notify` 的渲染部分（约第 360-381 行），在卡片中增加：
 
-**两个断裂点：**
+1. **司机头像和昵称**（顶部，头像 + 名字 + 信用评分星标）
+2. **车辆信息行**：车型、车身颜色、车牌号（如 "Toyota Camry · 白色 · ABC-1234"）
+3. 如果某项为空则跳过不显示
 
-1. **还价流程丢失坐标**：`handleCounterTrip` 构建 `trip_counter` 消息时没有携带 `fromCoords`/`toCoords`，导致从还价消息点"接受"时传入 `handleAcceptTrip` 的对象也没有坐标。
+### 改动示例
 
-2. **DriverTracking 渲染条件过严**：`if (!activeAccept?.fromCoords) return null;`（第 1162 行）——只要 accept 消息没坐标就不渲染，但没有回退到原始 trip 消息查找坐标。
+```tsx
+// 现有的 "🚗 司机已接单，正在赶来" 标题下方新增：
+{/* 司机信息 */}
+<div className="flex items-center gap-2 mb-2">
+  {notifyData.driverAvatar && <img src={notifyData.driverAvatar} className="w-8 h-8 rounded-full" />}
+  <div>
+    <div className="text-sm font-medium">{notifyData.driverName}</div>
+    {notifyData.driverRating && <div className="text-xs text-muted-foreground">⭐ {notifyData.driverRating.toFixed(1)}</div>}
+  </div>
+</div>
 
-## 修复方案
-
-### 1. `src/pages/ChatRoom.tsx` — 坐标补全
-
-在 `handleAcceptTrip` 中，如果传入的 trip 对象缺少坐标，**从消息历史中查找同 tripId（或同路线）的原始 trip 消息获取坐标**：
-
-```typescript
-const handleAcceptTrip = async (trip) => {
-  let { fromCoords, toCoords } = trip;
-  
-  // 如果缺少坐标，从原始 trip 消息中补全
-  if (!fromCoords || !toCoords) {
-    for (const m of messages) {
-      const t = parseTripMessage(m.content);
-      if (t && t.from === trip.from && t.to === trip.to && t.fromCoords && t.toCoords) {
-        fromCoords = t.fromCoords;
-        toCoords = t.toCoords;
-        break;
-      }
-    }
-  }
-  
-  // 使用补全后的坐标构建 accept 消息
-  const acceptContent = JSON.stringify({
-    type: "trip_accept", from: trip.from, to: trip.to, 
-    price: trip.price, fromCoords, toCoords, tripId
-  });
-};
-```
-
-### 2. `src/pages/ChatRoom.tsx` — DriverTracking 坐标回退
-
-修改 DriverTracking 渲染逻辑（第 1151-1172 行），当 accept 消息缺少坐标时，从原始 trip 消息或 `tripState.activeAcceptData` 回退查找：
-
-```typescript
-// 如果 activeAccept 没有坐标，从原始 trip 消息中查找
-if (!activeAccept?.fromCoords) {
-  for (const m of messages) {
-    const t = parseTripMessage(m.content);
-    if (t && t.from === activeAccept.from && t.to === activeAccept.to && t.fromCoords) {
-      activeAccept = { ...activeAccept, fromCoords: t.fromCoords, toCoords: t.toCoords };
-      break;
-    }
-  }
-}
-if (!activeAccept?.fromCoords) return null;
-```
-
-### 3. `src/pages/ChatRoom.tsx` — 还价也携带坐标
-
-修改 `handleCounterTrip`，将 `fromCoords`/`toCoords` 传入 counter 消息，防止后续丢失。同时修改 `TripMessage.tsx` 中还价接受按钮的 `onAccept` 调用，传入已有的坐标字段。
-
-### 4. `src/components/chat/TripMessage.tsx` — 还价接受传递坐标
-
-修改还价消息的"接受"按钮（第 466 行），把 `fromCoords`/`toCoords` 也传入：
-
-```typescript
-onAccept({ from: counterData.from, to: counterData.to, price: counterData.price, 
-           tripId: counterData.tripId, fromCoords: counterData.fromCoords, toCoords: counterData.toCoords })
+{/* 车辆信息 */}
+{(notifyData.vehicleModel || notifyData.licensePlate) && (
+  <div className="bg-emerald-100/50 rounded-lg px-3 py-2 mb-1 text-xs">
+    🚘 {[notifyData.vehicleModel, notifyData.vehicleColor, notifyData.licensePlate].filter(Boolean).join(" · ")}
+  </div>
+)}
 ```
 
 ## 涉及文件
 
 | 文件 | 改动 |
 |------|------|
-| `src/pages/ChatRoom.tsx` | handleAcceptTrip 坐标补全 + handleCounterTrip 携带坐标 + DriverTracking 渲染回退 |
-| `src/components/chat/TripMessage.tsx` | counter 解析/接受按钮传递坐标，parseTripCounterMessage 增加坐标字段 |
+| `src/components/chat/TripMessage.tsx` | 在 trip_accept_notify 卡片中展示司机头像、昵称、评分和车辆信息 |
+
+无需数据库改动，所需数据已在消息中传递。
 
