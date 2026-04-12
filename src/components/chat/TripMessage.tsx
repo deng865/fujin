@@ -367,6 +367,26 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
             <Car className="h-4 w-4" />
             🚗 司机已接单，正在赶来
           </div>
+          {/* 司机信息 */}
+          {(notifyData as any).driverName && (
+            <div className="flex items-center gap-2 mb-2">
+              {(notifyData as any).driverAvatar && (
+                <img src={(notifyData as any).driverAvatar} className="w-8 h-8 rounded-full object-cover" alt="司机头像" />
+              )}
+              <div>
+                <div className="text-sm font-medium text-foreground">{(notifyData as any).driverName}</div>
+                {(notifyData as any).driverRating != null && (
+                  <div className="text-xs text-muted-foreground">⭐ {Number((notifyData as any).driverRating).toFixed(1)}</div>
+                )}
+              </div>
+            </div>
+          )}
+          {/* 车辆信息 */}
+          {((notifyData as any).vehicleModel || (notifyData as any).licensePlate) && (
+            <div className="bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2 mb-2 text-xs text-foreground">
+              🚘 {[(notifyData as any).vehicleModel, (notifyData as any).vehicleColor, (notifyData as any).licensePlate].filter(Boolean).join(" · ")}
+            </div>
+          )}
           <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2">
             <div className="text-xs text-muted-foreground">距离你</div>
             <div className="text-sm font-semibold text-foreground">{notifyData.distanceMi.toFixed(1)} miles</div>
