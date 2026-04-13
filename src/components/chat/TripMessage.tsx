@@ -3,7 +3,6 @@ import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircl
 import { TripRatingInput } from "./TripRating";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { useMapChoiceWithQuery } from "@/components/MapChoiceSheet";
-import Map, { Marker, Source, Layer } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 
@@ -16,23 +15,6 @@ interface RouteInfo {
 
 function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fromCoords: { lat: number; lng: number }; toCoords: { lat: number; lng: number }; onRouteLoaded?: (info: RouteInfo) => void; onRouteError?: () => void }) {
   const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
-
-  const bounds = useMemo(() => {
-    const minLng = Math.min(fromCoords.lng, toCoords.lng);
-    const maxLng = Math.max(fromCoords.lng, toCoords.lng);
-    const minLat = Math.min(fromCoords.lat, toCoords.lat);
-    const maxLat = Math.max(fromCoords.lat, toCoords.lat);
-    const padLng = Math.max((maxLng - minLng) * 0.3, 0.005);
-    const padLat = Math.max((maxLat - minLat) * 0.3, 0.005);
-    return [[minLng - padLng, minLat - padLat], [maxLng + padLng, maxLat + padLat]] as [[number, number], [number, number]];
-  }, [fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng]);
-
-  const fallbackLine = useMemo(() => ({
-    type: "Feature" as const,
-    properties: {},
-    geometry: { type: "LineString" as const, coordinates: [[fromCoords.lng, fromCoords.lat], [toCoords.lng, toCoords.lat]] },
-  }), [fromCoords, toCoords]);
-
   const [routeError, setRouteError] = useState(false);
 
   useEffect(() => {
@@ -66,29 +48,21 @@ function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fr
     return () => { cancelled = true; window.clearTimeout(timeout); controller.abort(); };
   }, [fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng]);
 
+  // Use Mapbox Static Images API instead of interactive Map to save Map Loads
+  const staticUrl = useMemo(() => {
+    const fromMarker = `pin-s-a+22c55e(${fromCoords.lng},${fromCoords.lat})`;
+    const toMarker = `pin-s-b+ef4444(${toCoords.lng},${toCoords.lat})`;
+    return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${fromMarker},${toMarker}/auto/400x280@2x?access_token=${MAPBOX_TOKEN}&padding=30`;
+  }, [fromCoords, toCoords]);
+
   return (
-    <div className="w-full h-[140px] rounded-lg mt-2 overflow-hidden">
-      <Map
-        mapboxAccessToken={MAPBOX_TOKEN}
-        initialViewState={{ bounds, fitBoundsOptions: { padding: 30 } }}
-        style={{ width: "100%", height: "100%" }}
-        mapStyle="mapbox://styles/mapbox/streets-v12"
-        interactive={true}
-        scrollZoom={true}
-        dragPan={true}
-        touchZoomRotate={true}
-        attributionControl={false}
-      >
-        <Source id="route-line" type="geojson" data={routeGeoJson || fallbackLine}>
-          <Layer id="route-line-layer" type="line" paint={{ "line-color": "#3b82f6", "line-width": 3, "line-opacity": 0.8 }} layout={{ "line-cap": "round", "line-join": "round" }} />
-        </Source>
-        <Marker longitude={fromCoords.lng} latitude={fromCoords.lat} anchor="center">
-          <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-white shadow-md" />
-        </Marker>
-        <Marker longitude={toCoords.lng} latitude={toCoords.lat} anchor="center">
-          <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow-md" />
-        </Marker>
-      </Map>
+    <div className="w-full h-[140px] rounded-lg mt-2 overflow-hidden bg-muted/30">
+      <img
+        src={staticUrl}
+        alt="路线地图"
+        className="w-full h-full object-cover"
+        loading="lazy"
+      />
     </div>
   );
 }

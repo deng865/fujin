@@ -37,7 +37,7 @@ export default function ControlBar({
   }, [showDistance]);
 
   const fetchSuggestions = useCallback(async (text: string) => {
-    if (text.length < 2) { setSuggestions([]); return; }
+    if (text.length < 3) { setSuggestions([]); return; }
     try {
       const res = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json?access_token=${MAPBOX_TOKEN}&types=place&country=us,ca&limit=5`
@@ -51,7 +51,7 @@ export default function ControlBar({
   const handleInput = (val: string) => {
     setQuery(val);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(val), 300);
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 500);
   };
 
   const handleSelect = (feature: any) => {

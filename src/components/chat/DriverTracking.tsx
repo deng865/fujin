@@ -16,10 +16,13 @@ function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng:
 }
 
 /** Minimum displacement (meters) before we update state / broadcast */
-const MIN_MOVE_THRESHOLD = 20;
+const MIN_MOVE_THRESHOLD = 50;
 
 /** Minimum interval (ms) between route API calls */
-const ROUTE_DEBOUNCE_MS = 5000;
+const ROUTE_DEBOUNCE_MS = 10000;
+
+/** Minimum displacement (meters) before triggering a new route fetch */
+const ROUTE_MOVE_THRESHOLD = 150;
 
 type Phase = "pickup" | "destination";
 
@@ -188,7 +191,7 @@ export default function DriverTracking({
   ) => {
     try {
       const res = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${driverLoc.lng},${driverLoc.lat};${target.lng},${target.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${driverLoc.lng},${driverLoc.lat};${target.lng},${target.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`
       );
       const data = await res.json();
       if (data.routes?.[0]) {
@@ -217,7 +220,7 @@ export default function DriverTracking({
     const prevRouteLoc = lastRouteFetchLoc.current;
     if (prevRouteLoc && elapsed < ROUTE_DEBOUNCE_MS) {
       const moved = haversineMeters(prevRouteLoc, driverLocation);
-      if (moved < 50) {
+      if (moved < ROUTE_MOVE_THRESHOLD) {
         // Schedule a deferred fetch if not already scheduled
         if (!routeFetchTimer.current) {
           routeFetchTimer.current = setTimeout(() => {

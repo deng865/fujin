@@ -38,6 +38,23 @@ import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/Tri
 import { TripRatingInput } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
 import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
+// In-memory reverse geocoding cache
+const reverseGeocodeCache = new Map<string, string>();
+async function cachedReverseGeocode(lat: number, lng: number, token: string): Promise<string> {
+  const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+  const cached = reverseGeocodeCache.get(key);
+  if (cached) return cached;
+  try {
+    const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${token}&language=zh&limit=1`);
+    const geo = await res.json();
+    const name = geo.features?.[0]?.place_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    reverseGeocodeCache.set(key, name);
+    return name;
+  } catch {
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
+}
+
 import CreditBadge from "@/components/reviews/CreditBadge";
 import ReviewDialog from "@/components/reviews/ReviewDialog";
 
@@ -535,9 +552,7 @@ export default function ChatRoom() {
       try {
         const token = import.meta.env.VITE_MAPBOX_TOKEN;
         if (token) {
-          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${token}&language=zh`);
-          const geo = await res.json();
-          if (geo.features?.[0]?.place_name) address = geo.features[0].place_name;
+          address = await cachedReverseGeocode(latitude, longitude, token);
         }
       } catch {}
       const locationContent = JSON.stringify({ type: "location", lat: latitude, lng: longitude, address, senderName: myName });
@@ -566,9 +581,7 @@ export default function ChatRoom() {
       try {
         const token = import.meta.env.VITE_MAPBOX_TOKEN;
         if (token) {
-          const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${pos.coords.longitude},${pos.coords.latitude}.json?access_token=${token}&language=zh`);
-          const geo = await res.json();
-          if (geo.features?.[0]?.place_name) address = geo.features[0].place_name;
+          address = await cachedReverseGeocode(pos.coords.latitude, pos.coords.longitude, token);
         }
       } catch {}
       const liveContent = JSON.stringify({

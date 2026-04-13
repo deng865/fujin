@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { MapPin, Navigation, Loader2, Send, DollarSign, Map, X, Route } from "lucide-react";
 import MapGL, { Marker, MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -30,38 +30,29 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const mapRef = useRef<MapRef>(null);
 
-  // Fetch driving distance when both coords are set
-  useEffect(() => {
-    if (!from.coords || !to.coords) {
-      setDrivingDistance(null);
-      return;
-    }
-    let cancelled = false;
-    const fetchDrivingDistance = async () => {
-      setDistanceLoading(true);
-      try {
-        const res = await fetch(
-          `https://api.mapbox.com/directions/v5/mapbox/driving/${from.coords!.lng},${from.coords!.lat};${to.coords!.lng},${to.coords!.lat}?access_token=${MAPBOX_TOKEN}&overview=false`
-        );
-        const data = await res.json();
-        if (!cancelled && data.routes?.[0]) {
-          const route = data.routes[0];
-          const km = route.distance / 1000;
-          setDrivingDistance({
-            km,
-            mi: km * 0.621371,
-            duration: Math.round(route.duration / 60),
-          });
-        }
-      } catch {
-        if (!cancelled) setDrivingDistance(null);
-      } finally {
-        if (!cancelled) setDistanceLoading(false);
-      }
-    };
-    fetchDrivingDistance();
-    return () => { cancelled = true; };
+  // Fetch driving distance only when user clicks send (lazy), use Haversine for preview
+  const haversinePreview = useMemo(() => {
+    if (!from.coords || !to.coords) return null;
+    const R = 6371;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(to.coords.lat - from.coords.lat);
+    const dLng = toRad(to.coords.lng - from.coords.lng);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(from.coords.lat)) * Math.cos(toRad(to.coords.lat)) * Math.sin(dLng / 2) ** 2;
+    const km = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const mi = km * 0.621371;
+    const duration = Math.round((km / 60) * 60); // rough estimate at 60km/h
+    return { km, mi, duration };
   }, [from.coords, to.coords]);
+
+  // Set haversine preview as driving distance (no API call)
+  useEffect(() => {
+    if (haversinePreview) {
+      setDrivingDistance(haversinePreview);
+      setDistanceLoading(false);
+    } else {
+      setDrivingDistance(null);
+    }
+  }, [haversinePreview]);
 
   const reverseGeocode = useCallback(async (lat: number, lng: number): Promise<string> => {
     try {
@@ -95,7 +86,7 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
   };
 
   const fetchSuggestions = useCallback(async (text: string) => {
-    if (text.length < 2) { setSuggestions([]); return; }
+    if (text.length < 3) { setSuggestions([]); return; }
     try {
       const res = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json?access_token=${MAPBOX_TOKEN}&country=us,ca&limit=5&language=zh`
@@ -110,7 +101,7 @@ export default function TripSharePanel({ onSend, sending }: TripSharePanelProps)
     else setTo({ text: val });
     setActiveField(field);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(val), 300);
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 500);
   };
 
   const handleSelectSuggestion = (feature: any) => {
