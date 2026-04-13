@@ -995,21 +995,15 @@ export default function ChatRoom() {
         updated_at: new Date().toISOString(),
       }).eq("id", conversationId);
 
-      // Update profile rating
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("rating_sum, total_ratings")
-        .eq("id", ratedUserId)
-        .single();
-      if (profile) {
-        const newSum = (profile.rating_sum || 0) + rating;
-        const newTotal = (profile.total_ratings || 0) + 1;
-        await supabase.from("profiles").update({
-          rating_sum: newSum,
-          total_ratings: newTotal,
-          average_rating: parseFloat((newSum / newTotal).toFixed(1)),
-        }).eq("id", ratedUserId);
-      }
+      // Insert into reviews table (trigger auto-updates profile rating)
+      await supabase.from("reviews").insert({
+        sender_id: userId,
+        receiver_id: ratedUserId,
+        rating,
+        comment: comment || null,
+        post_id: null,
+        tags: [],
+      });
     }
   };
 
