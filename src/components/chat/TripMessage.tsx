@@ -15,23 +15,6 @@ interface RouteInfo {
 
 function TripMiniMap({ fromCoords, toCoords, onRouteLoaded, onRouteError }: { fromCoords: { lat: number; lng: number }; toCoords: { lat: number; lng: number }; onRouteLoaded?: (info: RouteInfo) => void; onRouteError?: () => void }) {
   const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
-
-  const bounds = useMemo(() => {
-    const minLng = Math.min(fromCoords.lng, toCoords.lng);
-    const maxLng = Math.max(fromCoords.lng, toCoords.lng);
-    const minLat = Math.min(fromCoords.lat, toCoords.lat);
-    const maxLat = Math.max(fromCoords.lat, toCoords.lat);
-    const padLng = Math.max((maxLng - minLng) * 0.3, 0.005);
-    const padLat = Math.max((maxLat - minLat) * 0.3, 0.005);
-    return [[minLng - padLng, minLat - padLat], [maxLng + padLng, maxLat + padLat]] as [[number, number], [number, number]];
-  }, [fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng]);
-
-  const fallbackLine = useMemo(() => ({
-    type: "Feature" as const,
-    properties: {},
-    geometry: { type: "LineString" as const, coordinates: [[fromCoords.lng, fromCoords.lat], [toCoords.lng, toCoords.lat]] },
-  }), [fromCoords, toCoords]);
-
   const [routeError, setRouteError] = useState(false);
 
   useEffect(() => {
