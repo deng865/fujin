@@ -1014,7 +1014,7 @@ export default function ChatRoom() {
       }).eq("id", conversationId);
 
       // Insert into reviews table (trigger auto-updates profile rating)
-      await supabase.from("reviews").insert({
+      const { error: reviewError } = await supabase.from("reviews").insert({
         sender_id: userId,
         receiver_id: ratedUserId,
         rating,
@@ -1022,6 +1022,10 @@ export default function ChatRoom() {
         post_id: null,
         tags: [],
       });
+      if (reviewError) {
+        console.error("Failed to save review:", reviewError);
+        toast({ title: "评价保存失败", description: "请稍后重试", variant: "destructive" });
+      }
     }
   };
 
