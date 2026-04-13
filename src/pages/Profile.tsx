@@ -112,6 +112,7 @@ export default function ProfilePage() {
   const [subPage, setSubPage] = useState<SubPage>("main");
   const [locationSharing, setLocationSharing] = useState(true);
   const [hasActiveTrip, setHasActiveTrip] = useState(false);
+  const reviewStats = useReviewStats(user?.id || "");
 
   // Edit form state
   const [name, setName] = useState("");
