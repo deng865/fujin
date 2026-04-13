@@ -14,25 +14,63 @@ import MyPostsList from "@/components/profile/MyPostsList";
 import PrivacySettings from "@/components/profile/PrivacySettings";
 import ReviewList from "@/components/reviews/ReviewList";
 
-function ReviewPositiveRate({ userId }: { userId: string }) {
-  const [rate, setRate] = useState<number | null>(null);
+interface ReviewStats {
+  total: number;
+  avg: number;
+  positiveRate: number;
+  distribution: number[]; // [1star, 2star, 3star, 4star, 5star]
+  topTags: { tag: string; count: number }[];
+}
+
+function useReviewStats(userId: string): ReviewStats | null {
+  const [stats, setStats] = useState<ReviewStats | null>(null);
   useEffect(() => {
     if (!userId) return;
     supabase
       .from("reviews")
-      .select("rating")
+      .select("rating, tags")
       .eq("receiver_id", userId)
       .then(({ data }) => {
-        if (!data || data.length === 0) { setRate(null); return; }
+        if (!data || data.length === 0) { setStats(null); return; }
+        const total = data.length;
+        const sum = data.reduce((s: number, r: any) => s + r.rating, 0);
+        const avg = sum / total;
         const good = data.filter((r: any) => r.rating >= 4).length;
-        setRate(Math.round((good / data.length) * 100));
+        const dist = [0, 0, 0, 0, 0];
+        const tagMap = new Map<string, number>();
+        data.forEach((r: any) => {
+          dist[r.rating - 1]++;
+          (r.tags || []).forEach((t: string) => tagMap.set(t, (tagMap.get(t) || 0) + 1));
+        });
+        const topTags = [...tagMap.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8)
+          .map(([tag, count]) => ({ tag, count }));
+        setStats({ total, avg, positiveRate: Math.round((good / total) * 100), distribution: dist, topTags });
       });
   }, [userId]);
+  return stats;
+}
+
+function StarDistribution({ stats }: { stats: ReviewStats }) {
+  const max = Math.max(...stats.distribution, 1);
   return (
-    <>
-      <p className="text-2xl font-bold text-foreground">{rate !== null ? `${rate}%` : "-"}</p>
-      <p className="text-[10px] text-muted-foreground">好评率</p>
-    </>
+    <div className="space-y-1">
+      {[5, 4, 3, 2, 1].map((star) => {
+        const count = stats.distribution[star - 1];
+        const pct = (count / max) * 100;
+        return (
+          <div key={star} className="flex items-center gap-2 text-xs">
+            <span className="w-4 text-right text-muted-foreground">{star}</span>
+            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-yellow-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="w-6 text-right text-muted-foreground">{count}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -229,8 +267,7 @@ export default function ProfilePage() {
   }
 
   if (subPage === "reviews") {
-    const avg = profile?.average_rating ?? 0;
-    const total = profile?.total_ratings ?? 0;
+    const reviewStats = useReviewStats(user?.id || "");
     return (
       <div className="min-h-screen bg-background">
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
@@ -243,21 +280,41 @@ export default function ProfilePage() {
         </div>
         <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
           {/* Stats card */}
-          <div className="bg-card border border-border rounded-2xl p-4 flex items-center gap-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">{avg ? avg.toFixed(1) : "-"}</p>
-              <p className="text-[10px] text-muted-foreground">平均分</p>
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">
+                  {reviewStats ? reviewStats.avg.toFixed(1) : "-"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">平均分</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">{reviewStats?.total ?? 0}</p>
+                <p className="text-[10px] text-muted-foreground">总评价</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">
+                  {reviewStats ? `${reviewStats.positiveRate}%` : "-"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">好评率</p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-foreground">{total}</p>
-              <p className="text-[10px] text-muted-foreground">总评价</p>
-            </div>
-            <div className="text-center">
-              <ReviewPositiveRate userId={user?.id || ""} />
-            </div>
+            {/* Star distribution */}
+            {reviewStats && <StarDistribution stats={reviewStats} />}
+            {/* Tag cloud */}
+            {reviewStats && reviewStats.topTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {reviewStats.topTags.map((t) => (
+                  <span key={t.tag} className="px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs">
+                    {t.tag} ({t.count})
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <h2 className="text-sm font-medium text-muted-foreground">收到的评价</h2>
+          <p className="text-[11px] text-muted-foreground -mt-2">评价在完成 24 小时后可见，发送者信息匿名</p>
           <ReviewList userId={user?.id || ""} type="received" canDispute />
           <h2 className="text-sm font-medium text-muted-foreground pt-2 border-t border-border">我给出的评价</h2>
           <ReviewList userId={user?.id || ""} type="sent" />

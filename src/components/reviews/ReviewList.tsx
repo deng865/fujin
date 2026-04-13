@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, AlertTriangle } from "lucide-react";
+import { Star, AlertTriangle, User } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
@@ -11,18 +11,18 @@ interface Review {
   tags: string[];
   created_at: string;
   dispute_status: string;
-  sender_name?: string;
-  sender_avatar?: string | null;
+  display_name?: string;
+  display_avatar?: string | null;
 }
 
 interface Props {
   userId: string;
   type?: "received" | "sent";
-  /** If true, show a dispute button on each review */
   canDispute?: boolean;
 }
 
 const PAGE_SIZE = 10;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export default function ReviewList({ userId, type = "received", canDispute }: Props) {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -32,36 +32,55 @@ export default function ReviewList({ userId, type = "received", canDispute }: Pr
 
   const fetchReviews = useCallback(async (pageNum: number) => {
     const col = type === "received" ? "receiver_id" : "sender_id";
+    const profileCol = type === "received" ? "sender_id" : "receiver_id";
     const from = pageNum * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("reviews")
-      .select("id, rating, comment, tags, created_at, dispute_status, sender_id")
+      .select(`id, rating, comment, tags, created_at, dispute_status, sender_id, receiver_id`)
       .eq(col, userId)
       .order("created_at", { ascending: false })
       .range(from, to);
 
+    // 24-hour delay for received reviews
+    if (type === "received") {
+      const cutoff = new Date(Date.now() - DAY_MS).toISOString();
+      query = query.lte("created_at", cutoff);
+    }
+
+    const { data, error } = await query;
     if (error || !data) { setLoading(false); return; }
 
-    // Fetch sender profiles
-    const senderIds = [...new Set(data.map((r: any) => r.sender_id))];
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, name, avatar_url")
-      .in("id", senderIds);
+    // For "sent", fetch receiver profiles; for "received", anonymous
+    let enriched: Review[];
+    if (type === "sent") {
+      const targetIds = [...new Set(data.map((r: any) => r[profileCol]))];
+      const { data: profiles } = targetIds.length > 0
+        ? await supabase.from("public_profiles").select("id, name, avatar_url").in("id", targetIds)
+        : { data: [] };
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
 
-    const profileMap = new Map(profiles?.map((p: any) => [p.id, p]) || []);
-
-    const enriched: Review[] = data.map((r: any) => {
-      const p = profileMap.get(r.sender_id);
-      return {
-        ...r,
-        tags: r.tags || [],
-        sender_name: p?.name || "匿名",
-        sender_avatar: p?.avatar_url,
-      };
-    });
+      enriched = data.map((r: any) => {
+        const p = profileMap.get(r[profileCol]);
+        return {
+          id: r.id, rating: r.rating, comment: r.comment,
+          tags: r.tags || [], created_at: r.created_at,
+          dispute_status: r.dispute_status,
+          display_name: p?.name || "用户",
+          display_avatar: p?.avatar_url,
+        };
+      });
+    } else {
+      // Received: anonymous
+      enriched = data.map((r: any) => ({
+        id: r.id, rating: r.rating, comment: r.comment,
+        tags: r.tags || [], created_at: r.created_at,
+        dispute_status: r.dispute_status,
+        display_name: "匿名用户",
+        display_avatar: null,
+      }));
+    }
 
     if (pageNum === 0) {
       setReviews(enriched);
@@ -113,13 +132,13 @@ export default function ReviewList({ userId, type = "received", canDispute }: Pr
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-7 w-7 rounded-full bg-accent overflow-hidden flex items-center justify-center">
-                {r.sender_avatar ? (
-                  <img src={r.sender_avatar} alt="" className="h-7 w-7 rounded-full object-cover" />
+                {r.display_avatar ? (
+                  <img src={r.display_avatar} alt="" className="h-7 w-7 rounded-full object-cover" />
                 ) : (
-                  <span className="text-xs font-medium">{r.sender_name?.[0]}</span>
+                  <User className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
-              <span className="text-sm font-medium">{r.sender_name}</span>
+              <span className="text-sm font-medium">{r.display_name}</span>
             </div>
             <div className="flex items-center gap-0.5">
               {Array.from({ length: 5 }).map((_, i) => (
