@@ -875,6 +875,8 @@ export default function ChatRoom() {
       }
     } finally {
       setCancellingTrip(false);
+      setVoiceRecorderCooldown(true);
+      setTimeout(() => setVoiceRecorderCooldown(false), 1500);
     }
   };
 
@@ -906,6 +908,8 @@ export default function ChatRoom() {
       }
     } finally {
       setCompletingTrip(false);
+      setVoiceRecorderCooldown(true);
+      setTimeout(() => setVoiceRecorderCooldown(false), 1500);
     }
   };
 
