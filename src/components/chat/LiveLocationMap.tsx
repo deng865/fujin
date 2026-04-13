@@ -143,9 +143,28 @@ export default function LiveLocationMap({
     };
   }, []);
 
-  // Fetch driving route with 5s debounce
+  // Fetch driving route with 15s debounce + 100m movement threshold
+  const lastRoutePosRef = useRef<{ my: LiveLocationPosition; other: LiveLocationPosition } | null>(null);
+  const haversineM = useCallback((a: LiveLocationPosition, b: LiveLocationPosition) => {
+    const R = 6371000;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+  }, []);
+
   useEffect(() => {
     if (!myPos || !otherPos || !MAPBOX_TOKEN) return;
+
+    // Skip if neither party moved > 100m since last route fetch
+    const prev = lastRoutePosRef.current;
+    if (prev) {
+      const myMoved = haversineM(prev.my, myPos);
+      const otherMoved = haversineM(prev.other, otherPos);
+      if (myMoved < 100 && otherMoved < 100) return;
+    }
+
     if (routeTimerRef.current) clearTimeout(routeTimerRef.current);
 
     routeTimerRef.current = window.setTimeout(async () => {
@@ -156,6 +175,8 @@ export default function LiveLocationMap({
         const data = await res.json();
         const route = data.routes?.[0];
         if (!route) return;
+
+        lastRoutePosRef.current = { my: myPos, other: otherPos };
 
         const distMi = (route.distance / 1609.344);
         const durMin = Math.round(route.duration / 60);
@@ -178,10 +199,10 @@ export default function LiveLocationMap({
       } catch {
         // silently fail
       }
-    }, 5000);
+    }, 15000);
 
     return () => { if (routeTimerRef.current) clearTimeout(routeTimerRef.current); };
-  }, [myPos, otherPos]);
+  }, [myPos, otherPos, haversineM]);
 
   const createMarkerEl = useCallback((avatarUrl: string | null | undefined, fallbackChar: string, borderColor: string) => {
     const el = document.createElement("div");
