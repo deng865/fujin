@@ -101,6 +101,8 @@ All colors MUST be HSL.
 
   html, body {
     @apply bg-background text-foreground;
+    font-size: 16px;
+    line-height: 1.5;
     height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
