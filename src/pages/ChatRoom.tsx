@@ -1024,7 +1024,7 @@ export default function ChatRoom() {
       });
       if (reviewError) {
         console.error("Failed to save review:", reviewError);
-        toast.error("评价保存失败，请稍后重试");
+        toast({ title: "评价保存失败", description: "请稍后重试", variant: "destructive" });
       }
     }
   };
