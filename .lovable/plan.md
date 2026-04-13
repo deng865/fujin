@@ -1,63 +1,77 @@
 
 
-# 优化 Mapbox API 调用量
+# 修复"我的评价"页面 — 完整方案
 
-## 问题分析
+## 根因
 
-当前 API 用量：
-- **地图加载 3,379 次**：每个 `<MapGL>` 组件实例 = 1 次计费加载
-- **Directions API 4,168 次**：最大消耗源，多处频繁调用
-- **Geocoding 218 次**：相对较少，但仍可优化
+`reviews` 表的插入一直在**静默失败**。原因：
+- `profiles.average_rating` 是一个 `GENERATED ALWAYS` 列（由数据库自动根据 `rating_sum / total_ratings` 计算）
+- 但 `reviews` 表的触发器 `trg_recalculate_rating` 尝试 `UPDATE profiles SET average_rating = ...`
+- PostgreSQL 不允许写入 GENERATED 列，导致触发器报错，整个 INSERT 事务回滚
+- 所以 `reviews` 表始终为空
 
-## 优化方案
+## 修复步骤
 
-### 1. Directions API 优化（预计减少 60-70%）
+### 1. 修复触发器函数（数据库迁移）
 
-**a) TripMessage：用静态图 + 缓存替代交互地图**
-- `TripMessage.tsx` 每次渲染都创建一个 `<Map>` 实例并调用 Directions API 获取路线
-- 改为：首次加载后将路线 GeoJSON 缓存到 `useRef`，避免重复请求
-- 组件卸载再挂载时使用缓存数据
+修改 `recalculate_user_rating()` 函数，移除对 `average_rating` 的写入（它会自动计算）：
 
-**b) LiveLocationMap：增大防抖间隔**
-- 当前 5 秒防抖，改为 **15 秒**，位置变化 < 100m 时跳过请求
+```sql
+CREATE OR REPLACE FUNCTION recalculate_user_rating()
+RETURNS TRIGGER AS $$
+DECLARE
+  _receiver_id UUID;
+  _sum INTEGER;
+  _count INTEGER;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    _receiver_id := OLD.receiver_id;
+  ELSE
+    _receiver_id := NEW.receiver_id;
+  END IF;
 
-**c) DriverTracking：使用 `driving` 替代 `driving-traffic`**
-- `driving-traffic` 按更高价格计费，`driving` 能满足 ETA 估算需求
-- 同时增大防抖最小移动阈值从 50m → 150m
+  SELECT COALESCE(SUM(rating), 0), COUNT(*)
+  INTO _sum, _count
+  FROM public.reviews
+  WHERE receiver_id = _receiver_id;
 
-**d) ChatRoom 接单：一次性调用，缓存结果**
-- 接单时的 Directions 调用是一次性的，可保留但加 try-catch fallback 用 Haversine 估算
+  UPDATE public.profiles
+  SET rating_sum = _sum,
+      total_ratings = _count,
+      updated_at = now()
+  WHERE id = _receiver_id;
 
-**e) TripSharePanel：仅在用户确认发送时请求**
-- 当前在 from/to 坐标变化时立即请求，改为延迟到用户点击发送时才获取驾车距离
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+```
 
-### 2. 地图加载优化（预计减少 40-50%）
+### 2. 增强 handleRateTrip 错误处理（ChatRoom.tsx）
 
-**a) TripMessage：用 Mapbox Static Images API 替代交互式地图**
-- 聊天中的行程消息只是展示路线，用户不需要交互
-- 用静态图片 URL 替代 `<Map>` 组件，每次仅消耗 Static Images API（不计入 Map Loads）
+在 `reviews.insert` 后检查错误，失败时给用户提示。
 
-**b) InAppNavMap：懒加载**
-- 仅在用户点击"应用内导航"时才挂载地图组件，不提前加载
+### 3. 重构"我的评价"页面（Profile.tsx + ReviewList.tsx）
 
-### 3. Geocoding 优化（预计减少 30-40%）
+**星级汇总**：显示平均分、总评价数、各星级分布（5星占比、4星占比等）条形图。
 
-**a) 搜索建议增大防抖**
-- ControlBar 和 SearchBar 的搜索防抖从 300ms → 500ms
-- 最小查询长度从 2 → 3 个字符
+**匿名显示**：收到的评价隐藏发送者头像和姓名，统一显示"匿名用户"。我给出的评价正常显示对方信息。
 
-**b) 反向地理编码缓存**
-- 在 ChatRoom 中为已解析过的坐标添加内存缓存，避免对同一位置重复请求
+**标签汇总**：收集所有评价的 tags，按出现频次排序显示前 8 个。
 
-## 改动文件汇总
+**24小时延迟**：收到的评价查询增加 `created_at` 过滤条件 `<= now() - 24h`，24小时内的评价不对被评价者可见。
 
-| 文件 | 优化内容 |
-|------|----------|
-| `src/components/chat/TripMessage.tsx` | 静态图替代交互地图 + 路线缓存 |
-| `src/components/chat/LiveLocationMap.tsx` | 防抖 5s → 15s，移动阈值增大 |
-| `src/components/chat/DriverTracking.tsx` | `driving-traffic` → `driving`，移动阈值 50m → 150m |
-| `src/components/chat/TripSharePanel.tsx` | 延迟到发送时才请求 Directions |
-| `src/components/SearchBar.tsx` | 防抖 300ms → 500ms，最小字符 3 |
-| `src/components/ControlBar.tsx` | 防抖 300ms → 500ms，最小字符 3 |
-| `src/pages/ChatRoom.tsx` | 反向地理编码缓存 |
+### 4. ReviewList 改进
+
+- `type="received"` 时：查 `receiver_id = userId`，显示"匿名用户"，不显示头像
+- `type="sent"` 时：查 `sender_id = userId`，显示 `receiver_id` 对应的用户名和头像
+- 收到的评价加 24 小时延迟过滤
+
+## 涉及文件
+
+| 文件 | 改动 |
+|------|------|
+| 数据库迁移 | 修复 `recalculate_user_rating` 触发器 |
+| `src/pages/ChatRoom.tsx` | reviews.insert 加错误处理 |
+| `src/pages/Profile.tsx` | 评价页增加星级分布图和标签汇总 |
+| `src/components/reviews/ReviewList.tsx` | 匿名显示 + 24h延迟 + sent类型显示接收者信息 |
 
