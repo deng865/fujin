@@ -268,7 +268,6 @@ export default function ProfilePage() {
   }
 
   if (subPage === "reviews") {
-    const reviewStats = useReviewStats(user?.id || "");
     return (
       <div className="min-h-screen bg-background">
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
