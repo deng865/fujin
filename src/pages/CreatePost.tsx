@@ -129,6 +129,13 @@ export default function CreatePost() {
     if (!formData.description.trim()) return toast.error("请填写详细描述 / Description required");
     if (formData.imageUrls.length === 0) return toast.error("请上传至少一张图片 / At least one photo required");
 
+    // Driver category: vehicle info required
+    if (category === "driver") {
+      if (!formData.carModel.trim()) return toast.error("请填写车型 / Vehicle model required");
+      if (!formData.vehicleColor.trim()) return toast.error("请填写车色 / Vehicle color required");
+      if (!formData.licensePlate.trim()) return toast.error("请填写车牌 / License plate required");
+    }
+
     // Validate operating hours for fixed merchants
     if (!isMobile && !formData.is24Hours) {
       const hasAnyOpen = formData.weeklySchedule.some(

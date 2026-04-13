@@ -1417,8 +1417,8 @@ export default function ChatRoom() {
               <Route className="h-5 w-5" />
             </button>
           )}
-          <VoiceRecorder conversationId={conversationId!} userId={userId!} disabled={sending || uploadingMedia} />
-          <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} onFocus={() => { setShowEmojiPicker(false); setShowContactMenu(false); setShowTripPanel(false); }} placeholder="输入消息..." maxLength={2000} className="flex-1 min-w-0 bg-muted rounded-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
+          <VoiceRecorder conversationId={conversationId!} userId={userId!} disabled={sending || uploadingMedia || !!pendingCancelTrip || !!pendingCompleteTrip || voiceRecorderCooldown} />
+          <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} onFocus={() => { setShowEmojiPicker(false); setShowContactMenu(false); setShowTripPanel(false); }} placeholder="输入消息..." maxLength={2000} className="flex-1 min-w-0 bg-muted rounded-full px-4 py-2.5 text-[16px] outline-none focus:ring-2 focus:ring-ring/30 transition-all placeholder:text-muted-foreground" />
           <button
             onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowContactMenu(false); }}
             className={`p-2 hover:bg-accent rounded-full transition-colors shrink-0 ${showEmojiPicker ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
