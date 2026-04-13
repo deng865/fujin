@@ -880,6 +880,7 @@ export default function ChatRoom() {
 
   // --- Order Complete flow ---
   const [pendingCompleteTrip, setPendingCompleteTrip] = useState<{ from: string; to: string; price?: string } | null>(null);
+  const [voiceRecorderCooldown, setVoiceRecorderCooldown] = useState(false);
 
   const handleCompleteTrip = (trip: { from: string; to: string; price?: string }) => {
     setPendingCompleteTrip(trip);
