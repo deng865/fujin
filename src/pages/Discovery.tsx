@@ -122,6 +122,9 @@ export default function Discovery() {
     setPulling(false);
   };
 
+  const postIds = posts.map(p => p.id);
+  const { ratings: postRatings } = usePostRatings(postIds);
+
   // Filter and sort
   const filtered = posts.filter((p) => {
     if (activeTab === "video") return hasVideo(p.image_urls);
