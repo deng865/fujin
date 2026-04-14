@@ -407,18 +407,10 @@ export default function PostDetail() {
           </div>
         </div>
       </div>
-      {/* Review Dialog */}
-      {currentUserId && post && (
-        <ReviewDialog
-          open={showReview}
-          onOpenChange={setShowReview}
-          senderId={currentUserId}
-          receiverId={post.user_id}
-          postId={post.id}
-          receiverName={post.profiles?.name}
-        />
-      )}
       {MapChoice}
+    </div>
+  );
+}
     </div>
   );
 }
