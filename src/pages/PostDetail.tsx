@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
 import ReviewDialog from "@/components/reviews/ReviewDialog";
 import CreditBadge from "@/components/reviews/CreditBadge";
+import MerchantReviewSection from "@/components/reviews/MerchantReviewSection";
 
 interface PostDetailData {
   id: string;
