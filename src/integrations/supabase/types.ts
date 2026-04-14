@@ -817,6 +817,38 @@ export type Database = {
           },
         ]
       }
+      review_prompts: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          prompted_at: string
+          status: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          prompted_at?: string
+          status?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          prompted_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_prompts_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           admin_note: string | null
@@ -825,11 +857,14 @@ export type Database = {
           dispute_reason: string | null
           dispute_status: string
           id: string
+          image_urls: string[]
+          is_verified: boolean
           post_id: string | null
           rating: number
           receiver_id: string
           sender_id: string
           tags: string[] | null
+          target_type: string
           updated_at: string
         }
         Insert: {
@@ -839,11 +874,14 @@ export type Database = {
           dispute_reason?: string | null
           dispute_status?: string
           id?: string
+          image_urls?: string[]
+          is_verified?: boolean
           post_id?: string | null
           rating: number
           receiver_id: string
           sender_id: string
           tags?: string[] | null
+          target_type?: string
           updated_at?: string
         }
         Update: {
@@ -853,11 +891,14 @@ export type Database = {
           dispute_reason?: string | null
           dispute_status?: string
           id?: string
+          image_urls?: string[]
+          is_verified?: boolean
           post_id?: string | null
           rating?: number
           receiver_id?: string
           sender_id?: string
           tags?: string[] | null
+          target_type?: string
           updated_at?: string
         }
         Relationships: [
