@@ -172,6 +172,7 @@ function ActionCapsule({ icon, label, primary = false, onClick }: {
 export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFavorite, userLat, userLng, scrollRef }: InlinePostDetailProps) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PostProfile | null>(null);
+  const [postUserId, setPostUserId] = useState<string | null>(null);
   const [startingChat, setStartingChat] = useState(false);
   const { openMapChoice, MapChoice } = useMapChoice();
   
@@ -185,7 +186,10 @@ export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFav
   useEffect(() => {
     if (!post) return;
     supabase.from("posts").select("user_id").eq("id", post.id).single().then(({ data: p }) => {
-      if (p) supabase.from("profiles").select("name, phone, wechat_id, avatar_url").eq("id", p.user_id).maybeSingle().then(({ data: prof }) => setProfile(prof));
+      if (p) {
+        setPostUserId(p.user_id);
+        supabase.from("profiles").select("name, phone, wechat_id, avatar_url").eq("id", p.user_id).maybeSingle().then(({ data: prof }) => setProfile(prof));
+      }
     });
   }, [post.id]);
 
