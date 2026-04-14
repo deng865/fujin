@@ -256,6 +256,7 @@ function PostCard({
   isFavorite,
   onToggleFavorite,
   onSelect,
+  ratingData,
 }: {
   post: Post;
   userLat: number | null;
@@ -263,6 +264,7 @@ function PostCard({
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onSelect: () => void;
+  ratingData?: { avgRating: number; totalReviews: number; topTag: string | null };
 }) {
   const coverUrl = post.image_urls?.[0];
   const hasVid = hasVideo(post.image_urls);
