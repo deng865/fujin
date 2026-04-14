@@ -212,6 +212,9 @@ export default function MapListSheet({
     onSheetHeightChange?.(displayHeight);
   }, [displayHeight, onSheetHeightChange]);
 
+  const postIds = posts.map(p => p.id);
+  const { ratings: postRatings } = usePostRatings(postIds);
+
   const sorted = [...posts].sort((a, b) => {
     const dA = haversineKm(userLat, userLng, a.latitude, a.longitude);
     const dB = haversineKm(userLat, userLng, b.latitude, b.longitude);
@@ -419,7 +422,7 @@ function ImageGallery({ urls, onClickExpand }: { urls: string[]; onClickExpand?:
 
 /* ─── Google Maps style list card ─── */
 function ListCard({
-  post, userLat, userLng, isFavorite, onToggleFavorite, onSelect, showDivider,
+  post, userLat, userLng, isFavorite, onToggleFavorite, onSelect, showDivider, ratingData,
 }: {
   post: Post;
   userLat: number;
@@ -428,6 +431,7 @@ function ListCard({
   onToggleFavorite: (id: string) => void;
   onSelect: () => void;
   showDivider: boolean;
+  ratingData?: { avgRating: number; totalReviews: number; topTag: string | null };
 }) {
   const navigate = useNavigate();
   const { openMapChoice, MapChoice } = useMapChoice();
