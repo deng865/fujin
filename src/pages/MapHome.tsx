@@ -34,6 +34,7 @@ interface Post {
   live_latitude?: number | null;
   live_longitude?: number | null;
   live_updated_at?: string | null;
+  user_id?: string;
 }
 
 function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -120,7 +121,7 @@ export default function MapHome() {
     if (!bounds) return;
     const { data } = await supabase
       .from("posts")
-      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, is_mobile, operating_hours, live_latitude, live_longitude, live_updated_at")
+      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, is_mobile, operating_hours, live_latitude, live_longitude, live_updated_at, user_id")
       .gte("latitude", bounds.getSouth())
       .lte("latitude", bounds.getNorth())
       .gte("longitude", bounds.getWest())
