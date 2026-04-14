@@ -507,6 +507,71 @@ export default function ChatRoom() {
     }
   };
 
+  // Inactivity review prompt for mobile service chats
+  useEffect(() => {
+    if (!conversationId || !userId || !otherUserId || messages.length === 0) return;
+
+    // Only for non-ride chats (mobile service context)
+    // Check if the other user has mobile posts
+    let cancelled = false;
+    const checkInactivity = async () => {
+      const { count: mobilePostCount } = await supabase
+        .from("posts")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", otherUserId)
+        .eq("is_mobile", true);
+
+      if (cancelled || !mobilePostCount || mobilePostCount === 0) return;
+
+      // Check last message time
+      const lastMsg = messages[messages.length - 1];
+      const elapsed = Date.now() - new Date(lastMsg.created_at).getTime();
+      const THIRTY_MIN = 30 * 60 * 1000;
+
+      if (elapsed < THIRTY_MIN) return;
+
+      // Check if there's an active trip - don't prompt during active trips
+      const hasActiveTrip = messages.some((m) => {
+        try {
+          const p = JSON.parse(m.content);
+          return p?.type === "trip_accept_notify";
+        } catch { return false; }
+      });
+      const hasTripComplete = messages.some((m) => {
+        try {
+          const p = JSON.parse(m.content);
+          return p?.type === "trip_complete";
+        } catch { return false; }
+      });
+      if (hasActiveTrip && !hasTripComplete) return;
+
+      // Check if already prompted
+      const { data: existingPrompt } = await supabase
+        .from("review_prompts")
+        .select("id")
+        .eq("conversation_id", conversationId)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (cancelled || existingPrompt) return;
+
+      // Send system prompt message
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: JSON.stringify({ type: "review_prompt", text: "服务结束了吗？请对本次服务进行评价" }),
+      });
+
+      await supabase.from("review_prompts").insert({
+        conversation_id: conversationId,
+        status: "pending",
+      } as any);
+    };
+
+    const timer = setTimeout(checkInactivity, 5000); // Check 5s after mount
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [conversationId, userId, otherUserId, messages.length]);
+
   const handleSend = async () => {
     if (!input.trim() || !userId || !conversationId || sending) return;
     const trimmed = input.trim();
@@ -1165,11 +1230,16 @@ export default function ChatRoom() {
           receiverId={otherUserId}
           postId={conversationId || ""}
           receiverName={otherUser?.name}
+          targetType={isRideChat ? "mobile_merchant" : "user"}
           onReviewSubmitted={() => {
             // Refresh other user credit
             supabase.from("profiles").select("average_rating, total_ratings").eq("id", otherUserId).single().then(({ data }) => {
               if (data) setOtherUserCredit(data as any);
             });
+            // Mark prompt as reviewed if exists
+            if (conversationId) {
+              supabase.from("review_prompts").update({ status: "reviewed" } as any).eq("conversation_id", conversationId).eq("status", "pending");
+            }
           }}
         />
       )}
