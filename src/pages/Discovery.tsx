@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
 import PostBottomSheet from "@/components/PostBottomSheet";
+import PostCreditBadge from "@/components/PostCreditBadge";
+import { usePostRatings } from "@/hooks/usePostRating";
 import { cn } from "@/lib/utils";
 
 interface Post {
@@ -20,6 +22,7 @@ interface Post {
   image_urls: string[] | null;
   created_at: string;
   user_id: string;
+  is_mobile?: boolean;
 }
 
 const TABS = [
@@ -85,7 +88,7 @@ export default function Discovery() {
   const fetchPosts = useCallback(async () => {
     const { data } = await supabase
       .from("posts")
-      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, user_id")
+      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, user_id, is_mobile")
       .eq("is_visible", true)
       .order("created_at", { ascending: false })
       .limit(200);
