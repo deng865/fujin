@@ -27,6 +27,7 @@ interface PostDetailData {
   user_id: string;
   contact_phone: string | null;
   contact_wechat: string | null;
+  is_mobile: boolean;
   profiles?: {
     name: string;
     avatar_url: string | null;
@@ -281,6 +282,15 @@ export default function PostDetail() {
             </div>
           </div>
 
+          {/* Merchant Review Section */}
+          <MerchantReviewSection
+            postId={post.id}
+            postUserId={post.user_id}
+            currentUserId={currentUserId}
+            isMobile={post.is_mobile}
+            receiverName={post.profiles?.name}
+          />
+
           {/* Chat Button */}
           <Button
             onClick={handleStartChat}
@@ -290,18 +300,6 @@ export default function PostDetail() {
             <Send className="h-4 w-4 mr-2" />
             {startingChat ? "正在创建会话..." : "私聊 / Contact"}
           </Button>
-
-          {/* Review Button */}
-          {currentUserId && post.user_id !== currentUserId && (
-            <Button
-              variant="outline"
-              onClick={() => setShowReview(true)}
-              className="w-full rounded-xl h-10 text-sm"
-            >
-              <Star className="h-4 w-4 mr-2" />
-              评价此发布者
-            </Button>
-          )}
 
           <Button
             variant="outline"
