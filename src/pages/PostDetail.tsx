@@ -3,7 +3,7 @@ import { useMapChoice } from "@/components/MapChoiceSheet";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation, Star } from "lucide-react";
+import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
@@ -63,7 +63,6 @@ export default function PostDetail() {
   const [startingChat, setStartingChat] = useState(false);
   const [showReport, setShowReport] = useState(false);
   
-  const [showReview, setShowReview] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
