@@ -29,6 +29,7 @@ interface Post {
   live_latitude?: number | null;
   live_longitude?: number | null;
   live_updated_at?: string | null;
+  user_id?: string;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -212,8 +213,8 @@ export default function MapListSheet({
     onSheetHeightChange?.(displayHeight);
   }, [displayHeight, onSheetHeightChange]);
 
-  const postIds = posts.map(p => p.id);
-  const { ratings: postRatings } = usePostRatings(postIds);
+  const ratingInputs = posts.map(p => ({ postId: p.id, userId: p.user_id }));
+  const { ratings: postRatings } = usePostRatings(ratingInputs);
 
   const sorted = [...posts].sort((a, b) => {
     const dA = haversineKm(userLat, userLng, a.latitude, a.longitude);

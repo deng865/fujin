@@ -122,8 +122,8 @@ export default function Discovery() {
     setPulling(false);
   };
 
-  const postIds = posts.map(p => p.id);
-  const { ratings: postRatings } = usePostRatings(postIds);
+  const ratingInputs = posts.map(p => ({ postId: p.id, userId: p.user_id }));
+  const { ratings: postRatings } = usePostRatings(ratingInputs);
 
   // Filter and sort
   const filtered = posts.filter((p) => {
