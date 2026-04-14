@@ -375,6 +375,17 @@ export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFav
             </p>
           )}
 
+          {/* Merchant Review Section */}
+          {postUserId && (
+            <MerchantReviewSection
+              postId={post.id}
+              postUserId={postUserId}
+              currentUserId={currentUserId}
+              isMobile={!!post.is_mobile}
+              receiverName={profile?.name}
+            />
+          )}
+
           {/* Publisher */}
           {profile && (
             <div className="flex items-center gap-3 pt-1">
