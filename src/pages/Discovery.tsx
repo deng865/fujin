@@ -228,6 +228,7 @@ export default function Discovery() {
                 isFavorite={isFavorite(post.id)}
                 onToggleFavorite={() => handleToggleFavorite(post.id)}
                 onSelect={() => setSelectedPost(post)}
+                ratingData={postRatings[post.id]}
               />
             ))}
           </div>
