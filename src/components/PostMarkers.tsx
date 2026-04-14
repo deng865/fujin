@@ -1,17 +1,33 @@
+import { useState, useEffect } from "react";
 import { Marker } from "react-map-gl/mapbox";
-import { Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, MapPin, Scale, Heart } from "lucide-react";
+import {
+  Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, Scale,
+  MapPin, Wrench, ShoppingBag, Heart, Music, Camera, Star, Coffee, Scissors,
+  Stethoscope, Building, Dumbbell, Baby, Dog, Laptop, Paintbrush, Hammer,
+  BookOpen, Headphones, Truck, Wallet, Globe, Flower2, Sparkles, Pizza,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
-const categoryIcons: Record<string, any> = {
-  housing: Home, jobs: Briefcase, auto: Car, food: UtensilsCrossed,
-  education: GraduationCap, travel: Plane, driver: UserCheck, legal: Scale,
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, Scale,
+  MapPin, Wrench, ShoppingBag, Heart, Music, Camera, Star, Coffee, Scissors,
+  Stethoscope, Building, Dumbbell, Baby, Dog, Laptop, Paintbrush, Hammer,
+  BookOpen, Headphones, Truck, Wallet, Globe, Flower2, Sparkles, Pizza,
 };
 
-const categoryColors: Record<string, string> = {
-  housing: "bg-blue-500", jobs: "bg-emerald-500", auto: "bg-orange-500",
-  food: "bg-red-500", education: "bg-purple-500", travel: "bg-cyan-500",
-  driver: "bg-yellow-500", legal: "bg-indigo-500",
-};
+const colorPool = [
+  "bg-blue-500", "bg-emerald-500", "bg-orange-500", "bg-red-500",
+  "bg-purple-500", "bg-cyan-500", "bg-yellow-500", "bg-indigo-500",
+  "bg-pink-500", "bg-teal-500", "bg-lime-500", "bg-rose-500",
+  "bg-amber-500", "bg-violet-500", "bg-fuchsia-500", "bg-sky-500",
+];
+
+function hashColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return colorPool[Math.abs(h) % colorPool.length];
+}
 
 interface Post {
   id: string;
@@ -38,11 +54,27 @@ interface PostMarkersProps {
 }
 
 export default function PostMarkers({ posts, onSelectPost, favoriteIds, selectedPostId }: PostMarkersProps) {
+  const [catMap, setCatMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    supabase
+      .from("categories")
+      .select("name, icon")
+      .then(({ data }) => {
+        if (data) {
+          const m: Record<string, string> = {};
+          data.forEach((c) => (m[c.name] = c.icon));
+          setCatMap(m);
+        }
+      });
+  }, []);
+
   return (
     <>
       {posts.map((post) => {
-        const Icon = categoryIcons[post.category] || MapPin;
-        const color = categoryColors[post.category] || "bg-muted";
+        const iconName = catMap[post.category];
+        const Icon = (iconName && iconMap[iconName]) || MapPin;
+        const color = hashColor(post.category);
         const isFav = favoriteIds?.has(post.id);
         const isMobile = post.is_mobile === true;
         const isSelected = selectedPostId === post.id;
