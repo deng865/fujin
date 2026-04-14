@@ -3,7 +3,7 @@ import { useMapChoice } from "@/components/MapChoiceSheet";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation, Star } from "lucide-react";
+import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
 import ReviewDialog from "@/components/reviews/ReviewDialog";
 import CreditBadge from "@/components/reviews/CreditBadge";
+import MerchantReviewSection from "@/components/reviews/MerchantReviewSection";
 
 interface PostDetailData {
   id: string;
@@ -26,6 +27,7 @@ interface PostDetailData {
   user_id: string;
   contact_phone: string | null;
   contact_wechat: string | null;
+  is_mobile: boolean;
   profiles?: {
     name: string;
     avatar_url: string | null;
@@ -61,7 +63,6 @@ export default function PostDetail() {
   const [startingChat, setStartingChat] = useState(false);
   const [showReport, setShowReport] = useState(false);
   
-  const [showReview, setShowReview] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
@@ -280,6 +281,15 @@ export default function PostDetail() {
             </div>
           </div>
 
+          {/* Merchant Review Section */}
+          <MerchantReviewSection
+            postId={post.id}
+            postUserId={post.user_id}
+            currentUserId={currentUserId}
+            isMobile={post.is_mobile}
+            receiverName={post.profiles?.name}
+          />
+
           {/* Chat Button */}
           <Button
             onClick={handleStartChat}
@@ -289,18 +299,6 @@ export default function PostDetail() {
             <Send className="h-4 w-4 mr-2" />
             {startingChat ? "正在创建会话..." : "私聊 / Contact"}
           </Button>
-
-          {/* Review Button */}
-          {currentUserId && post.user_id !== currentUserId && (
-            <Button
-              variant="outline"
-              onClick={() => setShowReview(true)}
-              className="w-full rounded-xl h-10 text-sm"
-            >
-              <Star className="h-4 w-4 mr-2" />
-              评价此发布者
-            </Button>
-          )}
 
           <Button
             variant="outline"
@@ -408,17 +406,6 @@ export default function PostDetail() {
           </div>
         </div>
       </div>
-      {/* Review Dialog */}
-      {currentUserId && post && (
-        <ReviewDialog
-          open={showReview}
-          onOpenChange={setShowReview}
-          senderId={currentUserId}
-          receiverId={post.user_id}
-          postId={post.id}
-          receiverName={post.profiles?.name}
-        />
-      )}
       {MapChoice}
     </div>
   );
