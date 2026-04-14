@@ -1347,6 +1347,31 @@ export default function ChatRoom() {
 
           // Skip trip_complete and render system messages inline
           if (parsedJson?.type === "trip_complete") return null;
+          if (parsedJson?.type === "review_prompt") {
+            return (
+              <div key={msg.id}>
+                {showDate && (
+                  <div className="text-center text-[11px] text-muted-foreground py-2">
+                    {new Date(msg.created_at).toLocaleDateString("zh-CN", { month: "long", day: "numeric" })}
+                  </div>
+                )}
+                <div className="text-center py-2">
+                  <div className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                    <Star className="h-3.5 w-3.5" />
+                    {parsedJson.text || "服务结束了吗？请评价"}
+                  </div>
+                  {userId && otherUserId && (
+                    <button
+                      onClick={() => setShowReviewDialog(true)}
+                      className="block mx-auto mt-1.5 text-xs text-primary underline"
+                    >
+                      去评价
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
           if (parsedJson?.type === "system") {
             return (
               <div key={msg.id}>
