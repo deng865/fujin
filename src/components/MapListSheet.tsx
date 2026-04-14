@@ -11,6 +11,8 @@ import { useMapChoice } from "@/components/MapChoiceSheet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
+import { usePostRatings } from "@/hooks/usePostRating";
+import PostCreditBadge from "@/components/PostCreditBadge";
 
 interface Post {
   id: string;
@@ -210,6 +212,9 @@ export default function MapListSheet({
     onSheetHeightChange?.(displayHeight);
   }, [displayHeight, onSheetHeightChange]);
 
+  const postIds = posts.map(p => p.id);
+  const { ratings: postRatings } = usePostRatings(postIds);
+
   const sorted = [...posts].sort((a, b) => {
     const dA = haversineKm(userLat, userLng, a.latitude, a.longitude);
     const dB = haversineKm(userLat, userLng, b.latitude, b.longitude);
@@ -316,6 +321,7 @@ export default function MapListSheet({
                   onToggleFavorite={onToggleFavorite}
                   onSelect={() => onSelectPost(post)}
                   showDivider={idx > 0}
+                  ratingData={postRatings[post.id]}
                 />
               ))}
             </div>
@@ -416,7 +422,7 @@ function ImageGallery({ urls, onClickExpand }: { urls: string[]; onClickExpand?:
 
 /* ─── Google Maps style list card ─── */
 function ListCard({
-  post, userLat, userLng, isFavorite, onToggleFavorite, onSelect, showDivider,
+  post, userLat, userLng, isFavorite, onToggleFavorite, onSelect, showDivider, ratingData,
 }: {
   post: Post;
   userLat: number;
@@ -425,6 +431,7 @@ function ListCard({
   onToggleFavorite: (id: string) => void;
   onSelect: () => void;
   showDivider: boolean;
+  ratingData?: { avgRating: number; totalReviews: number; topTag: string | null };
 }) {
   const navigate = useNavigate();
   const { openMapChoice, MapChoice } = useMapChoice();
@@ -502,6 +509,17 @@ function ListCard({
             size="sm"
           />
         </div>
+
+        {/* Row 1.5: Credit info */}
+        {ratingData && ratingData.totalReviews > 0 && (
+          <PostCreditBadge
+            avgRating={ratingData.avgRating}
+            totalReviews={ratingData.totalReviews}
+            topTag={ratingData.topTag}
+            isMobile={post.is_mobile}
+            className="mt-0.5"
+          />
+        )}
 
         {/* Row 2: Price · Category */}
         <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">

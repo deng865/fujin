@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
 import PostBottomSheet from "@/components/PostBottomSheet";
+import PostCreditBadge from "@/components/PostCreditBadge";
+import { usePostRatings } from "@/hooks/usePostRating";
 import { cn } from "@/lib/utils";
 
 interface Post {
@@ -20,6 +22,7 @@ interface Post {
   image_urls: string[] | null;
   created_at: string;
   user_id: string;
+  is_mobile?: boolean;
 }
 
 const TABS = [
@@ -85,7 +88,7 @@ export default function Discovery() {
   const fetchPosts = useCallback(async () => {
     const { data } = await supabase
       .from("posts")
-      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, user_id")
+      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, user_id, is_mobile")
       .eq("is_visible", true)
       .order("created_at", { ascending: false })
       .limit(200);
@@ -118,6 +121,9 @@ export default function Discovery() {
     setPullY(0);
     setPulling(false);
   };
+
+  const postIds = posts.map(p => p.id);
+  const { ratings: postRatings } = usePostRatings(postIds);
 
   // Filter and sort
   const filtered = posts.filter((p) => {
@@ -222,6 +228,7 @@ export default function Discovery() {
                 isFavorite={isFavorite(post.id)}
                 onToggleFavorite={() => handleToggleFavorite(post.id)}
                 onSelect={() => setSelectedPost(post)}
+                ratingData={postRatings[post.id]}
               />
             ))}
           </div>
@@ -249,6 +256,7 @@ function PostCard({
   isFavorite,
   onToggleFavorite,
   onSelect,
+  ratingData,
 }: {
   post: Post;
   userLat: number | null;
@@ -256,6 +264,7 @@ function PostCard({
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onSelect: () => void;
+  ratingData?: { avgRating: number; totalReviews: number; topTag: string | null };
 }) {
   const coverUrl = post.image_urls?.[0];
   const hasVid = hasVideo(post.image_urls);
@@ -322,6 +331,16 @@ function PostCard({
 
         {/* Title */}
         <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{post.title}</h3>
+
+        {/* Credit info */}
+        {ratingData && ratingData.totalReviews > 0 && (
+          <PostCreditBadge
+            avgRating={ratingData.avgRating}
+            totalReviews={ratingData.totalReviews}
+            topTag={ratingData.topTag}
+            isMobile={post.is_mobile}
+          />
+        )}
 
         {/* Price */}
         {post.price != null && (
