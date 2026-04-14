@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, AlertTriangle, User } from "lucide-react";
+import { Star, AlertTriangle, User, CheckCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
@@ -13,18 +13,22 @@ interface Review {
   dispute_status: string;
   display_name?: string;
   display_avatar?: string | null;
+  is_verified?: boolean;
+  image_urls?: string[];
+  target_type?: string;
 }
 
 interface Props {
   userId: string;
   type?: "received" | "sent";
   canDispute?: boolean;
+  targetType?: string; // filter by target_type if provided
 }
 
 const PAGE_SIZE = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export default function ReviewList({ userId, type = "received", canDispute }: Props) {
+export default function ReviewList({ userId, type = "received", canDispute, targetType }: Props) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
@@ -38,10 +42,14 @@ export default function ReviewList({ userId, type = "received", canDispute }: Pr
 
     let query = supabase
       .from("reviews")
-      .select(`id, rating, comment, tags, created_at, dispute_status, sender_id, receiver_id`)
+      .select(`id, rating, comment, tags, created_at, dispute_status, sender_id, receiver_id, is_verified, image_urls, target_type`)
       .eq(col, userId)
       .order("created_at", { ascending: false })
       .range(from, to);
+
+    if (targetType) {
+      query = query.eq("target_type", targetType);
+    }
 
     // 24-hour delay for received reviews
     if (type === "received") {
@@ -52,7 +60,6 @@ export default function ReviewList({ userId, type = "received", canDispute }: Pr
     const { data, error } = await query;
     if (error || !data) { setLoading(false); return; }
 
-    // For "sent", fetch receiver profiles; for "received", anonymous
     let enriched: Review[];
     if (type === "sent") {
       const targetIds = [...new Set(data.map((r: any) => r[profileCol]))];
@@ -69,16 +76,21 @@ export default function ReviewList({ userId, type = "received", canDispute }: Pr
           dispute_status: r.dispute_status,
           display_name: p?.name || "用户",
           display_avatar: p?.avatar_url,
+          is_verified: r.is_verified,
+          image_urls: r.image_urls || [],
+          target_type: r.target_type,
         };
       });
     } else {
-      // Received: anonymous
       enriched = data.map((r: any) => ({
         id: r.id, rating: r.rating, comment: r.comment,
         tags: r.tags || [], created_at: r.created_at,
         dispute_status: r.dispute_status,
         display_name: "匿名用户",
         display_avatar: null,
+        is_verified: r.is_verified,
+        image_urls: r.image_urls || [],
+        target_type: r.target_type,
       }));
     }
 
@@ -89,7 +101,7 @@ export default function ReviewList({ userId, type = "received", canDispute }: Pr
     }
     setHasMore(data.length === PAGE_SIZE);
     setLoading(false);
-  }, [userId, type]);
+  }, [userId, type, targetType]);
 
   useEffect(() => {
     setPage(0);
@@ -138,7 +150,15 @@ export default function ReviewList({ userId, type = "received", canDispute }: Pr
                   <User className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
-              <span className="text-sm font-medium">{r.display_name}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-medium">{r.display_name}</span>
+                {r.is_verified && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+                    <CheckCircle className="h-2.5 w-2.5" />
+                    已验证
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-0.5">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -161,6 +181,14 @@ export default function ReviewList({ userId, type = "received", canDispute }: Pr
             </div>
           )}
           {r.comment && <p className="text-sm text-foreground">{r.comment}</p>}
+          {/* Review images */}
+          {r.image_urls && r.image_urls.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto">
+              {r.image_urls.map((url, i) => (
+                <img key={i} src={url} alt="" className="h-20 w-20 rounded-lg object-cover shrink-0" />
+              ))}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">
               {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: zhCN })}
