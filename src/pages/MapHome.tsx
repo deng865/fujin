@@ -305,8 +305,8 @@ export default function MapHome() {
       {/* Bottom sheet with list of nearby posts */}
       <MapListSheet
         posts={filtered}
-        userLat={center.lat}
-        userLng={center.lng}
+        userLat={userPos?.lat ?? center.lat}
+        userLng={userPos?.lng ?? center.lng}
         selectedPost={selectedPost}
         onSelectPost={setSelectedPost}
         favoriteIds={favoriteIds}

@@ -13,6 +13,7 @@ import { checkActiveTripLock } from "@/lib/tripLock";
 import { useMapChoice } from "@/components/MapChoiceSheet";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
 import FavoriteButton from "@/components/FavoriteButton";
+import MerchantReviewSection from "@/components/reviews/MerchantReviewSection";
 import { cn } from "@/lib/utils";
 
 interface Post {
@@ -171,6 +172,7 @@ function ActionCapsule({ icon, label, primary = false, onClick }: {
 export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFavorite, userLat, userLng, scrollRef }: InlinePostDetailProps) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PostProfile | null>(null);
+  const [postUserId, setPostUserId] = useState<string | null>(null);
   const [startingChat, setStartingChat] = useState(false);
   const { openMapChoice, MapChoice } = useMapChoice();
   
@@ -184,7 +186,10 @@ export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFav
   useEffect(() => {
     if (!post) return;
     supabase.from("posts").select("user_id").eq("id", post.id).single().then(({ data: p }) => {
-      if (p) supabase.from("profiles").select("name, phone, wechat_id, avatar_url").eq("id", p.user_id).maybeSingle().then(({ data: prof }) => setProfile(prof));
+      if (p) {
+        setPostUserId(p.user_id);
+        supabase.from("profiles").select("name, phone, wechat_id, avatar_url").eq("id", p.user_id).maybeSingle().then(({ data: prof }) => setProfile(prof));
+      }
     });
   }, [post.id]);
 
@@ -368,6 +373,17 @@ export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFav
             <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
               {post.description}
             </p>
+          )}
+
+          {/* Merchant Review Section */}
+          {postUserId && (
+            <MerchantReviewSection
+              postId={post.id}
+              postUserId={postUserId}
+              currentUserId={currentUserId}
+              isMobile={!!post.is_mobile}
+              receiverName={profile?.name}
+            />
           )}
 
           {/* Publisher */}
