@@ -13,6 +13,7 @@ import { checkActiveTripLock } from "@/lib/tripLock";
 import { useMapChoice } from "@/components/MapChoiceSheet";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
 import FavoriteButton from "@/components/FavoriteButton";
+import MerchantReviewSection from "@/components/reviews/MerchantReviewSection";
 import { cn } from "@/lib/utils";
 
 interface Post {
