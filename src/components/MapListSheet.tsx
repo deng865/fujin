@@ -510,6 +510,17 @@ function ListCard({
           />
         </div>
 
+        {/* Row 1.5: Credit info */}
+        {ratingData && ratingData.totalReviews > 0 && (
+          <PostCreditBadge
+            avgRating={ratingData.avgRating}
+            totalReviews={ratingData.totalReviews}
+            topTag={ratingData.topTag}
+            isMobile={post.is_mobile}
+            className="mt-0.5"
+          />
+        )}
+
         {/* Row 2: Price · Category */}
         <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
           {post.price != null && (
