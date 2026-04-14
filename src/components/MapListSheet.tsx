@@ -11,6 +11,8 @@ import { useMapChoice } from "@/components/MapChoiceSheet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { checkActiveTripLock } from "@/lib/tripLock";
+import { usePostRatings } from "@/hooks/usePostRating";
+import PostCreditBadge from "@/components/PostCreditBadge";
 
 interface Post {
   id: string;
@@ -316,6 +318,7 @@ export default function MapListSheet({
                   onToggleFavorite={onToggleFavorite}
                   onSelect={() => onSelectPost(post)}
                   showDivider={idx > 0}
+                  ratingData={postRatings[post.id]}
                 />
               ))}
             </div>
