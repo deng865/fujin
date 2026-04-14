@@ -332,6 +332,16 @@ function PostCard({
         {/* Title */}
         <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{post.title}</h3>
 
+        {/* Credit info */}
+        {ratingData && ratingData.totalReviews > 0 && (
+          <PostCreditBadge
+            avgRating={ratingData.avgRating}
+            totalReviews={ratingData.totalReviews}
+            topTag={ratingData.topTag}
+            isMobile={post.is_mobile}
+          />
+        )}
+
         {/* Price */}
         {post.price != null && (
           <p className="text-sm font-bold text-primary">${post.price.toLocaleString()}</p>
