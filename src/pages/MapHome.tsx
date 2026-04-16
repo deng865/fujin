@@ -12,6 +12,7 @@ import ControlBar from "@/components/ControlBar";
 import CategoryScroll from "@/components/CategoryScroll";
 import MapControls from "@/components/MapControls";
 import PostMarkers from "@/components/PostMarkers";
+import { useVisitTracker } from "@/hooks/useVisitTracker";
 
 import MapFilterChips, { defaultFilters, type MapFilters } from "@/components/MapFilterChips";
 import MapListSheet from "@/components/MapListSheet";
@@ -101,6 +102,9 @@ export default function MapHome() {
   const [mapTapped, setMapTapped] = useState(0);
   const [sheetHeight, setSheetHeight] = useState(100);
   const { isFavorite, toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
+
+  // Track user dwell time near fixed merchants for review eligibility
+  useVisitTracker(user?.id ?? null, userPos, posts);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
