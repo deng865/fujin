@@ -42,10 +42,11 @@ export default function ReviewList({ userId, type = "received", canDispute, targ
     const from = pageNum * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    let query = supabase
+    let query: any = supabase
       .from("reviews")
       .select(`id, rating, comment, tags, created_at, dispute_status, sender_id, receiver_id, is_verified, image_urls, target_type`)
       .eq(col, userId)
+      .eq("status", "approved")
       .order("created_at", { ascending: false })
       .range(from, to);
 
@@ -64,7 +65,7 @@ export default function ReviewList({ userId, type = "received", canDispute, targ
 
     let enriched: Review[];
     if (type === "sent") {
-      const targetIds = [...new Set(data.map((r: any) => r[profileCol]))];
+      const targetIds = [...new Set((data as any[]).map((r: any) => r[profileCol] as string))];
       const { data: profiles } = targetIds.length > 0
         ? await supabase.from("public_profiles").select("id, name, avatar_url").in("id", targetIds)
         : { data: [] };
@@ -84,16 +85,26 @@ export default function ReviewList({ userId, type = "received", canDispute, targ
         };
       });
     } else {
-      enriched = data.map((r: any) => ({
-        id: r.id, rating: r.rating, comment: r.comment,
-        tags: r.tags || [], created_at: r.created_at,
-        dispute_status: r.dispute_status,
-        display_name: "匿名用户",
-        display_avatar: null,
-        is_verified: r.is_verified,
-        image_urls: r.image_urls || [],
-        target_type: r.target_type,
-      }));
+      // Received reviews: fetch sender credit_score and sort high-credit first
+      const senderIds = [...new Set((data as any[]).map((r: any) => r.sender_id as string))];
+      const { data: senderProfiles } = senderIds.length > 0
+        ? await supabase.from("profiles").select("id, credit_score").in("id", senderIds)
+        : { data: [] };
+      const creditMap = new Map((senderProfiles || []).map((p: any) => [p.id, (p as any).credit_score ?? 100]));
+
+      enriched = (data as any[])
+        .map((r: any) => ({
+          id: r.id, rating: r.rating, comment: r.comment,
+          tags: r.tags || [], created_at: r.created_at,
+          dispute_status: r.dispute_status,
+          display_name: "匿名用户",
+          display_avatar: null,
+          is_verified: r.is_verified,
+          image_urls: r.image_urls || [],
+          target_type: r.target_type,
+          _credit: creditMap.get(r.sender_id) ?? 100,
+        }))
+        .sort((a: any, b: any) => b._credit - a._credit);
     }
 
     if (pageNum === 0) {

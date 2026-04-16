@@ -649,6 +649,7 @@ export type Database = {
           avatar_url: string | null
           average_rating: number | null
           created_at: string | null
+          credit_score: number
           id: string
           is_blocked: boolean | null
           license_plate: string | null
@@ -669,6 +670,7 @@ export type Database = {
           avatar_url?: string | null
           average_rating?: number | null
           created_at?: string | null
+          credit_score?: number
           id: string
           is_blocked?: boolean | null
           license_plate?: string | null
@@ -689,6 +691,7 @@ export type Database = {
           avatar_url?: string | null
           average_rating?: number | null
           created_at?: string | null
+          credit_score?: number
           id?: string
           is_blocked?: boolean | null
           license_plate?: string | null
@@ -854,16 +857,19 @@ export type Database = {
           admin_note: string | null
           comment: string | null
           created_at: string
+          device_id: string | null
           dispute_images: string[]
           dispute_reason: string | null
           dispute_status: string
           id: string
           image_urls: string[]
+          ip_address: string | null
           is_verified: boolean
           post_id: string | null
           rating: number
           receiver_id: string
           sender_id: string
+          status: string
           tags: string[] | null
           target_type: string
           updated_at: string
@@ -872,16 +878,19 @@ export type Database = {
           admin_note?: string | null
           comment?: string | null
           created_at?: string
+          device_id?: string | null
           dispute_images?: string[]
           dispute_reason?: string | null
           dispute_status?: string
           id?: string
           image_urls?: string[]
+          ip_address?: string | null
           is_verified?: boolean
           post_id?: string | null
           rating: number
           receiver_id: string
           sender_id: string
+          status?: string
           tags?: string[] | null
           target_type?: string
           updated_at?: string
@@ -890,16 +899,19 @@ export type Database = {
           admin_note?: string | null
           comment?: string | null
           created_at?: string
+          device_id?: string | null
           dispute_images?: string[]
           dispute_reason?: string | null
           dispute_status?: string
           id?: string
           image_urls?: string[]
+          ip_address?: string | null
           is_verified?: boolean
           post_id?: string | null
           rating?: number
           receiver_id?: string
           sender_id?: string
+          status?: string
           tags?: string[] | null
           target_type?: string
           updated_at?: string
@@ -1033,6 +1045,45 @@ export type Database = {
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_visits: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          post_id: string
+          qualified: boolean
+          total_duration_seconds: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          post_id: string
+          qualified?: boolean
+          total_duration_seconds?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          post_id?: string
+          qualified?: boolean
+          total_duration_seconds?: number
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -1243,6 +1294,10 @@ export type Database = {
             }
             Returns: string
           }
+      can_user_review_post: {
+        Args: { _device_id?: string; _post_id: string; _user_id: string }
+        Returns: Json
+      }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {
