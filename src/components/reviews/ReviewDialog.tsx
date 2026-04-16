@@ -20,7 +20,7 @@ interface Props {
   receiverId: string;
   postId: string;
   receiverName?: string;
-  onReviewSubmitted?: () => void;
+  onReviewSubmitted?: (payload?: { rating: number; comment: string; imageUrls: string[]; tags: string[] }) => void;
   targetType?: TargetType;
   isVerified?: boolean;
 }
@@ -106,7 +106,7 @@ export default function ReviewDialog({
       toast.error("评价失败，请重试");
     } else {
       toast.success("评价已提交");
-      onReviewSubmitted?.();
+      onReviewSubmitted?.({ rating, comment: comment.trim(), imageUrls, tags: selectedTags });
       onOpenChange(false);
       setRating(0);
       setComment("");
@@ -195,35 +195,33 @@ export default function ReviewDialog({
           className="w-full bg-muted rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/30 resize-none h-20"
         />
 
-        {/* Image upload */}
-        {targetType !== "user" && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              {imageUrls.map((url, i) => (
-                <div key={i} className="relative w-16 h-16">
-                  <img src={url} alt="" className="w-16 h-16 rounded-lg object-cover" />
-                  <button
-                    onClick={() => removeImage(i)}
-                    className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-              {imageUrls.length < 3 && (
-                <label className="w-16 h-16 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                  {uploadingImage ? (
-                    <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
-                  ) : (
-                    <ImagePlus className="h-5 w-5 text-muted-foreground" />
-                  )}
-                </label>
-              )}
-            </div>
-            <p className="text-[10px] text-muted-foreground">可上传最多3张图片</p>
+        {/* Image upload (all targetTypes) */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            {imageUrls.map((url, i) => (
+              <div key={i} className="relative w-16 h-16">
+                <img src={url} alt="" className="w-16 h-16 rounded-lg object-cover" />
+                <button
+                  onClick={() => removeImage(i)}
+                  className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            {imageUrls.length < 3 && (
+              <label className="w-16 h-16 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                {uploadingImage ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                ) : (
+                  <ImagePlus className="h-5 w-5 text-muted-foreground" />
+                )}
+              </label>
+            )}
           </div>
-        )}
+          <p className="text-[10px] text-muted-foreground">可上传最多3张图片（选填）</p>
+        </div>
 
         <Button
           onClick={handleSubmit}
