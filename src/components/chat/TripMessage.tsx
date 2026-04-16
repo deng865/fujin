@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle, Loader2, Car } from "lucide-react";
-import { TripRatingInput } from "./TripRating";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { useMapChoiceWithQuery } from "@/components/MapChoiceSheet";
 import "mapbox-gl/dist/mapbox-gl.css";
