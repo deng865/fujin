@@ -854,6 +854,7 @@ export type Database = {
           admin_note: string | null
           comment: string | null
           created_at: string
+          dispute_images: string[]
           dispute_reason: string | null
           dispute_status: string
           id: string
@@ -871,6 +872,7 @@ export type Database = {
           admin_note?: string | null
           comment?: string | null
           created_at?: string
+          dispute_images?: string[]
           dispute_reason?: string | null
           dispute_status?: string
           id?: string
@@ -888,6 +890,7 @@ export type Database = {
           admin_note?: string | null
           comment?: string | null
           created_at?: string
+          dispute_images?: string[]
           dispute_reason?: string | null
           dispute_status?: string
           id?: string

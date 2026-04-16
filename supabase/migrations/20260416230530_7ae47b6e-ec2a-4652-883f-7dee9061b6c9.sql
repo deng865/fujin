@@ -1,0 +1,1 @@
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS dispute_images text[] NOT NULL DEFAULT '{}';

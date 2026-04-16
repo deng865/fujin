@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 import { Route, Navigation, DollarSign, Check, MessageCircle, Send, Star, XCircle, Loader2, Car } from "lucide-react";
-import { TripRatingInput } from "./TripRating";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { useMapChoiceWithQuery } from "@/components/MapChoiceSheet";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -166,7 +165,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
   isCompleted?: boolean;
   onCancel?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
   onComplete?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
-  onRate?: (trip: { from: string; to: string; price?: string; tripId?: string }, rating: number, comment: string) => void;
+  onRate?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
   hasRated?: boolean;
   completingTrip?: boolean;
   cancellingTrip?: boolean;
@@ -279,13 +278,13 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
           )}
           {isCompleted && !hasRated && onRate && (
             <div className={`mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
-              <div className="flex items-center gap-1.5 text-xs font-medium mb-1">
+              <button
+                onClick={() => onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price, tripId: acceptData.tripId })}
+                className={`w-full flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors ${isMe ? "bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground" : "bg-accent hover:bg-accent/80 text-foreground"}`}
+              >
                 <Star className="h-3.5 w-3.5" />
-                请对本次行程评价
-              </div>
-              <TripRatingInput onSubmit={(rating, comment) => {
-                onRate({ from: acceptData.from, to: acceptData.to, price: acceptData.price, tripId: acceptData.tripId }, rating, comment);
-              }} />
+                给本次行程评价
+              </button>
             </div>
           )}
           {hasRated && (
@@ -307,7 +306,7 @@ interface TripMessageProps {
   isActive?: boolean;
   onAccept?: (trip: { from: string; to: string; price?: string; tripId?: string; fromCoords?: { lat: number; lng: number }; toCoords?: { lat: number; lng: number } }) => void;
   onCounter?: (trip: { from: string; to: string; originalPrice?: string; tripId?: string }, newPrice: string) => void;
-  onRate?: (trip: { from: string; to: string; price?: string; tripId?: string }, rating: number, comment: string) => void;
+  onRate?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
   onCancel?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
   onComplete?: (trip: { from: string; to: string; price?: string; tripId?: string }) => void;
   onCounterOpen?: () => void;

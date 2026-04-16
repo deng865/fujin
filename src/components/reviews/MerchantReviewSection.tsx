@@ -96,7 +96,8 @@ export default function MerchantReviewSection({ postId, postUserId, currentUserI
 
       {/* Actions */}
       <div className="flex gap-2">
-        {currentUserId && currentUserId !== postUserId && (
+        {/* Hide "write review" button for mobile merchants — they're rated via chat after a trip */}
+        {currentUserId && currentUserId !== postUserId && !isMobile && (
           <Button
             variant="outline"
             size="sm"
