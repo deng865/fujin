@@ -116,7 +116,7 @@ export default function MapHome() {
         (pos) => {
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setCenter(loc);
-          mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: radiusToZoom(10, loc.lat), duration: 1000 });
+          mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: radiusToZoom(10, loc.lat, mapRef.current?.getMap().getContainer()), duration: 1000 });
         },
         () => {}
       );
