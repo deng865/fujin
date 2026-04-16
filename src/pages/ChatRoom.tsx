@@ -1203,17 +1203,7 @@ export default function ChatRoom() {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {otherUser?.phone && (
-              <button
-                onClick={() => {
-                  window.open(`tel:${otherUser.phone}`, '_self');
-                }}
-                className="p-2 hover:bg-accent rounded-xl text-green-600"
-                title="致电"
-              >
-                <Phone className="h-5 w-5" />
-              </button>
-            )}
+            {/* Phone button removed per design — voice call still available via "+" menu */}
             <button
               onClick={() => setShowReviewDialog(true)}
               className="p-2 -mr-2 hover:bg-accent rounded-xl text-primary"
@@ -1235,7 +1225,7 @@ export default function ChatRoom() {
           }}
           senderId={userId}
           receiverId={otherUserId}
-          postId={conversationId || ""}
+          postId=""
           receiverName={otherUser?.name}
           targetType={isRideChat ? "mobile_merchant" : "user"}
           onReviewSubmitted={onReviewDialogSubmitted}
