@@ -32,23 +32,31 @@ type AdminTab = "dashboard" | "moderation" | "users" | "categories" | "reports" 
 
 // ─── Dashboard Stats ───
 function DashboardPanel() {
-  const [stats, setStats] = useState({ todayPosts: 0, activeUsers: 0, totalPosts: 0, pendingReports: 0 });
+  const [stats, setStats] = useState({ todayPosts: 0, todayActiveUsers: 0, totalUsers: 0, totalPosts: 0, pendingReports: 0 });
 
   useEffect(() => {
     const load = async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const todayIso = today.toISOString();
 
-      const [postsToday, totalPosts, totalUsers, pendingReports] = await Promise.all([
-        supabase.from("posts").select("id", { count: "exact", head: true }).gte("created_at", today.toISOString()),
+      const [postsToday, totalPosts, totalUsers, pendingReports, msgsToday, postsTodayAuthors] = await Promise.all([
+        supabase.from("posts").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
         supabase.from("posts").select("id", { count: "exact", head: true }),
         supabase.from("profiles").select("id", { count: "exact", head: true }),
         supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("messages").select("sender_id").gte("created_at", todayIso).limit(2000),
+        supabase.from("posts").select("user_id").gte("created_at", todayIso).limit(2000),
       ]);
+
+      const ids = new Set<string>();
+      (msgsToday.data || []).forEach((r: any) => r.sender_id && ids.add(r.sender_id));
+      (postsTodayAuthors.data || []).forEach((r: any) => r.user_id && ids.add(r.user_id));
 
       setStats({
         todayPosts: postsToday.count || 0,
-        activeUsers: totalUsers.count || 0,
+        todayActiveUsers: ids.size,
+        totalUsers: totalUsers.count || 0,
         totalPosts: totalPosts.count || 0,
         pendingReports: pendingReports.count || 0,
       });
@@ -58,7 +66,8 @@ function DashboardPanel() {
 
   const cards = [
     { label: "今日新增帖", value: stats.todayPosts, icon: FileText, color: "text-blue-600 bg-blue-50" },
-    { label: "注册用户数", value: stats.activeUsers, icon: Users, color: "text-emerald-600 bg-emerald-50" },
+    { label: "今日活跃用户", value: stats.todayActiveUsers, icon: Users, color: "text-emerald-600 bg-emerald-50" },
+    { label: "注册用户数", value: stats.totalUsers, icon: UserCheck, color: "text-cyan-600 bg-cyan-50" },
     { label: "总帖子数", value: stats.totalPosts, icon: BarChart3, color: "text-orange-600 bg-orange-50" },
     { label: "待处理举报", value: stats.pendingReports, icon: Flag, color: "text-purple-600 bg-purple-50" },
   ];
@@ -66,7 +75,7 @@ function DashboardPanel() {
   return (
     <div>
       <h2 className="text-xl font-bold mb-6">数据概览</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {cards.map((c) => (
           <div key={c.label} className="bg-card border border-border rounded-xl p-5">
             <div className="flex items-center gap-3">
