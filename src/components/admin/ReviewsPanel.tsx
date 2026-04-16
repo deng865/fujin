@@ -26,7 +26,7 @@ interface DisputedReview {
 export default function ReviewsPanel() {
   const [items, setItems] = useState<DisputedReview[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"disputed" | "all">("disputed");
+  const [filter, setFilter] = useState<"disputed" | "pending" | "all">("disputed");
 
   const fetchData = async () => {
     setLoading(true);
