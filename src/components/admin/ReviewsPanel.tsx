@@ -13,12 +13,14 @@ interface DisputedReview {
   dispute_reason: string | null;
   dispute_images: string[];
   dispute_status: string;
+  status?: string;
   created_at: string;
   sender_id: string;
   receiver_id: string;
   target_type: string;
   sender_name?: string;
   receiver_name?: string;
+  sender_credit?: number;
 }
 
 export default function ReviewsPanel() {
