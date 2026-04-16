@@ -268,6 +268,11 @@ export default function MapHome() {
         mapStyle={MAP_STYLES[mapType]}
         style={{ width: "100%", height: "100%" }}
         onLoad={() => {
+          // Re-apply zoom now that container size is known so the displayed radius matches searchRadius
+          const map = mapRef.current?.getMap();
+          if (map) {
+            map.jumpTo({ zoom: radiusToZoom(searchRadius, center.lat, map.getContainer()) });
+          }
           fetchPosts();
           setTimeout(() => geolocateRef.current?.trigger(), 500);
         }}
