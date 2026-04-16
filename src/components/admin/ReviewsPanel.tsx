@@ -58,22 +58,44 @@ export default function ReviewsPanel() {
 
   useEffect(() => { fetchData(); }, [filter]);
 
-  const approveDispute = async (id: string) => {
-    if (!confirm("批准申诉将永久删除该评价，确认操作？")) return;
+  const adjustCredit = async (userId: string, currentCredit: number, delta: number) => {
+    const newScore = Math.max(0, Math.min(100, currentCredit + delta));
+    await (supabase as any).from("profiles").update({ credit_score: newScore }).eq("id", userId);
+  };
+
+  const approveDispute = async (id: string, senderId: string, senderCredit: number) => {
+    if (!confirm("批准申诉将永久删除该评价并扣除评价者 10 信用分，确认操作？")) return;
     const { error } = await supabase.from("reviews").delete().eq("id", id);
     if (error) { toast({ title: "操作失败", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "已批准申诉", description: "评价已删除" });
+    await adjustCredit(senderId, senderCredit, -10);
+    toast({ title: "已批准申诉", description: "评价已删除，评价者信用分 -10" });
     fetchData();
   };
 
   const rejectDispute = async (id: string) => {
     const note = prompt("驳回理由（选填，将记录到 admin_note）：") || "";
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("reviews")
-      .update({ dispute_status: "none", admin_note: note || null } as any)
+      .update({ dispute_status: "none", admin_note: note || null })
       .eq("id", id);
     if (error) { toast({ title: "操作失败", description: error.message, variant: "destructive" }); return; }
     toast({ title: "已驳回申诉", description: "评价恢复正常" });
+    fetchData();
+  };
+
+  const approvePending = async (id: string) => {
+    const { error } = await (supabase as any).from("reviews").update({ status: "approved" }).eq("id", id);
+    if (error) { toast({ title: "操作失败", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "已通过审核", description: "评价已公开显示" });
+    fetchData();
+  };
+
+  const rejectPending = async (id: string, senderId: string, senderCredit: number) => {
+    if (!confirm("驳回该评价并扣除评价者 5 信用分？")) return;
+    const { error } = await (supabase as any).from("reviews").update({ status: "rejected" }).eq("id", id);
+    if (error) { toast({ title: "操作失败", description: error.message, variant: "destructive" }); return; }
+    await adjustCredit(senderId, senderCredit, -5);
+    toast({ title: "已驳回", description: "评价已隐藏，评价者信用分 -5" });
     fetchData();
   };
 
@@ -89,11 +111,12 @@ export default function ReviewsPanel() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">评价申诉管理</h2>
+      <h2 className="text-xl font-bold mb-4">评价管理</h2>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 flex-wrap">
         {[
           { value: "disputed" as const, label: "申诉中" },
+          { value: "pending" as const, label: "待审核（垃圾过滤）" },
           { value: "all" as const, label: "全部评价" },
         ].map((f) => (
           <button
@@ -111,7 +134,7 @@ export default function ReviewsPanel() {
       {items.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">暂无{filter === "disputed" ? "申诉" : "评价"}</p>
+          <p className="text-sm">暂无{filter === "disputed" ? "申诉" : filter === "pending" ? "待审核评价" : "评价"}</p>
         </div>
       ) : (
         <div className="space-y-4 max-w-3xl">
