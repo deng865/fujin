@@ -53,11 +53,21 @@ const MAP_STYLES: Record<string, string> = {
   terrain: "mapbox://styles/mapbox/outdoors-v12",
 };
 
-// Convert radius (miles) to an appropriate zoom level at a given latitude
-function radiusToZoom(radiusMi: number, lat: number): number {
+// Convert radius (miles) to an appropriate zoom level at a given latitude.
+// Treats `radiusMi` as the half-length of the map's SHORTER axis so it matches
+// `boundsToRadius` which uses Math.min(latRadius, lngRadius).
+function radiusToZoom(radiusMi: number, lat: number, mapEl?: HTMLElement | null): number {
   const C = 24901.461; // Earth circumference in miles
   const latRad = (lat * Math.PI) / 180;
-  const zoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusMi));
+  // Base zoom assumes radius covers half the map width (longitude direction)
+  const baseZoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusMi));
+  const w = mapEl?.clientWidth ?? (typeof window !== "undefined" ? window.innerWidth : 1);
+  const h = mapEl?.clientHeight ?? (typeof window !== "undefined" ? window.innerHeight : 1);
+  const shortSidePx = Math.min(w, h);
+  const longSidePx = Math.max(w, h);
+  // Adjust so radius corresponds to half the shorter axis instead of width
+  const ratio = shortSidePx / longSidePx;
+  const zoom = baseZoom + Math.log2(ratio);
   return Math.min(Math.max(zoom, 1), 20);
 }
 
