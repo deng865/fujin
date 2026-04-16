@@ -1,42 +1,70 @@
 
+## 问题分析
 
-# 修复地图标记图标不匹配问题
+用户反馈两个核心问题：
+1. **方向反了**：放大地图（zoom in）时，搜索范围数字应该变小（覆盖范围更小），但实际出现"先变小再变大"的异常波动。
+2. **数值不准**：按钮显示的英里数与实际可见的"以中心为半径的圆"不匹配。
 
-## 问题根因
+## 根因
 
-`PostMarkers.tsx` 中硬编码了 8 个分类的图标映射，例如 `driver` 被映射为 `UserCheck`（人形图标），但数据库中 `driver` 的图标是 `Car`。其他新增分类（如"上门服务"、"二手商品"、"美容美发"等）完全没有映射，全部回退为默认的 `MapPin` 图标。
+查看 `MapHome.tsx` 中现有的 `radiusToZoom` 和 `boundsToRadius`：
 
-数据库实际分类与图标：
-
-```text
-driver        → Car（车）      ← 当前错误映射为 UserCheck（人）
-on-site service → Truck
-second-hand goods → ShoppingBag
-food          → UtensilsCrossed ✓
-jobs          → Briefcase      ✓
-rent          → Home
-home services → Wrench
-education     → GraduationCap
-medical services → Stethoscope
-massage       → Baby
-beauty        → Baby
-law and accounting → Scale
-other         → Star
+```ts
+function radiusToZoom(radiusMi, lat) {
+  return Math.log2((C * Math.cos(lat)) / (2 * radiusMi));
+}
+function boundsToRadius(map) {
+  // 取 latRadius 和 lngRadius 的最小值
+  return Math.round(Math.min(latRadius, lngRadius));
+}
 ```
+
+**问题1（反向波动）**：
+- `radiusToZoom` 假设半径 = 地图**宽度的一半**（经度方向）
+- `boundsToRadius` 取**较短轴的一半**（手机竖屏时是宽度，横屏时是高度）
+- 在当前 1157×889 的横屏视口中，**高度更短** → bounds 反推时取纬度方向半径（较小值）
+- 默认初始化用 10mi 计算 zoom（基于宽度），但 onMoveEnd 立刻用更短的高度反推 → 显示约 7-8mi
+- 用户放大时，宽度方向缩小得快，最短轴可能切换到宽度，造成数值跳动
+
+**问题2（语义不准）**：
+按钮上的"搜索范围"应表示"以我为中心的圆形可达半径"，正确语义应是 **bounds 较短轴的一半**——这样这个圆才能完整地显示在屏幕内。当前 `radiusToZoom` 与此不一致。
 
 ## 修复方案
 
-### 修改 `src/components/PostMarkers.tsx`
+统一两个函数的几何定义为：**radius = 地图较短可见轴的一半**。
 
-1. **从数据库加载分类配置**：复用 `CategoryScroll.tsx` 中已有的 `iconMap`，通过 Supabase 查询 `categories` 表获取每个分类的 `name → icon` 映射
-2. **动态构建图标和颜色映射**：用数据库返回的图标名称在 `iconMap` 中查找对应的 Lucide 组件
-3. **颜色映射**：为所有分类分配区分度高的颜色（基于分类名称的哈希或预设调色板）
-4. **删除硬编码的 `categoryIcons` 和 `categoryColors`**
+### 修改 `src/pages/MapHome.tsx`
 
-### 具体改动
+**1. 重写 `radiusToZoom`** — 接收地图容器尺寸，按较短轴计算：
 
-- **`PostMarkers.tsx`**：引入与 `CategoryScroll` 相同的 Lucide `iconMap`，添加 `useEffect` 从 `categories` 表加载图标映射，用数据库数据替代硬编码映射
-- 为确保颜色也正确区分，维护一个基于分类名的颜色池
+```ts
+function radiusToZoom(radiusMi, lat, mapEl?) {
+  const w = mapEl?.clientWidth ?? window.innerWidth;
+  const h = mapEl?.clientHeight ?? window.innerHeight;
+  const shortPx = Math.min(w, h);
+  const longPx = Math.max(w, h);
+  // 基础公式：假设 radius 占满宽度一半
+  const baseZoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusMi));
+  // 修正：让较短轴恰好等于 radius*2
+  return baseZoom + Math.log2(shortPx / longPx);
+}
+```
 
-这样所有分类在地图上的图标都会与分类栏、数据库保持一致。
+**2. 保持 `boundsToRadius` 用 `Math.min`** — 与新公式语义一致
 
+**3. 调用处传入容器** — `mapRef.current?.getMap().getContainer()` 传给 `radiusToZoom`
+
+**4. 修复 `handleMoveEnd` 防抖处理初始化时序** — 确保第一次 fetchPosts 后不会立即用错误的容器尺寸覆盖初始 10mi
+
+### 验证逻辑
+
+- **默认 10mi**：地图较短轴方向恰好覆盖 20mi 直径（半径 10mi 的圆完全可见）
+- **放大地图**：bounds 收缩 → 较短轴半径单调减小 → 按钮数字单调下降，无跳动
+- **拖动滑块到 5mi**：flyTo 让较短轴半径 = 5mi
+- **横竖屏切换**：基于实时容器尺寸计算，始终准确
+
+## 涉及文件
+
+| 文件 | 改动 |
+|------|------|
+| `src/pages/MapHome.tsx` | 重写 `radiusToZoom` 加入容器宽高比修正；调用处传入 map 容器元素 |
