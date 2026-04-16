@@ -192,7 +192,7 @@ export default function MapHome() {
   const handleRadiusChange = useCallback((radius: number) => {
     setSearchRadius(radius);
     isRadiusDriven.current = true;
-    const zoom = radiusToZoom(radius, center.lat);
+    const zoom = radiusToZoom(radius, center.lat, mapRef.current?.getMap().getContainer());
     mapRef.current?.flyTo({ center: [center.lng, center.lat], zoom, duration: 600 });
   }, [center]);
   const handleLocateMe = () => {
