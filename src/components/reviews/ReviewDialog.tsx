@@ -193,6 +193,17 @@ export default function ReviewDialog({
           </div>
         )}
 
+        {/* Eligibility banner — fixed merchants only */}
+        {targetType === "fixed_merchant" && eligibility && !eligibility.allowed && (
+          <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-500/10 rounded-xl py-2 px-3">
+            <Lock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>{eligibility.reason || "暂无评价资格"}</span>
+          </div>
+        )}
+        {checkingEligibility && (
+          <p className="text-center text-xs text-muted-foreground">正在验证评价资格...</p>
+        )}
+
         {/* Stars */}
         <div className="flex justify-center gap-2 py-2">
           {[1, 2, 3, 4, 5].map((star) => (
@@ -278,7 +289,13 @@ export default function ReviewDialog({
 
         <Button
           onClick={handleSubmit}
-          disabled={rating === 0 || submitting || uploadingImage}
+          disabled={
+            rating === 0 ||
+            submitting ||
+            uploadingImage ||
+            checkingEligibility ||
+            (targetType === "fixed_merchant" && eligibility?.allowed === false)
+          }
           className="w-full rounded-xl"
         >
           {submitting ? "提交中..." : "提交评价"}
