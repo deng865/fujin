@@ -1,42 +1,67 @@
 
 
-# 修复地图标记图标不匹配问题
+## 问题分析
 
-## 问题根因
+用户反馈：顶部搜索范围按钮（ControlBar 上显示的 `XXmi`）与地图实际可见范围不一致。默认应是 10 英里。
 
-`PostMarkers.tsx` 中硬编码了 8 个分类的图标映射，例如 `driver` 被映射为 `UserCheck`（人形图标），但数据库中 `driver` 的图标是 `Car`。其他新增分类（如"上门服务"、"二手商品"、"美容美发"等）完全没有映射，全部回退为默认的 `MapPin` 图标。
+## 根因排查
 
-数据库实际分类与图标：
+查看 `MapHome.tsx` 中的逻辑：
 
-```text
-driver        → Car（车）      ← 当前错误映射为 UserCheck（人）
-on-site service → Truck
-second-hand goods → ShoppingBag
-food          → UtensilsCrossed ✓
-jobs          → Briefcase      ✓
-rent          → Home
-home services → Wrench
-education     → GraduationCap
-medical services → Stethoscope
-massage       → Baby
-beauty        → Baby
-law and accounting → Scale
-other         → Star
-```
+1. **初始化**：`initialViewState` 用 `radiusToZoom(10, center.lat)` 计算 zoom，center 默认是 Dallas (32.77)。`searchRadius` state 初始值也是 10 ✓
+
+2. **`boundsToRadius` 函数**：取地图可见边界，用 `Math.min(latRadius, lngRadius)`（取较短轴的一半）作为半径。
+
+3. **`radiusToZoom` 函数**：基于经度方向 `Math.cos(lat)` 计算 zoom，假设半径覆盖地图宽度的一半。
+
+**不一致根源**：
+- `radiusToZoom` 计算的是 **经度方向半径 = 地图宽度/2** 的 zoom
+- 但 `boundsToRadius` 取的是 **较短轴**（在横屏宽容器上是纬度方向，即高度的一半）
+- 横屏（1157×889）下，地图高度 < 宽度，所以纬度半径 < 经度半径，`Math.min` 取到纬度方向的半径
+- 导致：用 10mi 计算的 zoom，反向通过 bounds 算出的半径 ≈ 高度对应的距离，比 10 小
+
+另外 `handleMoveEnd` 中通过 `boundsToRadius` 反推半径并 `setSearchRadius`，会在地图加载完成后立即覆盖初始的 10mi 值，让按钮显示 6-7mi 之类的"实际"较短轴数值。
 
 ## 修复方案
 
-### 修改 `src/components/PostMarkers.tsx`
+让 `radiusToZoom` 和 `boundsToRadius` 使用**相同的几何定义**——都基于"地图较短轴的一半"作为可见半径。
 
-1. **从数据库加载分类配置**：复用 `CategoryScroll.tsx` 中已有的 `iconMap`，通过 Supabase 查询 `categories` 表获取每个分类的 `name → icon` 映射
-2. **动态构建图标和颜色映射**：用数据库返回的图标名称在 `iconMap` 中查找对应的 Lucide 组件
-3. **颜色映射**：为所有分类分配区分度高的颜色（基于分类名称的哈希或预设调色板）
-4. **删除硬编码的 `categoryIcons` 和 `categoryColors`**
+### 修改 `src/pages/MapHome.tsx`
 
-### 具体改动
+1. **改 `radiusToZoom`**：根据当前地图容器宽高比，将 radius 视为较短轴一半。需要从 mapRef 获取容器尺寸，或者保守地使用一个略小的缩放系数（让 10mi 半径完整可见）。
 
-- **`PostMarkers.tsx`**：引入与 `CategoryScroll` 相同的 Lucide `iconMap`，添加 `useEffect` 从 `categories` 表加载图标映射，用数据库数据替代硬编码映射
-- 为确保颜色也正确区分，维护一个基于分类名的颜色池
+   简化方案：`radiusToZoom` 计算时假设半径等于"地图较短维度的一半"。在地图加载前用窗口宽高比估算；加载后调用 `map.getContainer()` 取真实尺寸。
 
-这样所有分类在地图上的图标都会与分类栏、数据库保持一致。
+2. **保持 `boundsToRadius` 用 `Math.min`** —— 与显示逻辑一致：用户看到的"可达半径"就是较短轴的一半。
+
+3. **核心公式调整**：
+   ```ts
+   function radiusToZoom(radiusMi, lat, mapEl?) {
+     const w = mapEl?.clientWidth ?? window.innerWidth;
+     const h = mapEl?.clientHeight ?? window.innerHeight;
+     const shortSidePx = Math.min(w, h);
+     const longSidePx = Math.max(w, h);
+     // 基础 zoom 假设 radius = 宽度一半（经度方向）
+     const baseZoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusMi));
+     // 如果较短轴是高度（横屏），需要按 h/w 比例放大 radius，相当于减小 zoom
+     const ratio = shortSidePx / longSidePx;
+     return baseZoom + Math.log2(ratio); // 在矩形地图上让短轴等于 radius*2
+   }
+   ```
+
+4. **应用位置**：所有调用 `radiusToZoom` 的地方传入 `mapRef.current?.getMap().getContainer()`。
+
+### 验证逻辑
+
+修复后：
+- 默认 10mi → 计算出更小的 zoom → 地图较短轴方向覆盖 20mi（半径 10mi）
+- `handleMoveEnd` 反推时也得到 10mi，按钮维持 10mi
+- 拖动滑块到 5mi → 地图 flyTo 更高的 zoom，短轴半径恰为 5mi
+- 缩放/平移地图 → bounds 短轴半径准确同步到按钮
+
+## 涉及文件
+
+| 文件 | 改动 |
+|------|------|
+| `src/pages/MapHome.tsx` | 修改 `radiusToZoom` 加入容器宽高比修正；调用处传入 map 容器 |
 
