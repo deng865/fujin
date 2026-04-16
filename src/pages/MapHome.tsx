@@ -53,11 +53,20 @@ const MAP_STYLES: Record<string, string> = {
   terrain: "mapbox://styles/mapbox/outdoors-v12",
 };
 
-// Convert radius (miles) to an appropriate zoom level at a given latitude
-function radiusToZoom(radiusMi: number, lat: number): number {
+// Convert radius (miles) to an appropriate zoom level at a given latitude.
+// Radius is interpreted as half of the map's SHORTER visible axis, so a circle
+// of `radiusMi` centered on the user fits entirely within the viewport.
+function radiusToZoom(radiusMi: number, lat: number, mapEl?: HTMLElement | null): number {
   const C = 24901.461; // Earth circumference in miles
   const latRad = (lat * Math.PI) / 180;
-  const zoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusMi));
+  const w = mapEl?.clientWidth ?? (typeof window !== "undefined" ? window.innerWidth : 1);
+  const h = mapEl?.clientHeight ?? (typeof window !== "undefined" ? window.innerHeight : 1);
+  const shortPx = Math.min(w, h);
+  const longPx = Math.max(w, h);
+  // Base zoom assumes radius spans half the map width (longitude direction)
+  const baseZoom = Math.log2((C * Math.cos(latRad)) / (2 * radiusMi));
+  // Adjust so the SHORTER axis equals radius*2 (zoom out when short axis < long axis)
+  const zoom = baseZoom + Math.log2(shortPx / longPx);
   return Math.min(Math.max(zoom, 1), 20);
 }
 
@@ -107,7 +116,7 @@ export default function MapHome() {
         (pos) => {
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setCenter(loc);
-          mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: radiusToZoom(10, loc.lat), duration: 1000 });
+          mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: radiusToZoom(10, loc.lat, mapRef.current?.getMap().getContainer()), duration: 1000 });
         },
         () => {}
       );
@@ -182,7 +191,7 @@ export default function MapHome() {
   const handleRadiusChange = useCallback((radius: number) => {
     setSearchRadius(radius);
     isRadiusDriven.current = true;
-    const zoom = radiusToZoom(radius, center.lat);
+    const zoom = radiusToZoom(radius, center.lat, mapRef.current?.getMap().getContainer());
     mapRef.current?.flyTo({ center: [center.lng, center.lat], zoom, duration: 600 });
   }, [center]);
   const handleLocateMe = () => {
