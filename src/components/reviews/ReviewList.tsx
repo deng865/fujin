@@ -65,7 +65,7 @@ export default function ReviewList({ userId, type = "received", canDispute, targ
 
     let enriched: Review[];
     if (type === "sent") {
-      const targetIds = [...new Set(data.map((r: any) => r[profileCol]))];
+      const targetIds = [...new Set((data as any[]).map((r: any) => r[profileCol] as string))];
       const { data: profiles } = targetIds.length > 0
         ? await supabase.from("public_profiles").select("id, name, avatar_url").in("id", targetIds)
         : { data: [] };
@@ -86,7 +86,7 @@ export default function ReviewList({ userId, type = "received", canDispute, targ
       });
     } else {
       // Received reviews: fetch sender credit_score and sort high-credit first
-      const senderIds = [...new Set(data.map((r: any) => r.sender_id))];
+      const senderIds = [...new Set((data as any[]).map((r: any) => r.sender_id as string))];
       const { data: senderProfiles } = senderIds.length > 0
         ? await supabase.from("profiles").select("id, credit_score").in("id", senderIds)
         : { data: [] };
