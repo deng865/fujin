@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Star, ImagePlus, X, CheckCircle } from "lucide-react";
+import { Star, ImagePlus, X, CheckCircle, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getDeviceId } from "@/lib/deviceId";
+import { classifyReviewContent } from "@/lib/sensitiveWords";
 
 type TargetType = "fixed_merchant" | "mobile_merchant" | "user";
 
@@ -36,8 +38,31 @@ export default function ReviewDialog({
   const [submitting, setSubmitting] = useState(false);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [eligibility, setEligibility] = useState<{ allowed: boolean; reason?: string } | null>(null);
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
 
   const tags = TAG_SETS[targetType] || TAG_SETS.user;
+
+  // Check review eligibility for fixed merchants when dialog opens
+  useEffect(() => {
+    if (!open || targetType !== "fixed_merchant" || !postId || !senderId) {
+      setEligibility({ allowed: true });
+      return;
+    }
+    setCheckingEligibility(true);
+    const deviceId = getDeviceId();
+    supabase
+      .rpc("can_user_review_post" as any, { _user_id: senderId, _post_id: postId, _device_id: deviceId })
+      .then(({ data, error }) => {
+        if (error) {
+          setEligibility({ allowed: false, reason: "无法验证评价资格，请稍后再试" });
+        } else {
+          const result = data as any;
+          setEligibility({ allowed: !!result?.allowed, reason: result?.reason });
+        }
+        setCheckingEligibility(false);
+      });
+  }, [open, targetType, postId, senderId]);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -87,7 +112,29 @@ export default function ReviewDialog({
       toast.error("低分评价请至少写10个字说明原因，以确保公正");
       return;
     }
+
+    // Spam / abuse filter
+    const filterResult = classifyReviewContent(comment);
+    if (filterResult.action === "block") {
+      toast.error(filterResult.reason);
+      return;
+    }
+    const status = filterResult.action === "pending" ? "pending" : "approved";
+
     setSubmitting(true);
+
+    // Server-side eligibility re-check for fixed merchants
+    const deviceId = getDeviceId();
+    if (targetType === "fixed_merchant" && postId) {
+      const { data: check } = await supabase
+        .rpc("can_user_review_post" as any, { _user_id: senderId, _post_id: postId, _device_id: deviceId });
+      if (check && !(check as any).allowed) {
+        toast.error((check as any).reason || "暂无评价资格");
+        setSubmitting(false);
+        return;
+      }
+    }
+
     const { error } = await supabase.from("reviews").insert({
       sender_id: senderId,
       receiver_id: receiverId,
@@ -98,6 +145,8 @@ export default function ReviewDialog({
       target_type: targetType,
       is_verified: isVerified,
       image_urls: imageUrls,
+      device_id: deviceId,
+      status,
     } as any);
 
     if (error?.code === "23505") {
@@ -105,7 +154,11 @@ export default function ReviewDialog({
     } else if (error) {
       toast.error("评价失败，请重试");
     } else {
-      toast.success("评价已提交");
+      if (status === "pending") {
+        toast.success("评价已提交人工审核，通过后将公开显示");
+      } else {
+        toast.success("评价已提交");
+      }
       onReviewSubmitted?.({ rating, comment: comment.trim(), imageUrls, tags: selectedTags });
       onOpenChange(false);
       setRating(0);
