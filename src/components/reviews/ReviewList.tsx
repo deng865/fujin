@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Star, AlertTriangle, User, CheckCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import DisputeDialog from "./DisputeDialog";
 
 interface Review {
   id: string;
@@ -33,6 +34,7 @@ export default function ReviewList({ userId, type = "received", canDispute, targ
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
+  const [disputeReviewId, setDisputeReviewId] = useState<string | null>(null);
 
   const fetchReviews = useCallback(async (pageNum: number) => {
     const col = type === "received" ? "receiver_id" : "sender_id";
@@ -116,17 +118,8 @@ export default function ReviewList({ userId, type = "received", canDispute, targ
     fetchReviews(next);
   };
 
-  const handleDispute = async (reviewId: string) => {
-    const reason = prompt("请输入申诉原因：");
-    if (!reason?.trim()) return;
-    const { error } = await supabase
-      .from("reviews")
-      .update({ dispute_status: "disputed", dispute_reason: reason.trim() })
-      .eq("id", reviewId);
-    if (error) return;
-    setReviews((prev) =>
-      prev.map((r) => r.id === reviewId ? { ...r, dispute_status: "disputed" } : r)
-    );
+  const handleDispute = (reviewId: string) => {
+    setDisputeReviewId(reviewId);
   };
 
   if (loading && reviews.length === 0) {
@@ -216,6 +209,19 @@ export default function ReviewList({ userId, type = "received", canDispute, targ
         >
           加载更多
         </button>
+      )}
+      {disputeReviewId && (
+        <DisputeDialog
+          open={!!disputeReviewId}
+          onOpenChange={(o) => !o && setDisputeReviewId(null)}
+          reviewId={disputeReviewId}
+          onDisputed={() => {
+            setReviews((prev) =>
+              prev.map((r) => r.id === disputeReviewId ? { ...r, dispute_status: "disputed" } : r),
+            );
+            setDisputeReviewId(null);
+          }}
+        />
       )}
     </div>
   );
