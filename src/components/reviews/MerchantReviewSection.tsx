@@ -28,11 +28,12 @@ export default function MerchantReviewSection({ postId, postUserId, currentUserI
   const targetType = isMobile ? "mobile_merchant" : "fixed_merchant";
 
   useEffect(() => {
-    supabase
+    (supabase as any)
       .from("reviews")
       .select("rating, tags, is_verified")
       .eq("receiver_id", postUserId)
-      .then(({ data }) => {
+      .eq("status", "approved")
+      .then(({ data }: any) => {
         if (!data || data.length === 0) { setStats(null); return; }
         const total = data.length;
         const sum = data.reduce((s: number, r: any) => s + r.rating, 0);
