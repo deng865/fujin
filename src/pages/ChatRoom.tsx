@@ -35,7 +35,6 @@ import EmojiPicker from "@/components/chat/EmojiPicker";
 import TripSharePanel from "@/components/chat/TripSharePanel";
 import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage, parseTripAcceptNotify, parseTripCompleteMessage } from "@/components/chat/TripMessage";
 import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
-import { TripRatingInput } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
 import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
 // In-memory reverse geocoding cache
@@ -115,6 +114,7 @@ export default function ChatRoom() {
   const [longPressMsg, setLongPressMsg] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [pendingTripRating, setPendingTripRating] = useState<{ from: string; to: string; price?: string; tripId?: string } | null>(null);
   const [otherUserCredit, setOtherUserCredit] = useState<{ average_rating: number | null; total_ratings: number | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1046,50 +1046,54 @@ export default function ChatRoom() {
   const hasActiveTrip = useCallback(() => tripState.hasActive, [tripState.hasActive]);
   const activeTripInfo = useCallback(() => tripState.activeTrip, [tripState.activeTrip]);
 
-  const handleRateTrip = async (trip: { from: string; to: string; price?: string }, rating: number, comment: string) => {
-    if (!userId || !conversationId) return;
-    // Get the other user's ID
-    const { data: conv } = await supabase
-      .from("conversations")
-      .select("participant_1, participant_2")
-      .eq("id", conversationId)
-      .single();
-    if (!conv) return;
-    const ratedUserId = conv.participant_1 === userId ? conv.participant_2 : conv.participant_1;
+  const handleRateTrip = async (trip: { from: string; to: string; price?: string; tripId?: string }) => {
+    if (!userId || !conversationId || !otherUserId) return;
+    if (otherUserId === userId) {
+      toast({ title: "无法给自己评价", variant: "destructive" });
+      return;
+    }
+    // Open the unified review dialog; the actual rating + message insert happens after submit
+    setPendingTripRating(trip);
+    setShowReviewDialog(true);
+  };
 
-    const ratingContent = JSON.stringify({
-      type: "trip_rating",
-      from: trip.from,
-      to: trip.to,
-      price: trip.price,
-      rating,
-      comment: comment || undefined,
-      ratedUserId,
-      tripId: (trip as any).tripId,
-    });
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: userId,
-      content: ratingContent,
-    });
-    if (!error) {
-      await supabase.from("conversations").update({
-        last_message: `⭐ 行程评价 ${rating}分`,
-        updated_at: new Date().toISOString(),
-      }).eq("id", conversationId);
-
-      // Insert into reviews table (trigger auto-updates profile rating)
-      const { error: reviewError } = await supabase.from("reviews").insert({
-        sender_id: userId,
-        receiver_id: ratedUserId,
-        rating,
-        comment: comment || null,
-        post_id: null,
-        tags: [],
+  // Called after ReviewDialog successfully inserts the review row.
+  // For trip ratings, also append a trip_rating message to the chat timeline.
+  const onReviewDialogSubmitted = async (payload?: { rating: number; comment: string; imageUrls: string[]; tags: string[] }) => {
+    // Refresh other user credit
+    if (otherUserId) {
+      supabase.from("profiles").select("average_rating, total_ratings").eq("id", otherUserId).single().then(({ data }) => {
+        if (data) setOtherUserCredit(data as any);
       });
-      if (reviewError) {
-        console.error("Failed to save review:", reviewError);
-        toast({ title: "评价保存失败", description: "请稍后重试", variant: "destructive" });
+    }
+    if (conversationId) {
+      supabase.from("review_prompts").update({ status: "reviewed" } as any).eq("conversation_id", conversationId).eq("status", "pending");
+    }
+
+    // If this was a trip rating, write the trip_rating message and update conversation preview
+    if (pendingTripRating && payload && userId && conversationId && otherUserId) {
+      const trip = pendingTripRating;
+      setPendingTripRating(null);
+      const ratingContent = JSON.stringify({
+        type: "trip_rating",
+        from: trip.from,
+        to: trip.to,
+        price: trip.price,
+        rating: payload.rating,
+        comment: payload.comment || undefined,
+        ratedUserId: otherUserId,
+        tripId: trip.tripId,
+      });
+      const { error: msgErr } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: ratingContent,
+      });
+      if (!msgErr) {
+        await supabase.from("conversations").update({
+          last_message: `⭐ 行程评价 ${payload.rating}分`,
+          updated_at: new Date().toISOString(),
+        }).eq("id", conversationId);
       }
     }
   };
@@ -1225,22 +1229,16 @@ export default function ChatRoom() {
       {userId && otherUserId && (
         <ReviewDialog
           open={showReviewDialog}
-          onOpenChange={setShowReviewDialog}
+          onOpenChange={(o) => {
+            setShowReviewDialog(o);
+            if (!o) setPendingTripRating(null);
+          }}
           senderId={userId}
           receiverId={otherUserId}
           postId={conversationId || ""}
           receiverName={otherUser?.name}
           targetType={isRideChat ? "mobile_merchant" : "user"}
-          onReviewSubmitted={() => {
-            // Refresh other user credit
-            supabase.from("profiles").select("average_rating, total_ratings").eq("id", otherUserId).single().then(({ data }) => {
-              if (data) setOtherUserCredit(data as any);
-            });
-            // Mark prompt as reviewed if exists
-            if (conversationId) {
-              supabase.from("review_prompts").update({ status: "reviewed" } as any).eq("conversation_id", conversationId).eq("status", "pending");
-            }
-          }}
+          onReviewSubmitted={onReviewDialogSubmitted}
         />
       )}
 
