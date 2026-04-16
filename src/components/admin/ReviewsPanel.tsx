@@ -181,21 +181,36 @@ export default function ReviewsPanel() {
                 </div>
               )}
 
-              <div className="flex gap-2 pt-2 border-t border-border">
-                {r.dispute_status === "disputed" ? (
-                  <>
-                    <Button size="sm" onClick={() => approveDispute(r.id)}>
-                      <Check className="h-3.5 w-3.5 mr-1" /> 批准申诉（删除评价）
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-border flex-wrap">
+                <span className="text-[11px] text-muted-foreground">
+                  评价者信用分: <span className={`font-semibold ${(r.sender_credit ?? 100) < 50 ? "text-destructive" : "text-foreground"}`}>{r.sender_credit ?? 100}</span>
+                  {r.status === "pending" && <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded">待审核</span>}
+                </span>
+                <div className="flex gap-2">
+                  {r.dispute_status === "disputed" ? (
+                    <>
+                      <Button size="sm" onClick={() => approveDispute(r.id, r.sender_id, r.sender_credit ?? 100)}>
+                        <Check className="h-3.5 w-3.5 mr-1" /> 批准申诉（删除评价）
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => rejectDispute(r.id)}>
+                        <X className="h-3.5 w-3.5 mr-1" /> 驳回申诉
+                      </Button>
+                    </>
+                  ) : r.status === "pending" ? (
+                    <>
+                      <Button size="sm" onClick={() => approvePending(r.id)}>
+                        <Check className="h-3.5 w-3.5 mr-1" /> 通过
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => rejectPending(r.id, r.sender_id, r.sender_credit ?? 100)}>
+                        <X className="h-3.5 w-3.5 mr-1" /> 驳回
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="sm" variant="destructive" onClick={() => deleteReview(r.id)}>
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> 删除
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => rejectDispute(r.id)}>
-                      <X className="h-3.5 w-3.5 mr-1" /> 驳回申诉
-                    </Button>
-                  </>
-                ) : (
-                  <Button size="sm" variant="destructive" onClick={() => deleteReview(r.id)}>
-                    <Trash2 className="h-3.5 w-3.5 mr-1" /> 删除
-                  </Button>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           ))}
