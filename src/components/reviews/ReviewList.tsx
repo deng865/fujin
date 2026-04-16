@@ -42,11 +42,11 @@ export default function ReviewList({ userId, type = "received", canDispute, targ
     const from = pageNum * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    let query = supabase
+    let query: any = supabase
       .from("reviews")
       .select(`id, rating, comment, tags, created_at, dispute_status, sender_id, receiver_id, is_verified, image_urls, target_type`)
       .eq(col, userId)
-      .eq("status" as any, "approved")
+      .eq("status", "approved")
       .order("created_at", { ascending: false })
       .range(from, to);
 
