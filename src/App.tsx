@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import AppLayout from "./components/AppLayout";
+import AppErrorBoundary from "./components/AppErrorBoundary";
+import MapHome from "./pages/MapHome";
 import {
   loadAdminPortal,
   loadAuth,
@@ -13,7 +15,6 @@ import {
   loadCreatePost,
   loadDiscovery,
   loadFavorites,
-  loadMapHome,
   loadMessages,
   loadNotFound,
   loadPostDetail,
@@ -23,7 +24,6 @@ import {
   loadTermsOfService,
 } from "./lib/routeLoaders";
 
-const MapHome = lazy(loadMapHome);
 const Auth = lazy(loadAuth);
 const ResetPassword = lazy(loadResetPassword);
 const CreatePost = lazy(loadCreatePost);
@@ -46,27 +46,29 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<MapHome />} />
-              <Route path="/discovery" element={<Discovery />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/create-post" element={<CreatePost />} />
-              <Route path="/post/:id" element={<PostDetail />} />
-              <Route path="/favorites" element={<Favorites />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/chat/:id" element={<ChatRoom />} />
-              <Route path="/admin" element={<AdminPortal />} />
-              <Route path="/admin-portal" element={<AdminPortal />} />
-              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-              <Route path="/terms-of-service" element={<TermsOfService />} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+        <AppErrorBoundary>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<MapHome />} />
+                <Route path="/discovery" element={<Discovery />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/create-post" element={<CreatePost />} />
+                <Route path="/post/:id" element={<PostDetail />} />
+                <Route path="/favorites" element={<Favorites />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/messages" element={<Messages />} />
+                <Route path="/chat/:id" element={<ChatRoom />} />
+                <Route path="/admin" element={<AdminPortal />} />
+                <Route path="/admin-portal" element={<AdminPortal />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                <Route path="/terms-of-service" element={<TermsOfService />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </AppErrorBoundary>
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>

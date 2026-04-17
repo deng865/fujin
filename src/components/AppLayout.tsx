@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import BottomNav from "./BottomNav";
+import AppErrorBoundary from "./AppErrorBoundary";
 
 const GlobalIncomingCallProvider = lazy(() => import("./GlobalIncomingCallProvider"));
 
@@ -37,8 +38,6 @@ export default function AppLayout() {
   const [mountGlobals, setMountGlobals] = useState(false);
 
   useEffect(() => {
-    // Defer global realtime listeners (incoming calls, message tones) until
-    // after first paint so they never block the initial render or TTI.
     const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, opts?: { timeout: number }) => number);
     if (ric) {
       const id = ric(() => setMountGlobals(true), { timeout: 2500 });
@@ -55,9 +54,11 @@ export default function AppLayout() {
           <GlobalIncomingCallProvider />
         </Suspense>
       )}
-      <Suspense fallback={<RouteFallback hideNav={hideNav} />}>
-        <Outlet />
-      </Suspense>
+      <AppErrorBoundary resetKey={location.pathname}>
+        <Suspense fallback={<RouteFallback hideNav={hideNav} />}>
+          <Outlet />
+        </Suspense>
+      </AppErrorBoundary>
       {!hideNav && <BottomNav />}
     </>
   );

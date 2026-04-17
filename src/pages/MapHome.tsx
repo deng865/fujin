@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
-const MapHomeContent = lazy(() => import("@/components/map/MapHomeContent"));
+const MapHomeContent = lazy(() => lazyWithRetry(() => import("@/components/map/MapHomeContent")));
 
 function MapHomeFallback() {
   return (
