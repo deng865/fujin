@@ -3,7 +3,7 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 const MapHomeContent = lazy(() => lazyWithRetry(() => import("@/components/map/MapHomeContent")));
 
-function MapHomeFallback() {
+function MapHomeFallback({ message }: { message?: string }) {
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
       <div className="absolute inset-0 bg-muted/20" />
@@ -29,8 +29,16 @@ function MapHomeFallback() {
           </div>
           <div className="space-y-3 px-4 pb-5 pt-1">
             <div className="h-4 w-24 rounded-full bg-muted" />
-            <div className="h-20 rounded-2xl bg-muted/60" />
-            <div className="h-20 rounded-2xl bg-muted/40" />
+            {message ? (
+              <div className="rounded-2xl bg-muted/40 p-4 text-center text-sm text-muted-foreground">
+                {message}
+              </div>
+            ) : (
+              <>
+                <div className="h-20 rounded-2xl bg-muted/60" />
+                <div className="h-20 rounded-2xl bg-muted/40" />
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -38,13 +46,81 @@ function MapHomeFallback() {
   );
 }
 
+function detectWebGLSupport(): boolean {
+  try {
+    const canvas = document.createElement("canvas");
+    const gl =
+      canvas.getContext("webgl2") ||
+      canvas.getContext("webgl") ||
+      canvas.getContext("experimental-webgl");
+    return !!gl;
+  } catch {
+    return false;
+  }
+}
+
 export default function MapHome() {
   const [shouldMountMap, setShouldMountMap] = useState(false);
+  const [webglAvailable, setWebglAvailable] = useState<boolean | null>(null);
+  const [forceShow, setForceShow] = useState(false);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setShouldMountMap(true), 0);
-    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line no-console
+    console.log("[MapHome] mounted, scheduling Mapbox load");
+
+    // Detect WebGL FIRST. If unavailable in this WKWebView, we never even
+    // try to load mapbox-gl (it would crash the renderer).
+    const hasWebGL = detectWebGLSupport();
+    setWebglAvailable(hasWebGL);
+    // eslint-disable-next-line no-console
+    console.log("[MapHome] WebGL available:", hasWebGL);
+
+    if (!hasWebGL) return;
+
+    // Wait two animation frames so the React shell paints first, then
+    // give the main thread an extra tick before importing the mapbox bundle.
+    let raf1 = 0;
+    let raf2 = 0;
+    let timer = 0;
+
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        timer = window.setTimeout(() => {
+          // eslint-disable-next-line no-console
+          console.log("[MapHome] mounting MapHomeContent now");
+          setShouldMountMap(true);
+        }, 250);
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      window.clearTimeout(timer);
+    };
   }, []);
+
+  // WebGL not available → render a static fallback with a "tap to retry" CTA
+  if (webglAvailable === false && !forceShow) {
+    return (
+      <div className="relative flex h-screen w-screen flex-col items-center justify-center gap-4 bg-background p-6 text-center">
+        <h1 className="text-lg font-semibold">地图暂时不可用</h1>
+        <p className="max-w-xs text-sm text-muted-foreground">
+          当前环境不支持 WebGL。你仍可以浏览列表内容，或点击下方按钮重试加载地图。
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setForceShow(true);
+            setShouldMountMap(true);
+          }}
+          className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow"
+        >
+          重试加载地图
+        </button>
+      </div>
+    );
+  }
 
   if (!shouldMountMap) {
     return <MapHomeFallback />;

@@ -40,8 +40,13 @@ window.addEventListener("unhandledrejection", (e) => {
 
 const container = document.getElementById("root")!;
 
+// eslint-disable-next-line no-console
+console.log("[main] starting React render", { href: location.href, ts: Date.now() });
+
 try {
   createRoot(container).render(<App />);
+  // eslint-disable-next-line no-console
+  console.log("[main] React render() returned", { ts: Date.now() });
 } catch (err: any) {
   showFatalOverlay(`[render-fatal] ${err?.stack || err?.message || String(err)}`);
   throw err;
