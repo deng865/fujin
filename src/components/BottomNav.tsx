@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Home, MessageCircle, Plus, Heart, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { preloadRoute } from "@/lib/routeLoaders";
 
 const tabs = [
   { id: "home", label: "首页", icon: Home, path: "/" },
@@ -17,6 +19,22 @@ export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (user) {
+        void Promise.all([
+          preloadRoute("/messages"),
+          preloadRoute("/favorites"),
+          preloadRoute("/profile"),
+        ]);
+      } else {
+        void preloadRoute("/auth");
+      }
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [user]);
 
   const activeTab = (() => {
     const path = location.pathname;
@@ -47,6 +65,8 @@ export default function BottomNav() {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab)}
+                  onTouchStart={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
+                  onMouseEnter={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
                   className="relative -mt-5 bg-primary text-primary-foreground rounded-full p-4 shadow-xl hover:opacity-90 transition-all active:scale-90 ring-4 ring-background/80"
                 >
                   <Plus className="h-6 w-6" />
@@ -59,6 +79,8 @@ export default function BottomNav() {
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab)}
+                onTouchStart={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
+                onMouseEnter={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
                 className={cn(
                   "relative flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-all active:scale-95 min-w-[52px]",
                   isActive ? "text-primary" : "text-muted-foreground"
