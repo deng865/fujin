@@ -206,7 +206,6 @@ export default function ChatRoom() {
       if (driverPostCount && driverPostCount > 0) {
         setIsRideChat(true);
       }
-        .eq("category", "driver");
       if (myDriverPostCount && myDriverPostCount > 0) {
         setIsDriver(true);
       }
@@ -233,7 +232,7 @@ export default function ChatRoom() {
       }
     };
     load();
-  }, [conversationId, navigate]);
+  }, [conversationId, authLoading, authUser?.id, navigate]);
 
   const prevMsgCountRef = useRef(0);
   useEffect(() => {
