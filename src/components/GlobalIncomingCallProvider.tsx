@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import IncomingCall from "@/components/chat/IncomingCall";
 import { primeAudioNotifications, playMessageNotificationTone } from "@/lib/audioNotifications";
+import { useAuth } from "@/hooks/useAuth";
 
 interface IncomingCallState {
   callerName: string;
@@ -42,22 +43,9 @@ const showNativeNotification = (title: string, body: string, onClick?: () => voi
 export default function GlobalIncomingCallProvider() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [incomingCall, setIncomingCall] = useState<IncomingCallState | null>(null);
-
-  // Get current user
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUserId(user?.id ?? null);
-    };
-    getUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
 
   useEffect(() => {
     primeAudioNotifications();
@@ -157,14 +145,12 @@ export default function GlobalIncomingCallProvider() {
       }, (payload) => {
         const session = payload.new as any;
         if (session.receiver_id !== userId) return;
-        if (incomingCall?.sessionId === session.id && session.status !== "ringing") {
-          setIncomingCall(null);
-        }
+        setIncomingCall((current) => current?.sessionId === session.id && session.status !== "ringing" ? null : current);
       })
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
-  }, [userId, isChatPage, isMessagesPage, incomingCall?.sessionId, navigate]);
+  }, [userId, isChatPage, isMessagesPage, navigate]);
 
   const handleAccept = useCallback(async () => {
     if (!incomingCall) return;

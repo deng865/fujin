@@ -1,32 +1,68 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
-export function useFavorites() {
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
-  const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+const favoritesCache = new Map<string, Set<string>>();
+const favoritesRequests = new Map<string, Promise<Set<string>>>();
 
-  const fetchFavorites = useCallback(async (uid: string) => {
+async function loadFavoritesFromDb(uid: string) {
+  const pending = favoritesRequests.get(uid);
+  if (pending) return pending;
+
+  const request = (async () => {
     const { data } = await supabase
       .from("favorites")
       .select("post_id")
       .eq("user_id", uid);
-    if (data) {
-      setFavoriteIds(new Set(data.map((f) => f.post_id)));
+
+    const next = new Set((data || []).map((favorite) => favorite.post_id));
+    favoritesCache.set(uid, next);
+    return next;
+  })();
+
+  favoritesRequests.set(uid, request);
+
+  try {
+    return await request;
+  } finally {
+    favoritesRequests.delete(uid);
+  }
+}
+
+export function useFavorites() {
+  const { user, loading: authLoading } = useAuth();
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const userId = user?.id ?? null;
+
+  const fetchFavorites = useCallback(async (uid: string, options?: { force?: boolean }) => {
+    if (!options?.force && favoritesCache.has(uid)) {
+      const cached = new Set(favoritesCache.get(uid)!);
+      setFavoriteIds(cached);
+      return cached;
     }
+
+    const loaded = await loadFavoritesFromDb(uid);
+    const next = new Set(loaded);
+    setFavoriteIds(next);
+    return next;
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        await fetchFavorites(user.id);
+      if (userId) {
+        await fetchFavorites(userId);
+      } else {
+        setFavoriteIds(new Set());
       }
       setLoading(false);
     };
-    init();
-  }, [fetchFavorites]);
+
+    setLoading(true);
+    void init();
+  }, [userId, authLoading, fetchFavorites]);
 
   const toggleFavorite = useCallback(async (postId: string): Promise<boolean | null> => {
     if (!userId) return null; // not logged in
@@ -34,25 +70,45 @@ export function useFavorites() {
     const isFav = favoriteIds.has(postId);
     if (isFav) {
       // Remove
-      setFavoriteIds((prev) => { const s = new Set(prev); s.delete(postId); return s; });
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        next.delete(postId);
+        favoritesCache.set(userId, new Set(next));
+        return next;
+      });
       const { error } = await supabase
         .from("favorites")
         .delete()
         .eq("user_id", userId)
         .eq("post_id", postId);
       if (error) {
-        setFavoriteIds((prev) => new Set(prev).add(postId));
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          next.add(postId);
+          favoritesCache.set(userId, new Set(next));
+          return next;
+        });
         return null;
       }
       return false;
     } else {
       // Add
-      setFavoriteIds((prev) => new Set(prev).add(postId));
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        next.add(postId);
+        favoritesCache.set(userId, new Set(next));
+        return next;
+      });
       const { error } = await supabase
         .from("favorites")
         .insert({ user_id: userId, post_id: postId });
       if (error) {
-        setFavoriteIds((prev) => { const s = new Set(prev); s.delete(postId); return s; });
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          next.delete(postId);
+          favoritesCache.set(userId, new Set(next));
+          return next;
+        });
         return null;
       }
       return true;
@@ -62,8 +118,8 @@ export function useFavorites() {
   const isFavorite = useCallback((postId: string) => favoriteIds.has(postId), [favoriteIds]);
 
   const refresh = useCallback(() => {
-    if (userId) fetchFavorites(userId);
+    if (userId) void fetchFavorites(userId, { force: true });
   }, [userId, fetchFavorites]);
 
-  return { isFavorite, toggleFavorite, favoriteIds, userId, loading, refresh };
+  return { isFavorite, toggleFavorite, favoriteIds, userId, loading: loading || authLoading, refresh };
 }

@@ -1,16 +1,21 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 export function useAdmin() {
+  const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = user?.id ?? null;
 
   useEffect(() => {
     const check = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-      setUserId(user.id);
+      if (authLoading) return;
+      if (!user) {
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
 
       const ADMIN_EMAILS = ["lmfine720@outlook.com"];
       if (ADMIN_EMAILS.includes(user.email || "")) {
@@ -29,8 +34,9 @@ export function useAdmin() {
       setIsAdmin(!!data);
       setLoading(false);
     };
-    check();
-  }, []);
+    setLoading(true);
+    void check();
+  }, [user?.id, user?.email, authLoading]);
 
   return { isAdmin, loading, userId };
 }
