@@ -1,89 +1,78 @@
 
 
-## 重大突破！问题完全定位了
-
-你这次的日志透露了**决定性信息**：
+## 决定性证据
 
 ```
-🟡 START: https://www.apple.com/
-🟢 DONE: https://www.apple.com/
+🟡 START: https://fujin.lovable.app/
+🟢 DONE:  https://fujin.life/
 ```
 
-✅ **WebView 完全正常工作！** Apple 官网成功加载（🟡→🟢 完整闭环）。
+你访问的是 `fujin.lovable.app`，但完成时跳到了 `fujin.life`。**Lovable 平台在服务端做了 301 重定向**，把 `fujin.lovable.app` 强制跳转到自定义域名 `fujin.life`。
 
-这意味着：
-- ✅ Swift 代码没问题
-- ✅ Xcode 配置没问题
-- ✅ 网络没问题
-- ✅ WKWebView 没问题
-- ❌ **唯一问题：fujin.life 在 WKWebView 里加载白屏**
+跳转后页面"加载完成"（🟢），但 WebContent 进程立刻 unresponsive + 129 条消息堆积 = **JS 在 fujin.life 上执行时崩溃**。
 
-## fujin.life 白屏的真凶（3 个最可能）
+## 真正的根因（这次 99% 把握）
 
-由于 Apple 能加载、fujin.life 不能，根因必定在 **fujin.life 自身的前端代码**：
+不是网络、不是 WebView、不是 SwiftUI。是 **fujin.life 加载后某段 JS 在 WKWebView 里抛错并卡死渲染线程**。
 
-### 真凶 A：Service Worker 卡死（80% 概率）
-Vite/React 项目常注册 Service Worker 做 PWA 缓存。WKWebView 对 SW 的支持有 bug，首次加载会无限挂起。
+最可疑的 3 处（按优先级）：
 
-### 真凶 B：某个 JS API 在 WKWebView 抛错中断渲染（15% 概率）
-比如 `navigator.geolocation`、`Notification.requestPermission()`、Mapbox 初始化等，在原生 WebView 里行为异常导致白屏。
+| 嫌疑点 | 文件 | 为什么可疑 |
+|--------|------|-----------|
+| Mapbox GL 初始化 | `MapHome.tsx`（首页 `/`） | WebGL 在 WKWebView 里偶发崩溃；首页直接挂载地图 |
+| `requestIdleCallback` | `AppLayout.tsx` | iOS Safari/WKWebView **不支持** `requestIdleCallback`，代码已有降级但 `cancelIdleCallback` 调用未保护 |
+| Boot screen 移除 | `index.html` 安全网 8 秒 | 如果 React 没 mount，8 秒后强制移除 boot screen → 白屏 |
 
-### 真凶 C：CSP（内容安全策略）阻止加载（5% 概率）
-某个 `<meta http-equiv="Content-Security-Policy">` 不允许 `file://` 或非 https 来源。
+## 排查计划（READ-ONLY 模式先确认根因）
 
-## 验证方案：用 Safari 远程调试看真实 JS 报错
+我需要读这几个关键文件确认嫌疑点：
+1. `src/pages/MapHome.tsx` —— 首页是否同步初始化 Mapbox
+2. `src/components/map/MapHomeContent.tsx` —— Mapbox token 加载方式
+3. `src/lib/mapbox.ts` —— token 注入逻辑
+4. `src/hooks/useAuth.tsx` —— 启动时的 session 恢复
+5. `src/App.tsx` —— 路由根入口
 
-这是**唯一能确认根因的方法**。我需要看 fujin.life 在你 iPhone WebView 里的 Console 报错。
+## 修复策略（确认后实施）
 
-### 操作步骤（5 分钟）
+### 方案 A（推荐）：让 iOS App 直接打开 lovable.app 跳过 301
+在 Swift 里禁用自动重定向，让 WebView 留在 `fujin.lovable.app`，避免跨域 + HSTS 复杂度：
 
-1. **iPhone**：设置 → Safari → 高级 → **网页检查器** 打开
-2. **Mac Safari**：设置 → 高级 → 勾选**显示开发菜单**
-3. **数据线**连接 iPhone 到 Mac
-4. **Xcode 运行你的 App**（确保 URL 改回 `https://fujin.life`）
-5. **Mac Safari 顶部菜单 → 开发 → [你的 iPhone 名] → 华人街坊 → fujin.life** → 点击
-6. 弹出调试器后，**截图 Console 标签的所有红色报错**发我
+```swift
+func webView(_ webView: WKWebView,
+             decidePolicyFor navigationAction: WKNavigationAction,
+             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+    // 拦截 301 跳转到 fujin.life，强制留在 lovable.app
+    if let url = navigationAction.request.url,
+       url.host == "fujin.life" || url.host == "www.fujin.life" {
+        decisionHandler(.cancel)
+        webView.load(URLRequest(url: URL(string: "https://fujin.lovable.app" + url.path)!))
+        return
+    }
+    decisionHandler(.allow)
+}
+```
 
-## 我同时排查 Lovable 项目代码
+### 方案 B：修复 Lovable 前端的 WKWebView 兼容性
+如果根因在前端代码，需要：
+- `AppLayout.tsx`：包裹 `requestIdleCallback` / `cancelIdleCallback` 的安全检查
+- 首页 Mapbox：延迟到用户交互后再初始化，避免启动崩溃
+- 添加全局 `window.onerror` 捕获到 console，方便 Safari 远程调试看到
 
-为节省你时间，我会**并行排查** Lovable 项目里可能在 WKWebView 报错的代码：
+### 方案 C：你做 Safari 远程调试拿真实 JS 报错
+**这是最关键的一步**。前两个方案是猜测，Safari 调试器能直接告诉我们 JS 在哪一行崩溃。
 
-1. 检查是否注册了 Service Worker（`vite.config.ts`、`main.tsx`）
-2. 检查 `index.html` 里的 CSP meta 标签
-3. 检查启动时强制调用的 API（geolocation、notification、Mapbox）
-4. 检查 `useAuth`、`AppLayout` 等首屏组件是否有抛错风险
+## 下一步
 
-## 实施步骤
+1. 我先读 5 个关键文件确认嫌疑
+2. 同时请你做 Safari 远程调试（步骤上次已给）
+3. 拿到真实报错后，**精准修复 Lovable 前端代码**（这次需要改 1-3 个文件）
+4. 配合方案 A 的 Swift 拦截重定向作为兜底
 
-### 阶段 1：Lovable 项目代码排查（我立即执行）
-- 读 `index.html`、`vite.config.ts`、`main.tsx`、`AppLayout.tsx`、`useAuth.tsx`
-- 找出所有可能导致 WKWebView 白屏的代码
-- 给出 fix 列表
+## Lovable 代码改动预期
 
-### 阶段 2：你做 Safari 远程调试
-- 拿到真实 JS 报错截图
-- 与阶段 1 的排查结果交叉验证
-
-### 阶段 3：精准修复
-- 根据 1+2 的结论，**修改 Lovable 项目代码**（这次确实需要改前端）
-- 你重新打开 App 验证
-
-## 为什么这次需要改 Lovable 代码？
-
-之前一直说"前端 0 改动"是因为不确定问题在哪。**现在确认问题就在 fujin.life 前端**，必须改。常见修复：
-
-| 问题 | 修复 |
+| 文件 | 改动 |
 |------|------|
-| Service Worker 卡死 | 检测到 WebView 时跳过注册 |
-| Geolocation 报错中断 | try-catch 包裹，失败降级 |
-| CSP 太严格 | 调整或移除 meta 标签 |
-| Mapbox token 加载阻塞 | 异步加载，不阻塞首屏 |
-
-## 反馈格式
-
-完成 Safari 远程调试后，请提供：
-1. **Console 红色报错截图**（最关键）
-2. **Network 标签**：哪些请求是红色（失败）的
-
-我并行执行阶段 1，等你截图就能给最终修复。
+| `src/components/AppLayout.tsx` | `requestIdleCallback` / `cancelIdleCallback` 兼容检查 |
+| `src/main.tsx` | 添加 `window.onerror` 全局捕获 |
+| `src/pages/MapHome.tsx` 或 `src/components/map/MapHomeContent.tsx` | Mapbox 延迟初始化（如果确认是它） |
 
