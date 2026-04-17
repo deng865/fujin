@@ -12,12 +12,13 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ["react", "react-dom", "react-router-dom"],
-          map: ["mapbox-gl", "react-map-gl"],
-          supabase: ["@supabase/supabase-js"],
-          ui: ["lucide-react", "sonner"],
-          date: ["date-fns"],
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("mapbox-gl") || id.includes("react-map-gl")) return "map";
+          if (id.includes("@supabase")) return "supabase";
+          if (id.includes("lucide-react") || id.includes("sonner")) return "ui";
+          if (id.includes("date-fns")) return "date";
+          if (id.includes("react-router") || id.includes("/react-dom/") || id.includes("/react/")) return "react";
         },
       },
     },
