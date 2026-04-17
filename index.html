@@ -20,22 +20,32 @@
   </head>
 
   <body>
-    <div id="root">
-      <style>
-        .__boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #ffffff; color: #111827; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; z-index: 0; }
-        .__boot__logo { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg,#2563eb,#7c3aed); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:22px; box-shadow: 0 10px 30px rgba(37,99,235,0.25); margin-bottom:16px; }
-        .__boot__title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
-        .__boot__bar { width: 140px; height: 4px; border-radius: 999px; background: #e5e7eb; overflow: hidden; }
-        .__boot__bar::after { content:""; display:block; width: 40%; height:100%; background: linear-gradient(90deg,#2563eb,#7c3aed); animation: __boot 1.1s ease-in-out infinite; border-radius:999px;}
-        @keyframes __boot { 0%{transform:translateX(-100%);} 100%{transform:translateX(360%);} }
-        @media (prefers-color-scheme: dark) { .__boot{background:#0b0f17;color:#e5e7eb;} .__boot__bar{background:#1f2937;} }
-      </style>
-      <div class="__boot" aria-hidden="true">
-        <div class="__boot__logo">华</div>
-        <div class="__boot__title">华人生活圈</div>
-        <div class="__boot__bar"></div>
-      </div>
+    <style>
+      #__boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #ffffff; color: #111827; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; z-index: 9999; transition: opacity 250ms ease; }
+      #__boot.__boot-hide { opacity: 0; pointer-events: none; }
+      #__boot .__boot__logo { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg,#2563eb,#7c3aed); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:22px; box-shadow: 0 10px 30px rgba(37,99,235,0.25); margin-bottom:16px; }
+      #__boot .__boot__title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+      #__boot .__boot__bar { width: 140px; height: 4px; border-radius: 999px; background: #e5e7eb; overflow: hidden; }
+      #__boot .__boot__bar::after { content:""; display:block; width: 40%; height:100%; background: linear-gradient(90deg,#2563eb,#7c3aed); animation: __boot 1.1s ease-in-out infinite; border-radius:999px;}
+      @keyframes __boot { 0%{transform:translateX(-100%);} 100%{transform:translateX(360%);} }
+      @media (prefers-color-scheme: dark) { #__boot{background:#0b0f17;color:#e5e7eb;} #__boot .__boot__bar{background:#1f2937;} }
+    </style>
+    <div id="__boot" aria-hidden="true">
+      <div class="__boot__logo">华</div>
+      <div class="__boot__title">华人生活圈</div>
+      <div class="__boot__bar"></div>
     </div>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Safety net: force-remove boot screen after 8s in case JS bundle fails to mount
+      window.setTimeout(function () {
+        var b = document.getElementById('__boot');
+        if (b && !b.classList.contains('__boot-hide')) {
+          b.classList.add('__boot-hide');
+          window.setTimeout(function () { b && b.parentNode && b.parentNode.removeChild(b); }, 300);
+        }
+      }, 8000);
+    </script>
   </body>
 </html>
