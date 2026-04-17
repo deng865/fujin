@@ -38,10 +38,21 @@ export default function AppLayout() {
   const [mountGlobals, setMountGlobals] = useState(false);
 
   useEffect(() => {
-    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, opts?: { timeout: number }) => number);
-    if (ric) {
-      const id = ric(() => setMountGlobals(true), { timeout: 2500 });
-      return () => (window as any).cancelIdleCallback?.(id);
+    // WKWebView (iOS) does NOT support requestIdleCallback. Always fall back
+    // to setTimeout to avoid any chance of throwing on older WebKit builds.
+    const w = window as any;
+    const ric = typeof w.requestIdleCallback === "function" ? w.requestIdleCallback : null;
+    const cic = typeof w.cancelIdleCallback === "function" ? w.cancelIdleCallback : null;
+
+    if (ric && cic) {
+      try {
+        const id = ric(() => setMountGlobals(true), { timeout: 2500 });
+        return () => {
+          try { cic(id); } catch { /* noop */ }
+        };
+      } catch {
+        // fallthrough to setTimeout
+      }
     }
     const t = window.setTimeout(() => setMountGlobals(true), 1500);
     return () => window.clearTimeout(t);
