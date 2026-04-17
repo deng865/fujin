@@ -5,6 +5,7 @@ import { checkActiveTripLock } from "@/lib/tripLock";
 import { toast } from "sonner";
 import { LogOut, Package, Shield, Headphones, ChevronRight, Edit, Car, Star } from "lucide-react";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -105,7 +106,7 @@ type SubPage = "main" | "posts" | "privacy" | "editProfile" | "reviews";
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
-  const [user, setUser] = useState<any>(null);
+  const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,16 +124,23 @@ export default function ProfilePage() {
   const [licensePlate, setLicensePlate] = useState("");
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) { navigate("/auth"); return; }
+    let cancelled = false;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate("/auth"); return; }
-      setUser(user);
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("name, phone, wechat_id, avatar_url, vehicle_model, vehicle_color, license_plate, user_type, average_rating, total_ratings")
-        .eq("id", user.id)
-        .single();
+      const [{ data: profileData }, { data: postsData }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("name, phone, wechat_id, avatar_url, vehicle_model, vehicle_color, license_plate, user_type, average_rating, total_ratings")
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("posts")
+          .select("id, title, category, price, created_at, is_visible, is_mobile, operating_hours")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+      ]);
+      if (cancelled) return;
 
       if (profileData) {
         setProfile(profileData as any);
@@ -144,12 +152,6 @@ export default function ProfilePage() {
         setLicensePlate((profileData as any).license_plate || "");
       }
 
-      const { data: postsData } = await supabase
-        .from("posts")
-        .select("id, title, category, price, created_at, is_visible, is_mobile, operating_hours")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
       setPosts((postsData || []).map((p: any) => ({
         ...p,
         operating_hours: p.operating_hours as UserPost["operating_hours"],
@@ -160,11 +162,14 @@ export default function ProfilePage() {
       if (saved !== null) setLocationSharing(saved === "true");
 
       // Check active trip
-      checkActiveTripLock(user.id).then(convId => setHasActiveTrip(!!convId));
+      checkActiveTripLock(user.id).then(convId => {
+        if (!cancelled) setHasActiveTrip(!!convId);
+      });
 
       setLoading(false);
     })();
-  }, [navigate]);
+    return () => { cancelled = true; };
+  }, [user?.id, authLoading, navigate]);
 
   const handleSaveProfile = async () => {
     if (!user) return;

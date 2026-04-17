@@ -6,6 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import FavoriteButton from "@/components/FavoriteButton";
+import { useAuth } from "@/hooks/useAuth";
 
 interface FavoritePost {
   id: string; // favorites.id
@@ -37,28 +38,29 @@ const categoryLabels: Record<string, string> = {
 
 export default function Favorites() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [favorites, setFavorites] = useState<FavoritePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate("/auth"); return; }
-
+    if (authLoading) return;
+    if (!user) { navigate("/auth"); return; }
+    let cancelled = false;
+    (async () => {
       const { data } = await supabase
         .from("favorites")
         .select("id, post_id, created_at, posts(id, title, description, category, price, latitude, longitude, image_urls, created_at)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
-
+      if (cancelled) return;
       if (data) {
         setFavorites(data.map((f: any) => ({ ...f, post: f.posts })));
       }
       setLoading(false);
-    };
-    load();
-  }, [navigate]);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, authLoading, navigate]);
 
   const handleRemove = async (favoriteId: string) => {
     setFavorites((prev) => prev.filter((f) => f.id !== favoriteId));
