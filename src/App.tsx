@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import AppLayout from "./components/AppLayout";
 import AppErrorBoundary from "./components/AppErrorBoundary";
@@ -40,6 +40,16 @@ const TermsOfService = lazy(loadTermsOfService);
 
 const queryClient = new QueryClient();
 
+// In native shells (file://) or capacitor:// protocols, BrowserRouter cannot
+// resolve deep paths like /messages because there is no server to serve
+// index.html. Fall back to HashRouter in those environments.
+const isFileProtocol =
+  typeof window !== "undefined" &&
+  (window.location.protocol === "file:" ||
+    window.location.protocol === "capacitor:" ||
+    window.location.protocol === "ionic:");
+const Router = isFileProtocol ? HashRouter : BrowserRouter;
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -47,7 +57,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <AppErrorBoundary>
-          <BrowserRouter>
+          <Router>
             <Routes>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<MapHome />} />
