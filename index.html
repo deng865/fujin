@@ -38,14 +38,27 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Safety net: force-remove boot screen after 8s in case JS bundle fails to mount
+      // Early boot diagnostics — visible via Safari remote inspector
+      (function () {
+        try {
+          var ua = navigator.userAgent || "";
+          var isWK = /AppleWebKit/.test(ua) && !/Safari\//.test(ua) === false && /Mobile/.test(ua);
+          // eslint-disable-next-line no-console
+          console.log("[boot] document parsed", { ua: ua, isWK: isWK, href: location.href });
+        } catch (e) { /* noop */ }
+      })();
+
+      // Safety net: force-remove boot screen after 6s in case JS bundle fails to mount.
+      // We also log so Safari remote debug shows whether this fired.
       window.setTimeout(function () {
         var b = document.getElementById('__boot');
         if (b && !b.classList.contains('__boot-hide')) {
+          // eslint-disable-next-line no-console
+          console.warn("[boot] safety-net firing — React did not paint within 6s");
           b.classList.add('__boot-hide');
           window.setTimeout(function () { b && b.parentNode && b.parentNode.removeChild(b); }, 300);
         }
-      }, 8000);
+      }, 6000);
     </script>
   </body>
 </html>
