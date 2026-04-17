@@ -1,17 +1,19 @@
-export const loadMapHome = () => import("../pages/MapHome");
-export const loadAuth = () => import("../pages/Auth");
-export const loadResetPassword = () => import("../pages/ResetPassword");
-export const loadCreatePost = () => import("../pages/CreatePost");
-export const loadPostDetail = () => import("../pages/PostDetail");
-export const loadFavorites = () => import("../pages/Favorites");
-export const loadProfile = () => import("../pages/Profile");
-export const loadMessages = () => import("../pages/Messages");
-export const loadChatRoom = () => import("../pages/ChatRoom");
-export const loadAdminPortal = () => import("../pages/AdminPortal");
-export const loadDiscovery = () => import("../pages/Discovery");
-export const loadNotFound = () => import("../pages/NotFound");
-export const loadPrivacyPolicy = () => import("../pages/PrivacyPolicy");
-export const loadTermsOfService = () => import("../pages/TermsOfService");
+import { lazyWithRetry } from "./lazyWithRetry";
+
+export const loadMapHome = () => lazyWithRetry(() => import("../pages/MapHome"));
+export const loadAuth = () => lazyWithRetry(() => import("../pages/Auth"));
+export const loadResetPassword = () => lazyWithRetry(() => import("../pages/ResetPassword"));
+export const loadCreatePost = () => lazyWithRetry(() => import("../pages/CreatePost"));
+export const loadPostDetail = () => lazyWithRetry(() => import("../pages/PostDetail"));
+export const loadFavorites = () => lazyWithRetry(() => import("../pages/Favorites"));
+export const loadProfile = () => lazyWithRetry(() => import("../pages/Profile"));
+export const loadMessages = () => lazyWithRetry(() => import("../pages/Messages"));
+export const loadChatRoom = () => lazyWithRetry(() => import("../pages/ChatRoom"));
+export const loadAdminPortal = () => lazyWithRetry(() => import("../pages/AdminPortal"));
+export const loadDiscovery = () => lazyWithRetry(() => import("../pages/Discovery"));
+export const loadNotFound = () => lazyWithRetry(() => import("../pages/NotFound"));
+export const loadPrivacyPolicy = () => lazyWithRetry(() => import("../pages/PrivacyPolicy"));
+export const loadTermsOfService = () => lazyWithRetry(() => import("../pages/TermsOfService"));
 
 export function preloadRoute(pathname: string) {
   const normalized = pathname.split("?")[0];
