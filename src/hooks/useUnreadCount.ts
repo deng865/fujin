@@ -1,45 +1,44 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 
 export function useUnreadCount() {
+  const { user } = useAuth();
   const [count, setCount] = useState(0);
 
+  const fetchCount = useCallback(async (uid: string) => {
+    const { count: unread } = await supabase
+      .from("messages")
+      .select("id, conversation:conversations!inner(participant_1, participant_2)", { count: "exact", head: true })
+      .is("read_at", null)
+      .neq("sender_id", uid)
+      .or(`participant_1.eq.${uid},participant_2.eq.${uid}`, { referencedTable: "conversations" });
+
+    setCount(unread || 0);
+  }, []);
+
   useEffect(() => {
-    let userId: string | null = null;
+    if (!user?.id) {
+      setCount(0);
+      return;
+    }
 
-    const fetchCount = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      userId = user.id;
+    void fetchCount(user.id);
 
-      // Count messages where I'm a participant but not the sender, and not read
-      const { count: unread } = await supabase
-        .from("messages")
-        .select("id, conversation:conversations!inner(participant_1, participant_2)", { count: "exact", head: true })
-        .is("read_at", null)
-        .neq("sender_id", user.id)
-        .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`, { referencedTable: "conversations" });
-
-      setCount(unread || 0);
-    };
-
-    fetchCount();
-
-    // Listen for new messages
     const channel = supabase
-      .channel("unread-badge")
+      .channel(`unread-badge-${user.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => {
-        fetchCount();
+        void fetchCount(user.id);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages" }, () => {
-        fetchCount();
+        void fetchCount(user.id);
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user?.id, fetchCount]);
 
   return count;
 }
