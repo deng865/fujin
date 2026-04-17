@@ -1,78 +1,59 @@
 
 
-## 决定性证据
+## 关键观察
+
+这次日志和上次几乎完全一样，但增加了两条新信息：
 
 ```
-🟡 START: https://fujin.lovable.app/
-🟢 DONE:  https://fujin.life/
+🟡 START: https://fujin.life/
+🟢 DONE: https://fujin.life/
+Snapshot request ... code: 6 ("anulled")
+Gesture: System gesture gate timed out.
 ```
 
-你访问的是 `fujin.lovable.app`，但完成时跳到了 `fujin.life`。**Lovable 平台在服务端做了 301 重定向**，把 `fujin.lovable.app` 强制跳转到自定义域名 `fujin.life`。
+**🟢 DONE 触发了**，说明 fujin.life 的 HTML 已经下载并解析完成。但紧接着 WebContent 进程 unresponsive + Snapshot 取消 + 手势网关超时 = **JS 在 React mount 过程中卡死**。
 
-跳转后页面"加载完成"（🟢），但 WebContent 进程立刻 unresponsive + 129 条消息堆积 = **JS 在 fujin.life 上执行时崩溃**。
+我之前加了 `showFatalOverlay` 红色错误条 + `window.onerror` 全局捕获。但是**你没有提到看到任何红色错误条**。这意味着两种可能：
+- A) JS 没抛错，是死循环/同步阻塞导致主线程卡死（红条没机会显示）
+- B) 部署还没生效，新代码还没上 fujin.life
 
-## 真正的根因（这次 99% 把握）
+## 排查计划（READ-ONLY）
 
-不是网络、不是 WebView、不是 SwiftUI。是 **fujin.life 加载后某段 JS 在 WKWebView 里抛错并卡死渲染线程**。
+我需要先读这几个文件确认当前状态和根因：
 
-最可疑的 3 处（按优先级）：
+1. `index.html` —— 检查 boot screen 8 秒兜底逻辑、是否有同步阻塞脚本
+2. `src/App.tsx` —— 路由根入口，是否有同步初始化崩溃
+3. `src/hooks/useAuth.tsx` —— 启动时的 session 恢复，是否有阻塞
+4. `src/pages/MapHome.tsx` —— 首页，Mapbox 是否同步初始化
+5. `src/lib/mapbox.ts` —— Mapbox token 加载方式
+6. `vite.config.ts` —— 是否有 PWA / Service Worker 注册
 
-| 嫌疑点 | 文件 | 为什么可疑 |
-|--------|------|-----------|
-| Mapbox GL 初始化 | `MapHome.tsx`（首页 `/`） | WebGL 在 WKWebView 里偶发崩溃；首页直接挂载地图 |
-| `requestIdleCallback` | `AppLayout.tsx` | iOS Safari/WKWebView **不支持** `requestIdleCallback`，代码已有降级但 `cancelIdleCallback` 调用未保护 |
-| Boot screen 移除 | `index.html` 安全网 8 秒 | 如果 React 没 mount，8 秒后强制移除 boot screen → 白屏 |
+## 可能的修复方向
 
-## 排查计划（READ-ONLY 模式先确认根因）
+| 嫌疑 | 现象 | 修复 |
+|------|------|------|
+| Mapbox GL 在 WKWebView 启动崩溃 | DONE 后立即 unresponsive | 首页延迟挂载地图（点击后才 mount），或捕获 mapbox 异常降级 |
+| `useAuth` 启动死循环 | 主线程卡死无报错 | 检查 onAuthStateChange 是否有同步副作用 |
+| Service Worker 注册阻塞 | 进程消息堆积 129 条 | 在 WKWebView 里跳过 SW 注册 |
+| 部署延迟 | 新 fix 未生效 | 让用户硬刷新或等部署 |
 
-我需要读这几个关键文件确认嫌疑点：
-1. `src/pages/MapHome.tsx` —— 首页是否同步初始化 Mapbox
-2. `src/components/map/MapHomeContent.tsx` —— Mapbox token 加载方式
-3. `src/lib/mapbox.ts` —— token 注入逻辑
-4. `src/hooks/useAuth.tsx` —— 启动时的 session 恢复
-5. `src/App.tsx` —— 路由根入口
+## 同时建议你做的事（关键）
 
-## 修复策略（确认后实施）
+请**确认两点**，缺一不可：
 
-### 方案 A（推荐）：让 iOS App 直接打开 lovable.app 跳过 301
-在 Swift 里禁用自动重定向，让 WebView 留在 `fujin.lovable.app`，避免跨域 + HSTS 复杂度：
+1. **底部红条**：iPhone 上重新打开 App，停留 10 秒，**屏幕底部有没有红色错误条**？
+   - 有 → 截图发我，能精准定位
+   - 没有 → 说明 JS 没抛错，是阻塞/死循环
 
-```swift
-func webView(_ webView: WKWebView,
-             decidePolicyFor navigationAction: WKNavigationAction,
-             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-    // 拦截 301 跳转到 fujin.life，强制留在 lovable.app
-    if let url = navigationAction.request.url,
-       url.host == "fujin.life" || url.host == "www.fujin.life" {
-        decisionHandler(.cancel)
-        webView.load(URLRequest(url: URL(string: "https://fujin.lovable.app" + url.path)!))
-        return
-    }
-    decisionHandler(.allow)
-}
-```
-
-### 方案 B：修复 Lovable 前端的 WKWebView 兼容性
-如果根因在前端代码，需要：
-- `AppLayout.tsx`：包裹 `requestIdleCallback` / `cancelIdleCallback` 的安全检查
-- 首页 Mapbox：延迟到用户交互后再初始化，避免启动崩溃
-- 添加全局 `window.onerror` 捕获到 console，方便 Safari 远程调试看到
-
-### 方案 C：你做 Safari 远程调试拿真实 JS 报错
-**这是最关键的一步**。前两个方案是猜测，Safari 调试器能直接告诉我们 JS 在哪一行崩溃。
+2. **Safari 远程调试**：之前一直没拿到这个数据，这是**唯一能看到 JS 真实状态**的方法
+   - iPhone 设置 → Safari → 高级 → 网页检查器 ON
+   - Mac Safari → 开发菜单 → 你的 iPhone → fujin.life
+   - 截 Console 标签 + Network 标签
 
 ## 下一步
 
-1. 我先读 5 个关键文件确认嫌疑
-2. 同时请你做 Safari 远程调试（步骤上次已给）
-3. 拿到真实报错后，**精准修复 Lovable 前端代码**（这次需要改 1-3 个文件）
-4. 配合方案 A 的 Swift 拦截重定向作为兜底
-
-## Lovable 代码改动预期
-
-| 文件 | 改动 |
-|------|------|
-| `src/components/AppLayout.tsx` | `requestIdleCallback` / `cancelIdleCallback` 兼容检查 |
-| `src/main.tsx` | 添加 `window.onerror` 全局捕获 |
-| `src/pages/MapHome.tsx` 或 `src/components/map/MapHomeContent.tsx` | Mapbox 延迟初始化（如果确认是它） |
+批准后我会：
+1. 读 6 个关键文件确认根因
+2. 根据代码 + 你的反馈（红条 / Safari 调试）给出**精准修复**
+3. 预计改 1-2 个文件，主要是首页 Mapbox 延迟初始化 + 启动阶段的兜底捕获
 
