@@ -1,7 +1,8 @@
-import { Suspense } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import BottomNav from "./BottomNav";
-import GlobalIncomingCallProvider from "./GlobalIncomingCallProvider";
+
+const GlobalIncomingCallProvider = lazy(() => import("./GlobalIncomingCallProvider"));
 
 const HIDE_NAV_ROUTES = ["/auth", "/reset-password", "/create-post"];
 
@@ -33,10 +34,27 @@ function RouteFallback({ hideNav }: { hideNav: boolean }) {
 export default function AppLayout() {
   const location = useLocation();
   const hideNav = HIDE_NAV_ROUTES.some(r => location.pathname.startsWith(r)) || location.pathname.startsWith("/chat/");
+  const [mountGlobals, setMountGlobals] = useState(false);
+
+  useEffect(() => {
+    // Defer global realtime listeners (incoming calls, message tones) until
+    // after first paint so they never block the initial render or TTI.
+    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, opts?: { timeout: number }) => number);
+    if (ric) {
+      const id = ric(() => setMountGlobals(true), { timeout: 2500 });
+      return () => (window as any).cancelIdleCallback?.(id);
+    }
+    const t = window.setTimeout(() => setMountGlobals(true), 1500);
+    return () => window.clearTimeout(t);
+  }, []);
 
   return (
     <>
-      <GlobalIncomingCallProvider />
+      {mountGlobals && (
+        <Suspense fallback={null}>
+          <GlobalIncomingCallProvider />
+        </Suspense>
+      )}
       <Suspense fallback={<RouteFallback hideNav={hideNav} />}>
         <Outlet />
       </Suspense>

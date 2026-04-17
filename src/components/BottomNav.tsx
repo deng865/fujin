@@ -21,7 +21,10 @@ export default function BottomNav() {
   const { user } = useAuth();
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    // Heavy chunks (Messages, Profile, Favorites) are preloaded lazily so they
+    // never compete with the initial map render. Use requestIdleCallback when
+    // available; fall back to a long timeout otherwise.
+    const run = () => {
       if (user) {
         void Promise.all([
           preloadRoute("/messages"),
@@ -31,8 +34,14 @@ export default function BottomNav() {
       } else {
         void preloadRoute("/auth");
       }
-    }, 600);
+    };
 
+    const ric = (window as any).requestIdleCallback as undefined | ((cb: () => void, opts?: { timeout: number }) => number);
+    if (ric) {
+      const id = ric(run, { timeout: 4000 });
+      return () => (window as any).cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(run, 2500);
     return () => window.clearTimeout(timer);
   }, [user]);
 
