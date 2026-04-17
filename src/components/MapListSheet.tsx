@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Clock, Play, X, Navigation, Send, Phone, Share2, Bookmark } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -92,6 +92,7 @@ export default function MapListSheet({
   selectedCategory, mapTapped = 0, onSheetHeightChange,
 }: MapListSheetProps) {
   const [state, setState] = useState<SheetState>("peek");
+  const [ratingsEnabled, setRatingsEnabled] = useState(false);
   const prevMapTapped = useRef(mapTapped);
 
   useEffect(() => {
@@ -213,14 +214,26 @@ export default function MapListSheet({
     onSheetHeightChange?.(displayHeight);
   }, [displayHeight, onSheetHeightChange]);
 
-  const ratingInputs = posts.map(p => ({ postId: p.id, userId: p.user_id }));
-  const { ratings: postRatings } = usePostRatings(ratingInputs);
-
-  const sorted = [...posts].sort((a, b) => {
+  const sorted = useMemo(() => [...posts].sort((a, b) => {
     const dA = haversineKm(userLat, userLng, a.latitude, a.longitude);
     const dB = haversineKm(userLat, userLng, b.latitude, b.longitude);
     return dA - dB;
-  });
+  }), [posts, userLat, userLng]);
+
+  useEffect(() => {
+    setRatingsEnabled(false);
+    const timer = window.setTimeout(() => setRatingsEnabled(true), 250);
+    return () => window.clearTimeout(timer);
+  }, [sorted.length, state]);
+
+  const ratingInputs = useMemo(() => {
+    if (!ratingsEnabled) return [];
+
+    const visibleCount = state === "full" ? 48 : state === "half" ? 24 : 0;
+    return sorted.slice(0, visibleCount).map((post) => ({ postId: post.id, userId: post.user_id }));
+  }, [ratingsEnabled, sorted, state]);
+
+  const { ratings: postRatings } = usePostRatings(ratingInputs);
 
   const handleBackToList = useCallback(() => {
     onSelectPost(null);
