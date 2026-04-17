@@ -37,6 +37,7 @@ import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounter
 import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
 import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
+import { useAuth } from "@/hooks/useAuth";
 // In-memory reverse geocoding cache
 const reverseGeocodeCache = new Map<string, string>();
 async function cachedReverseGeocode(lat: number, lng: number, token: string): Promise<string> {
@@ -77,6 +78,7 @@ export default function ChatRoom() {
   const { id: conversationId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user: authUser, loading: authLoading } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
@@ -129,76 +131,81 @@ export default function ChatRoom() {
   // Load conversation and messages
   useEffect(() => {
     if (!conversationId) return;
+    if (authLoading) return;
+    if (!authUser) { navigate("/auth"); return; }
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate("/auth"); return; }
+      const user = authUser;
       setUserId(user.id);
 
-      const { data: myProfile } = await supabase
-        .from("profiles")
-        .select("name, phone, wechat_id, avatar_url")
-        .eq("id", user.id)
-        .single();
+      // Parallel: own profile + conversation
+      const [{ data: myProfile }, { data: conv }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("name, phone, wechat_id, avatar_url")
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("conversations")
+          .select("*")
+          .eq("id", conversationId)
+          .single(),
+      ]);
       setMyName(myProfile?.name || user.email || user.id);
       setMyPhone(myProfile?.phone || null);
       setMyWechat(myProfile?.wechat_id || null);
       setMyAvatarUrl(myProfile?.avatar_url || null);
-
-      const { data: conv } = await supabase
-        .from("conversations")
-        .select("*")
-        .eq("id", conversationId)
-        .single();
 
       if (!conv) { navigate("/messages"); return; }
 
       const otherId = conv.participant_1 === user.id ? conv.participant_2 : conv.participant_1;
       setOtherUserId(otherId);
 
-      const { data: profile } = await supabase
-        .from("public_profiles")
-        .select("name, avatar_url, user_type")
-        .eq("id", otherId)
-        .single();
-
-      const { data: phonePost } = await supabase
-        .from("posts")
-        .select("contact_phone")
-        .eq("user_id", otherId)
-        .not("contact_phone", "is", null)
-        .limit(1)
-        .maybeSingle();
+      // Parallel: other profile + their phone post + their credit + driver flags
+      const [
+        { data: profile },
+        { data: phonePost },
+        { data: creditData },
+        { count: driverPostCount },
+        { count: myDriverPostCount },
+      ] = await Promise.all([
+        supabase
+          .from("public_profiles")
+          .select("name, avatar_url, user_type")
+          .eq("id", otherId)
+          .single(),
+        supabase
+          .from("posts")
+          .select("contact_phone")
+          .eq("user_id", otherId)
+          .not("contact_phone", "is", null)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("average_rating, total_ratings")
+          .eq("id", otherId)
+          .single(),
+        supabase
+          .from("posts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", otherId)
+          .eq("category", "driver"),
+        supabase
+          .from("posts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("category", "driver"),
+      ]);
 
       setOtherUser({
         name: profile?.name || "用户",
         avatar_url: profile?.avatar_url || null,
         phone: phonePost?.contact_phone || null,
       });
-
-      // Load credit info
-      const { data: creditData } = await supabase
-        .from("profiles")
-        .select("average_rating, total_ratings")
-        .eq("id", otherId)
-        .single();
       if (creditData) setOtherUserCredit(creditData as any);
-
-      // Check if the other user has driver-category posts (conversation initiated from driver listing)
-      const { count: driverPostCount } = await supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", otherId)
-        .eq("category", "driver");
       if (driverPostCount && driverPostCount > 0) {
         setIsRideChat(true);
       }
-
-      // Check if current user is a driver
-      const { count: myDriverPostCount } = await supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("category", "driver");
       if (myDriverPostCount && myDriverPostCount > 0) {
         setIsDriver(true);
       }
@@ -225,7 +232,7 @@ export default function ChatRoom() {
       }
     };
     load();
-  }, [conversationId, navigate]);
+  }, [conversationId, authLoading, authUser?.id, navigate]);
 
   const prevMsgCountRef = useRef(0);
   useEffect(() => {

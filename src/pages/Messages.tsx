@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import IncomingCall from "@/components/chat/IncomingCall";
 import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
 import CreditBadge from "@/components/reviews/CreditBadge";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Conversation {
   id: string;
@@ -147,9 +148,10 @@ function SwipeableCard({
 
 export default function Messages() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.id ?? null;
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
   const [showNotifBanner, setShowNotifBanner] = useState(false);
   const [incomingCall, setIncomingCall] = useState<{ callerName: string; callerId: string; sessionId: string; conversationId: string } | null>(null);
 
@@ -177,15 +179,15 @@ export default function Messages() {
   }, []);
 
   useEffect(() => {
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate("/auth"); return; }
-      setUserId(user.id);
-      await fetchConversations(user.id);
-      setLoading(false);
-    };
-    load();
-  }, [navigate]);
+    if (authLoading) return;
+    if (!userId) { navigate("/auth"); return; }
+    let cancelled = false;
+    (async () => {
+      await fetchConversations(userId);
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [userId, authLoading, navigate]);
 
   useEffect(() => {
     if (!userId) return;
@@ -252,30 +254,43 @@ export default function Messages() {
       .order("updated_at", { ascending: false });
 
     if (!data) return;
+    if (data.length === 0) { setConversations([]); return; }
 
-    const enriched = await Promise.all(
-      data.map(async (conv) => {
-        const otherId = conv.participant_1 === uid ? conv.participant_2 : conv.participant_1;
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("name, avatar_url, average_rating, total_ratings")
-          .eq("id", otherId)
-          .single();
+    // Batch-fetch all participant profiles + unread messages in parallel
+    const otherIds = Array.from(new Set(
+      data.map((c) => (c.participant_1 === uid ? c.participant_2 : c.participant_1))
+    ));
+    const conversationIds = data.map((c) => c.id);
 
-        const { count } = await supabase
-          .from("messages")
-          .select("id", { count: "exact", head: true })
-          .eq("conversation_id", conv.id)
-          .is("read_at", null)
-          .neq("sender_id", uid);
+    const [{ data: profiles }, { data: unreadRows }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, name, avatar_url, average_rating, total_ratings")
+        .in("id", otherIds),
+      supabase
+        .from("messages")
+        .select("conversation_id")
+        .in("conversation_id", conversationIds)
+        .is("read_at", null)
+        .neq("sender_id", uid),
+    ]);
 
-        return {
-          ...conv,
-          other_user: profile || { name: "用户", avatar_url: null, average_rating: null, total_ratings: null },
-          unread_count: count || 0,
-        };
-      })
-    );
+    const profileMap = new Map<string, any>();
+    (profiles || []).forEach((p: any) => profileMap.set(p.id, p));
+    const unreadMap = new Map<string, number>();
+    (unreadRows || []).forEach((row: any) => {
+      unreadMap.set(row.conversation_id, (unreadMap.get(row.conversation_id) || 0) + 1);
+    });
+
+    const enriched = data.map((conv) => {
+      const otherId = conv.participant_1 === uid ? conv.participant_2 : conv.participant_1;
+      const p = profileMap.get(otherId);
+      return {
+        ...conv,
+        other_user: p || { name: "用户", avatar_url: null, average_rating: null, total_ratings: null },
+        unread_count: unreadMap.get(conv.id) || 0,
+      };
+    });
 
     setConversations(enriched);
   };
