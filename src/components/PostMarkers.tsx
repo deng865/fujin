@@ -492,6 +492,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
         <Layer {...mobileAreaFillLayer} />
         <Layer {...mobileAreaStrokeLayer} />
         <Layer {...mobileCenterDotLayer} />
+        <Layer {...mobileCenterIconLayer} />
       </Source>
 
       {selectedPost && (
