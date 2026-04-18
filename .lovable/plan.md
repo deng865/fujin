@@ -1,46 +1,39 @@
 
 
-## 找到首页底部白条根因
+## 不需要在 Xcode 里改
 
-**位置**：`src/components/MapListSheet.tsx` 第 87 行
+底部白条是 **Web 端 CSS 问题**，跟 Xcode/iOS 原生壳无关。原生壳只是个浏览器容器，所有布局都来自网页。
 
-```ts
-const BOTTOM_NAV = 72;  // ❌ 硬编码 72px
-```
+## 重新排查
 
-第 257-260 行用它定位抽屉：
-```ts
-style={{ bottom: `${BOTTOM_NAV}px`, ... }}
-```
+之前改了 `MapListSheet.tsx` 的 `bottom: calc(72px + env(safe-area-inset-bottom))`，但用户说"还是不行"。需要再读实际代码确认改动是否生效，以及 BottomNav 当前结构。
 
-**问题**：iPhone 16 的 BottomNav 实际高度 = `72px + safe-area-inset-bottom (~34px)` ≈ **106px**。但抽屉 `bottom` 只留了 72px，所以抽屉底部和 BottomNav 之间露出 ~34px 的地图（白色）。
+需重读：
+- `src/components/MapListSheet.tsx`（确认上次改动是否落地）
+- `src/components/BottomNav.tsx`（确认背景层是否真正延伸到底）
+- `src/components/map/MapHomeContent.tsx`（看抽屉外面是否还有别的容器留白）
 
-iPhone XS Max 的 safe-area-inset-bottom 也存在但 BottomNav 的 padding 处理足以覆盖；而 iPhone 16 的 Dynamic Island + 更高的 home indicator 让差距更明显。
+## 可能的真凶（待确认）
 
-## 修复方案
+**怀疑 1**：BottomNav 外层 `fixed bottom-0` 容器的背景色被 `border-t` 或子元素结构破坏，safe-area 那段实际是透明的，露出底下地图/白底。
 
-把 `bottom` 用 CSS calc 动态加上 safe-area：
+**怀疑 2**：MapListSheet 的 `bottom` 改了但 `height` 没相应减少，抽屉被推上去后底部和 BottomNav 之间反而出现新缝。
 
-```tsx
-// MapListSheet.tsx
-style={{
-  bottom: `calc(${BOTTOM_NAV}px + env(safe-area-inset-bottom))`,
-  height: `${displayHeight}px`,
-}}
-```
+**怀疑 3**：抽屉的"peek"高度本身就小于 safe-area，导致 peek 模式下露出缝隙。
 
-同样需要检查 `MapHomeContent.tsx` 中传给 `MapControls` 的 `bottomOffset={sheetHeight}` 是否也要加 safe-area，让悬浮按钮（定位、图层、罗盘）跟着一起上移，避免被 BottomNav 盖住。
+## 建议的下一步
 
-## 改动清单
+请在 Lovable 里**点 Build 模式**让我直接读代码并修复。需要在浏览器实际渲染时用 DevTools 量一下白条具体在哪一层，但因为是真机问题，我可以：
 
-| 文件 | 改动 |
-|------|------|
-| `src/components/MapListSheet.tsx` | `bottom` 改成 `calc(72px + env(safe-area-inset-bottom))` |
-| `src/components/MapControls.tsx`（如需要） | `bottom` 同样加 `env(safe-area-inset-bottom)` |
+1. 重读三个文件，对比上次改动
+2. 给 BottomNav 加一个绝对定位的"安全区填充层"兜底
+3. 如果还不行，请你截一张 iPhone 16 上首页底部的截图发给我，我能直接看到白条位置并精确定位
 
-## 验证
+## 改动清单（待 Build 模式确认后执行）
 
-发布后在 iPhone 16 / XS Max / 安卓上打开首页：
-- 底部抽屉应紧贴 BottomNav，无白条
-- 悬浮按钮位置正确
+| 文件 | 预期改动 |
+|------|---------|
+| `src/components/BottomNav.tsx` | 确保最外层 fixed 容器背景色铺满，包括 safe-area 区域 |
+| `src/components/MapListSheet.tsx` | 复核 `bottom` 值；必要时让抽屉底部直接贴到屏幕底部，内部用 padding 抬高内容 |
+| `src/components/map/MapHomeContent.tsx` | 检查地图容器底部是否有未覆盖的区域 |
 
