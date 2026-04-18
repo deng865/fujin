@@ -1,50 +1,59 @@
 
 
-## 问题诊断
+## 诊断：为什么抽屉滚动没有谷歌地图顺滑
 
-### 1. 右上角三个按钮遮挡问题
-- `MapControls` 定位 `top: safe-area-inset-top + 5rem`，在 iOS 上是搜索框（顶部 1rem + 高约 44px ≈ 4rem 总）下方一点点
-- 但 `CategoryScroll`（横向分类滚动栏）也在搜索框下方（约 `top: 4.5rem` 区域），三个按钮垂直堆叠后**罗盘 + 图层 + 定位**纵向占用 ~180px，最下面的"定位"按钮会遮挡分类栏右侧的"更多"按钮和右侧分类项
+我深入检查了 `MapListSheet.tsx`、`MapHomeContent.tsx`、`InlinePostDetail.tsx` 和触摸事件链路，找到了 **5 个真正影响顺滑度的根本原因**。问题不在惯性算法本身，而在于「手势识别冲突 + 强制 React 重渲染」。
 
-### 2. "附近 N 个结果"栏跳跃感
-当前逻辑（`MapListSheet.tsx`）：
-- 抽屉档位是 4 个**离散点**：`hidden(28) / peek(72) / half(45vh) / full(85vh)`
-- 拖拽中跟手 OK，但**松手后强制 snap 到 4 个档位之一**，中间区域无法停留
-- 用户慢速拖到 30vh、60vh 这种"中间位置"，松手立刻被弹回最近档位 → 跳跃感
-- 谷歌地图：松手后**也会 snap，但只有 3 档（peek/half/full）且 snap 动画极柔和**，且**peek 高度足够大（~120px 显示标题+1张卡片预览）**，不会有"hidden"档位
-- 另外当前 `useEffect` 监听 `selectedCategory/selectedPost` 变化也会硬跳到 half，叠加 spring 动画造成跳变感
+### 根本原因
 
-## 方案
+**1. 双层 `onTouchMove` 互相打架（最严重）**
+`MapHomeContent.tsx` 在最外层 `<div>` 上挂了 `handleTouchStart/Move/End`，在抽屉下半屏的任意位置都会"声称"手势主权（`y > innerHeight * 0.4`），然后通过 imperative handle 直接 `beginDrag()`。但抽屉自己也挂着 `onTouchStart/Move/End`（line 515-517）。两套监听器在抽屉上同时跑，state 互不知情 → 滑动列表时抽屉也在动，造成"粘滞 / 卡顿 / 抢手势"。
 
-### A. 重新布局右上角控件
-1. **横向排列**三个按钮（罗盘 / 图层 / 定位）在搜索框**右侧同一行**，而不是垂直堆叠
-2. 或：把三个按钮放到屏幕**右侧中间靠上**（搜索框 + 分类栏完全显示之下，约 `top: calc(safe-area + 9rem)`），垂直堆叠但给足空间
-3. **推荐方案**：参考 Google Maps —— 三个按钮**垂直堆叠在搜索框正下方右侧**，定位起点 = 搜索框底部 + 分类栏底部 + 12px gap。具体值 ≈ `top: calc(env(safe-area-inset-top) + 8.5rem)`，确保三个按钮（共 ~180px）下边界不超过屏幕 60% 高度且不挡分类栏
+**2. 每帧 `forceRender` 触发 React 重渲染**
+拖动结束 (`endDragInternal`) 和开始时都调用了 `forceRender((n) => n + 1)`。每次都会让 813 行包含数十张 `ListCard`、`ImageGallery`、`PostCreditBadge` 的整棵子树进入 reconciliation。即使有 `memo`，diff 本身也吃帧。谷歌地图的列表完全不会因为抽屉拖动重渲染。
 
-### B. 消除"附近 N 个结果"跳跃感（学谷歌地图）
-1. **删除 `hidden` 档位**：谷歌地图抽屉永远不会完全消失，只会回到 peek
-2. **简化为 3 档**：`peek(120px，显示标题 + 1 张卡片预览) / half(50vh) / full(90vh)`
-3. **扩大 snap 死区**：松手位置距离最近档位 < **80px** 才回弹该档；超过 80px 但低于 next 档则按速度方向选择
-4. **去掉 `selectedCategory` → `setState("half")` 的硬跳**：用户选分类后只刷新数据，**保持当前抽屉位置不变**
-5. **`selectedPost` 选中也不强行跳 half**：如果当前已在 half/full，保持；如果在 peek，平滑 spring 到 half
-6. **spring 参数微调**：stiffness 180、damping 26（更柔），让 snap 过渡更像 iOS 系统动画
-7. **rubber-band 范围扩大**：允许在 peek 之下再拖 60px（视觉"拉到底"反馈），松手回 peek
+**3. 抽屉"高度"动画走的是 layout 而不是 transform**
+```tsx
+style={{ height: `${displayHeight}px` }}   // 触发 layout + paint
+```
+每帧改 `height` 强制浏览器重新布局整棵子树（包括图片网格、评分、按钮），无法走 GPU compositor。谷歌地图用的是 `transform: translateY()`，只走 compositor 层，永远 60fps。
 
-### C. 关闭按钮也去掉
-谷歌地图抽屉头部没有"X"关闭按钮（永远不能关）。移除 `<X>` 按钮，避免用户点了变 hidden 后看不到列表
+**4. iOS 滚动惯性被 `overscroll-contain` + 双层 touch 监听破坏**
+内部列表用 `overflow-y-auto overscroll-contain`，本应有原生 momentum。但因为外层拦截了 touch，iOS Safari/WKWebView 的"手指松开后继续滑"会被打断，每次都是"摸到哪停到哪"的硬停止。
 
-## 改动清单
+**5. Snapshot 重建 + 250ms ratings 抖动**
+`ratingsEnabled` 在每次 `state` 变化和 `sorted.length` 变化时被重置为 `false`，250ms 后再设为 `true`。拖动时 state 没变，但只要 selectedPost 切换或 posts 异步刷新，列表就闪一下评分。
 
-| 文件 | 改动 |
-|------|------|
-| `src/components/MapControls.tsx` | top 改为 `calc(env(safe-area-inset-top) + 8.5rem)`，避开 ControlBar + CategoryScroll；按钮间距减小到 `gap-1.5` |
-| `src/components/MapListSheet.tsx` | 删除 `hidden` 档位 + 关闭按钮；peek 高度 72→120px；snap 死区扩到 80px；selectedCategory/selectedPost 不再硬跳 half；spring stiffness 180/damping 26；rubber-band 上下限收紧 |
-| `src/components/map/MapHomeContent.tsx` | 同步移除任何 `hidden` 状态依赖（如有） |
+### 修复方案（按优先级）
 
-## 验证
+**Step 1 — 取消地图层的 touch 拦截，让抽屉独占自己的手势**
+在 `MapHomeContent.tsx` 删除 `handleTouchStart/Move/End` 和 `swipeRef` 整套逻辑。地图区只负责地图，抽屉区只负责抽屉。这是谷歌地图的核心架构。
 
-- 三个右上按钮不遮挡搜索框、分类栏、分类"更多"按钮
-- 慢速拖抽屉到任意位置松手 → 平滑回到最近档位，无突然跳变
-- 选择分类 / 点击 marker → 抽屉位置保持或柔和过渡
-- 抽屉永远显示标题"附近 N 个结果"，无法被关闭
+**Step 2 — 抽屉用 `transform: translate3d` 替代 `height`**
+- 抽屉始终渲染为最大高度 `90dvh`，通过 `translateY(Ypx)` 把它推到屏幕外。
+- 拖动时只改 transform，浏览器走 compositor，不触发 layout。
+- 加 `will-change: transform` + `translateZ(0)` 强制独立 GPU 层。
+
+**Step 3 — 删除所有 `forceRender` 调用，拖动状态完全脱离 React**
+拖动中不重渲染列表。`isDragging` 用 ref 即可，不需要触发 React。只在 `endDrag` 决定最终 snap state 时调用一次 `setState`。
+
+**Step 4 — 内部列表加 `-webkit-overflow-scrolling: touch`，并清掉 `select-none`**
+确保 iOS 原生 momentum scroll，并允许浏览器使用编译器优化路径。
+
+**Step 5 — Ratings 不再随 state 抖动**
+`ratingsEnabled` 只依赖 `sorted.length`，不依赖 `state`。
+
+**Step 6 — 抽屉根节点去掉 React 子树重建触发器**
+- `displayHeight > 140` 这种基于每帧高度的条件渲染会让 `showList`/`showPeek` 在拖动跨过 140px 时挂载/卸载整个列表。改为基于 `state`（"peek" / "half" / "full"），只在 snap 完成后才切换。
+
+### 涉及的文件
+- `src/components/map/MapHomeContent.tsx` — 删除全屏 touch 拦截（约 70 行）
+- `src/components/MapListSheet.tsx` — 重构动画引擎为 transform、删 `forceRender`、修挂载条件、修 ratings 依赖（约 100 行改动）
+- `src/index.css` — 给 `.mapboxgl-map` 已有的 GPU hint 旁加抽屉专用 `.drawer-gpu` 类（可选）
+
+### 预期效果
+- 滑动列表时手指不再"粘"住抽屉。
+- 抽屉拖动 60fps，不再受图片/评分数量影响。
+- iOS 上松手后列表继续惯性滑动。
+- 长列表（50+ 商家）滚动不掉帧。
 
