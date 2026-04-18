@@ -908,7 +908,7 @@ export default function AdminPortal() {
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-background shrink-0">
+          <header className="flex items-center justify-between border-b border-border px-4 bg-background shrink-0 pt-[env(safe-area-inset-top)] h-[calc(env(safe-area-inset-top)+3.5rem)]">
             <div className="flex items-center gap-3">
               <SidebarTrigger />
               <h1 className="text-sm font-semibold text-muted-foreground">

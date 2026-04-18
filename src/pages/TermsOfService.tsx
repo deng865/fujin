@@ -158,7 +158,7 @@ export default function TermsOfService() {
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col">
-      <div className="shrink-0 bg-background/95 backdrop-blur border-b border-border px-4 py-3 flex items-center gap-3">
+      <div className="shrink-0 bg-background/95 backdrop-blur border-b border-border px-4 py-3 flex items-center gap-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <button onClick={() => navigate(-1)} className="p-1">
           <ArrowLeft className="h-5 w-5" />
         </button>
