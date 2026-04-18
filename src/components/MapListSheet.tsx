@@ -179,8 +179,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     springRef.current = { velocity: initialVelocity, target, lastTs: 0 };
 
-    const stiffness = 220; // higher = snappier
-    const damping = 28;    // higher = less oscillation
+    const stiffness = 180; // softer = more iOS-like
+    const damping = 26;
 
     const tick = (ts: number) => {
       const s = springRef.current;
