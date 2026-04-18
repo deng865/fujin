@@ -242,7 +242,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       if (!map) return;
 
       const features = map.queryRenderedFeatures(e.point, {
-        layers: [POINT_LAYER, ICON_LAYER, CLUSTER_LAYER, MOBILE_AREA_FILL, MOBILE_CENTER_DOT],
+        layers: [POINT_LAYER, ICON_LAYER, CLUSTER_LAYER, MOBILE_AREA_FILL, MOBILE_CENTER_DOT, MOBILE_CENTER_ICON],
       });
       if (!features.length) return;
 
