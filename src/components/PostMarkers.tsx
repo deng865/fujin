@@ -174,16 +174,42 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     return () => { map.off("styleimagemissing", onMissing); };
   }, [mapRef]);
 
-  // Build a GeoJSON FeatureCollection — Mapbox handles clustering on the GPU.
+  // Split posts: fixed merchants render precise pins; mobile merchants render fuzzy service areas.
+  const fixedPosts = useMemo(() => posts.filter((p) => p.is_mobile !== true), [posts]);
+  const mobilePosts = useMemo(() => posts.filter((p) => p.is_mobile === true), [posts]);
+
+  // Fixed merchants — clustered precise points with category icons.
   const geojson = useMemo(() => {
     return {
       type: "FeatureCollection" as const,
-      features: posts.map((post) => {
-        const isMobile = post.is_mobile === true;
-        const lat = isMobile && post.live_latitude != null ? post.live_latitude : post.latitude;
-        const lng = isMobile && post.live_longitude != null ? post.live_longitude : post.longitude;
+      features: fixedPosts.map((post) => {
         const color = hashColor(post.category);
         const iconName = catMap[post.category] || "MapPin";
+        return {
+          type: "Feature" as const,
+          id: post.id,
+          geometry: {
+            type: "Point" as const,
+            coordinates: [post.longitude, post.latitude],
+          },
+          properties: {
+            postId: post.id,
+            color,
+            isFav: favoriteIds?.has(post.id) ? 1 : 0,
+            icon: `sprite-${iconName}`,
+          },
+        };
+      }),
+    };
+  }, [fixedPosts, favoriteIds, catMap]);
+
+  // Mobile merchants — fuzzy point (no precise icon) used to render service area circles.
+  const mobileGeojson = useMemo(() => {
+    return {
+      type: "FeatureCollection" as const,
+      features: mobilePosts.map((post) => {
+        const lat = post.live_latitude != null ? post.live_latitude : post.latitude;
+        const lng = post.live_longitude != null ? post.live_longitude : post.longitude;
         return {
           type: "Feature" as const,
           id: post.id,
@@ -193,15 +219,12 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
           },
           properties: {
             postId: post.id,
-            color,
-            isMobile,
-            isFav: favoriteIds?.has(post.id) ? 1 : 0,
-            icon: `sprite-${iconName}`,
+            color: hashColor(post.category),
           },
         };
       }),
     };
-  }, [posts, favoriteIds, catMap]);
+  }, [mobilePosts]);
 
   const selectedPost = useMemo(
     () => posts.find((p) => p.id === selectedPostId) ?? null,
