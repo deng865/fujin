@@ -168,7 +168,7 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
                     {post.is_mobile ? (
                       <>
                         <span className={`ml-1.5 ${effectiveOnline ? "text-emerald-500" : "text-destructive"}`}>
-                          · {effectiveOnline ? "🟢 服务中" : "🔴 已下班"}
+                          · {effectiveOnline ? "🟢 在线" : "🔴 离线"}
                         </span>
                         {post.operating_hours && (
                           <span className="ml-1 text-amber-500">· ⏰ 已定时</span>
