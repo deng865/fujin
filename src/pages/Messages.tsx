@@ -9,6 +9,7 @@ import IncomingCall from "@/components/chat/IncomingCall";
 import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
 import CreditBadge from "@/components/reviews/CreditBadge";
 import { useAuth } from "@/hooks/useAuth";
+import { preloadRoute } from "@/lib/routeLoaders";
 
 interface Conversation {
   id: string;
@@ -96,7 +97,8 @@ function SwipeableCard({
       <div
         className="relative bg-background transition-transform duration-200 ease-out"
         style={{ transform: `translateX(-${offset}px)`, transitionDuration: isDraggingRef.current ? '0ms' : '200ms' }}
-        onTouchStart={handleTouchStart}
+        onTouchStart={(e) => { handleTouchStart(e); void preloadRoute(`/chat/${conv.id}`); }}
+        onMouseEnter={() => void preloadRoute(`/chat/${conv.id}`)}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onClick={() => { if (offset > 0) { closeSwipe(); } else { onNavigate(); } }}
@@ -160,6 +162,8 @@ export default function Messages() {
     if ("Notification" in window && Notification.permission !== "granted") {
       setShowNotifBanner(true);
     }
+    // Preload chat room chunk so first chat open is instant
+    void preloadRoute("/chat/_");
   }, []);
 
   useEffect(() => {
