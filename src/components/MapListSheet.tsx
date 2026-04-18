@@ -218,12 +218,12 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // Rubber-band: limit overshoot beyond [HANDLE_HEIGHT, vh*0.95]
+  // Rubber-band: limit overshoot below peek (60px give) and above full
   const clampWithRubber = useCallback((h: number) => {
     const vh = window.innerHeight;
-    const min = HANDLE_HEIGHT;
-    const max = Math.round(vh * 0.85);
-    if (h < min) return min - (min - h) * 0.3;
+    const min = 120 - 60; // peek - rubber give
+    const max = Math.round(vh * 0.9);
+    if (h < min) return min - (min - h) * 0.4;
     if (h > max) return max + (h - max) * 0.3;
     return h;
   }, []);
