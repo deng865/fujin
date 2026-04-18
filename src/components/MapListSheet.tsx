@@ -637,10 +637,8 @@ function ImageGallery({ urls, onClickExpand }: { urls: string[]; onClickExpand?:
   );
 }
 
-/* ─── Google Maps style list card ─── */
-function ListCard({
-  post, userLat, userLng, hasUserLocation, isFavorite, onToggleFavorite, onSelect, showDivider, ratingData,
-}: {
+/* ─── Google Maps style list card (memoized to prevent reshuffling re-renders) ─── */
+interface ListCardProps {
   post: Post;
   userLat: number;
   userLng: number;
@@ -650,7 +648,11 @@ function ListCard({
   onSelect: () => void;
   showDivider: boolean;
   ratingData?: { avgRating: number; totalReviews: number; topTag: string | null };
-}) {
+}
+
+const ListCard = memo(function ListCard({
+  post, userLat, userLng, hasUserLocation, isFavorite, onToggleFavorite, onSelect, showDivider, ratingData,
+}: ListCardProps) {
   const navigate = useNavigate();
   const { openMapChoice, MapChoice } = useMapChoice();
   const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
