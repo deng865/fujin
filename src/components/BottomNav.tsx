@@ -70,7 +70,7 @@ export default function BottomNav() {
         className="absolute left-0 right-0 top-full bg-background"
         style={{ height: "env(safe-area-inset-bottom)" }}
       />
-      <div className="px-2 pt-1" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <div className="px-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) * 0.4)" }}>
         <div className="flex items-center justify-around max-w-lg mx-auto relative">
           {tabs.map((tab) => {
             const Icon = tab.icon;
