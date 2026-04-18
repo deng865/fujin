@@ -1,75 +1,49 @@
 
 
-## 需求
+## 需求拆解
 
-参考 Google Maps 的抽屉手感，让上下滑动更顺滑、更自然，达到原生级体验。
+1. **跳跃感问题**：当前抽屉切换 state（peek/half/full）时会触发 React 重渲染，spring 动画从 height A 突然弹到 height B，看起来跳。需要让 state 变化时也走 spring，且整个生命周期 height 完全由 motion value 驱动，不依赖 React state 更新触发重渲染。
 
-## Google Maps 抽屉的关键特征（参考分析）
+2. **点击 post 进详情页改造**：当前点击 post 会进入"selectedPost"模式，抽屉显示一个带"查看详情"提示的 preview 卡片。需求：点击 post 直接进入完整详情视图（像 Google Maps 一样），用户上滑即可看到全部内容，不要中间提示层。
 
-1. **物理惯性**：松手后不是简单 `transition` 到档位，而是根据**手指松开瞬间的速度**计算继续滑行的距离（velocity-based momentum）
-2. **橡皮筋阻尼**：拖到最高/最低档位之外时，继续拖动会有渐进阻力（rubber-band），不是硬停
-3. **使用 transform 而非 height**：动画用 `translateY` 走 GPU 合成层，比 `height` 动画流畅得多（避免每帧 layout/reflow）
-4. **rAF 节流 + passive listeners**：touchmove 用 `requestAnimationFrame` 批处理，touch 监听器用 `{ passive: true }` 不阻塞滚动
-5. **速度预测吸附**：松手时若速度 > 阈值（如 0.5 px/ms），按速度方向跳到下一档而非最近档；速度小才按位置吸附
-6. **iOS spring 缓动**：使用 spring 物理曲线（damping/stiffness）而非 cubic-bezier，自然回弹
+3. **地图控制按钮位置**：右下角三个按键（定位、图层、罗盘）移到右上角固定位置。
 
-## 当前问题（基于已知实现）
+## 需要确认的代码
 
-- `MapListSheet` 用 `height` 动画 → 每帧触发 layout，卡顿
-- 松手吸附只看 `displayHeight` 距离，**忽略速度** → 慢拖一点点也会回弹原档，快拖时不够"飞"
-- 无橡皮筋，超出最高档直接卡住
-- `touchmove` 同步处理，未 rAF 节流
-- 缓动是 cubic-bezier 固定 300ms，不像 spring 自然
+读 `MapListSheet.tsx`（详情视图渲染）、`MapControls.tsx`（按钮位置）、`InlinePostDetail.tsx`（详情内容组件）确认现有结构。
 
 ## 方案
 
-### 1. 改用 transform 驱动动画（核心性能提升）
-抽屉外层固定 `height: 100dvh`，内部用 `translateY(Ypx)` 控制可见区域。`translateY` 走 GPU，60fps 无卡顿。
+### 1. 解决跳跃感
+- 抽屉容器始终渲染同一棵 DOM 树，`height` 完全交给 rAF spring loop 驱动，state 变化只更新"目标 height"，不触发重渲染当前 height
+- selectedPost 切换时不要让外层结构跳变（只切换内部内容），目标 height 通过 spring 平滑过渡
+- 拖拽中实时记录 motion value，松手后 spring 从当前 motion value 平滑插值到 target，无任何 CSS transition 介入
 
-### 2. 引入速度追踪
-拖拽过程中记录最近 5 个 touch 点的 `(y, timestamp)`，松手时算瞬时速度 `velocity = Δy / Δt`。
+### 2. 点击 post 直接进详情
+- 移除 selectedPost 的"preview/查看详情卡片"中间态
+- 点击 post 后：
+  - 抽屉内容切换为完整 InlinePostDetail（详情全文）
+  - 抽屉 spring 到 half 档位（让用户看到顶部信息 + 提示可上滑）
+  - 用户上滑 → 进入 full 档查看完整详情
+  - 顶部保留返回按钮，点击回到列表
 
-### 3. 速度感知的吸附算法
-```
-if (|velocity| > 0.5 px/ms) {
-  目标 = 沿速度方向的下一个档位
-} else {
-  目标 = 距离 displayHeight 最近的档位
-}
-```
-
-### 4. 橡皮筋阻尼
-拖出最高/最低档位时，超出部分按 `overshoot * 0.3` 衰减位移，给视觉"拉到尽头"的反馈。
-
-### 5. Spring 物理动画替代 cubic-bezier
-用 `framer-motion` 的 `animate(value, target, { type: "spring", damping: 30, stiffness: 300 })`，或自己用 rAF 实现弹簧。考虑到项目已极简，**用 `react-spring` 或 `framer-motion` 任一现成方案最稳**。推荐 `framer-motion`（项目可能已间接依赖；体积可控）。
-
-### 6. rAF 节流 touchmove
-```ts
-let rafId = 0;
-const onMove = (y) => {
-  if (rafId) return;
-  rafId = requestAnimationFrame(() => { update(y); rafId = 0; });
-};
-```
-
-### 7. Passive listeners
-原生 `addEventListener('touchmove', handler, { passive: true })` 替代 React 的 `onTouchMove`（React 合成事件默认非 passive，会阻塞滚动）。
+### 3. 三个按键固定到右上角
+- `MapControls`：移除 `bottomOffset` 联动逻辑，定位改为 `top-4 right-4`
+- 排版：罗盘/图层/定位 三个按钮垂直堆叠在右上角，避开 ControlBar 搜索框（搜索框居中或左侧，按钮右侧；如果搜索框横跨整宽，则按钮放在搜索框下方一行）
 
 ## 改动清单
 
 | 文件 | 改动 |
 |------|------|
-| `package.json` | 添加 `framer-motion`（如未有） |
-| `src/components/MapListSheet.tsx` | 改 `height` → `transform: translateY`；引入 framer-motion `useMotionValue + animate` 做 spring 动画；touchmove 用 rAF 节流；记录速度；松手按速度+位置选档；超出档位加橡皮筋阻尼 |
-| `src/components/map/MapHomeContent.tsx` | 改用原生 `addEventListener('touchstart/move/end', handler, { passive: true })` 替代 React `onTouch*`；继续通过 ref 调用抽屉的 begin/update/end，但同时透传速度 |
+| `src/components/MapListSheet.tsx` | 移除 selectedPost preview 中间态，点击 post 直接渲染 InlinePostDetail；spring 动画完全由 rAF + motion value 驱动，state 仅更新 target，避免重渲染跳变；保留返回按钮 |
+| `src/components/MapControls.tsx` | 三个按钮固定 `top-4 right-4` 垂直排列，移除 bottomOffset 逻辑 |
+| `src/components/map/MapHomeContent.tsx` | 移除传给 MapControls 的 bottomOffset prop；selectedPost 切换时调用抽屉 spring 到 half |
 
 ## 验证
 
-- 慢拖：抽屉跟手，松手按位置就近吸附
-- 快速向上轻扫：抽屉"飞"到 full 档（速度感知）
-- 快速向下轻扫：抽屉收到 peek/hidden
-- 拖到 full 档继续向上拉：明显阻尼，松手回弹
-- 60fps 无卡顿（DevTools Performance 录制确认）
-- 地图本身的平移/缩放不受影响
+- 慢拖、快滑、点击列表项 → 抽屉始终顺滑无跳变
+- 点击地图 marker / 列表 post → 直接看到详情内容（无"查看详情"提示卡）
+- 详情页可上滑到 full、下拉返回列表
+- 右上角看到三个垂直按钮，不随抽屉移动
+- 搜索框与按钮不重叠
 
