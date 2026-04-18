@@ -198,12 +198,20 @@ export default function CreatePost() {
       }
     }
 
-    // For mobile merchants, auto-detect location if not set
+    // For mobile merchants, auto-detect location.
+    // Precise mode: ALWAYS re-fetch fresh GPS so the saved coords reflect the
+    // merchant's real current position (not a stale picker / edit-mode value).
+    // Fuzzy mode: only fetch when no location has been set yet.
     let submitLocation = location;
-    if (isMobile && !submitLocation) {
+    const needsFreshGps = isMobile && (formData.mobileLocationPrecise || !submitLocation);
+    if (needsFreshGps) {
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true })
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 15000,
+          })
         );
         submitLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setLocation(submitLocation);

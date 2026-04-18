@@ -220,6 +220,16 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
   // ~500m grid and add a per-(grid+post+10min) deterministic offset so the
   // center stays put while the merchant moves inside their grid cell, and
   // rotates every 10 minutes to confuse longitudinal observers.
+  // Only re-evaluate when the rotation tick actually matters (i.e. there is
+  // at least one fuzzy mobile post). Precise posts don't need the tick, so
+  // excluding it prevents the source from being replaced every minute, which
+  // was causing icons to flicker / momentarily vanish on zoom.
+  const hasFuzzyMobile = useMemo(
+    () => mobilePosts.some((p) => !p.mobile_location_precise),
+    [mobilePosts],
+  );
+  const effectiveTick = hasFuzzyMobile ? fuzzyTick : 0;
+
   const mobileGeojson = useMemo(() => {
     return {
       type: "FeatureCollection" as const,
@@ -245,9 +255,9 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
         };
       }),
     };
-    // fuzzyTick intentionally included so the offset rotates over time.
+    // effectiveTick rotates the offset only when there are fuzzy posts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mobilePosts, catMap, fuzzyTick]);
+  }, [mobilePosts, catMap, effectiveTick]);
 
   const selectedPost = useMemo(
     () => posts.find((p) => p.id === selectedPostId) ?? null,
