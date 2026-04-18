@@ -230,7 +230,10 @@ export default function ProfilePage() {
   // Sub-pages
   if (subPage === "posts") {
     return (
-      <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
+      <div
+        className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
           <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
             <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
@@ -249,7 +252,10 @@ export default function ProfilePage() {
 
   if (subPage === "privacy") {
     return (
-      <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
+      <div
+        className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
           <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
             <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
@@ -274,7 +280,10 @@ export default function ProfilePage() {
 
   if (subPage === "reviews") {
     return (
-      <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
+      <div
+        className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
           <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
             <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
@@ -330,7 +339,10 @@ export default function ProfilePage() {
 
   if (subPage === "editProfile") {
     return (
-      <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
+      <div
+        className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
           <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
             <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
@@ -364,7 +376,10 @@ export default function ProfilePage() {
 
   // Main page
   return (
-    <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
+    <div
+      className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]"
+      style={{ WebkitOverflowScrolling: "touch" }}
+    >
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
           <button onClick={() => navigate("/")} className="p-2 -ml-2 hover:bg-accent rounded-xl">

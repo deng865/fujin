@@ -299,7 +299,11 @@ export default function CreatePost() {
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
+      <div
+        ref={scrollRef}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         <div className="max-w-lg mx-auto px-4 py-5 space-y-8 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
           <CategoryGrid selected={category} onSelect={handleCategorySelect} />
 
