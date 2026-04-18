@@ -78,12 +78,11 @@ interface MapListSheetProps {
   selectedCategory?: string | null;
   mapTapped?: number;
   mapSwipedUp?: number;
-  onSheetHeightChange?: (height: number) => void;
 }
 
 import { type MapFilters } from "@/components/MapFilterChips";
 
-type SheetState = "hidden" | "peek" | "half" | "preview" | "full";
+type SheetState = "hidden" | "peek" | "half" | "full";
 
 const BOTTOM_NAV = 56;
 const HANDLE_HEIGHT = 28;
@@ -97,15 +96,17 @@ export interface MapListSheetHandle {
 const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function MapListSheet({
   posts, userLat, userLng, hasUserLocation = false, selectedPost, onSelectPost,
   favoriteIds, onToggleFavorite, filters, onFiltersChange,
-  selectedCategory, mapTapped = 0, mapSwipedUp = 0, onSheetHeightChange,
+  selectedCategory, mapTapped = 0, mapSwipedUp = 0,
 }, ref) {
   const [state, setState] = useState<SheetState>("peek");
   const [ratingsEnabled, setRatingsEnabled] = useState(false);
   const prevMapTapped = useRef(mapTapped);
 
+  // When a post is selected (from marker or list), spring the drawer up to half.
+  // User can then drag up to full to read more, like Google Maps.
   useEffect(() => {
     if (selectedPost) {
-      setState("preview");
+      setState("half");
     }
   }, [selectedPost]);
 
@@ -140,7 +141,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       case "hidden": return HANDLE_HEIGHT;
       case "peek": return 72;
       case "half": return Math.round(vh * 0.45);
-      case "preview": return Math.round(vh * 0.45);
       case "full": return Math.round(vh * 0.85);
     }
   }, []);
@@ -176,8 +176,7 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     heightRef.current = h;
     const el = sheetRef.current;
     if (el) el.style.height = `${h}px`;
-    onSheetHeightChange?.(h);
-  }, [onSheetHeightChange]);
+  }, []);
 
   // Sync height when state changes externally (selectedPost, mapTapped, etc.)
   // Spring-animate to the new target instead of CSS transition.
