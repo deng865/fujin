@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Marker, Source, Layer, useMap, type MapRef } from "react-map-gl/mapbox";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Marker, Source, Layer, useMap } from "react-map-gl/mapbox";
 import type {
   CircleLayerSpecification,
   SymbolLayerSpecification,
