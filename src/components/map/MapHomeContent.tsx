@@ -414,6 +414,7 @@ export default function MapHomeContent() {
         onFiltersChange={setFilters}
         selectedCategory={selectedCategory}
         mapTapped={mapTapped}
+        mapSwipedUp={mapSwipedUp}
         onSheetHeightChange={setSheetHeight}
       />
     </div>
