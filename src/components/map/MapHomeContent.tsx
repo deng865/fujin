@@ -94,7 +94,6 @@ export default function MapHomeContent() {
   const [bearing, setBearing] = useState(0);
   const [filters, setFilters] = useState<MapFilters>(defaultFilters);
   const [mapTapped, setMapTapped] = useState(0);
-  const [sheetHeight, setSheetHeight] = useState(100);
   const sheetHandleRef = useRef<MapListSheetHandle>(null);
   const { toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
@@ -424,7 +423,6 @@ export default function MapHomeContent() {
         currentMapType={mapType}
         bearing={bearing}
         onResetNorth={() => mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: 500 })}
-        bottomOffset={sheetHeight}
       />
 
       <MapListSheet
@@ -441,7 +439,6 @@ export default function MapHomeContent() {
         onFiltersChange={setFilters}
         selectedCategory={selectedCategory}
         mapTapped={mapTapped}
-        onSheetHeightChange={setSheetHeight}
       />
     </div>
   );
