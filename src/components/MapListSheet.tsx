@@ -91,7 +91,7 @@ const HANDLE_HEIGHT = 28;
 export default function MapListSheet({
   posts, userLat, userLng, hasUserLocation = false, selectedPost, onSelectPost,
   favoriteIds, onToggleFavorite, filters, onFiltersChange,
-  selectedCategory, mapTapped = 0, onSheetHeightChange,
+  selectedCategory, mapTapped = 0, mapSwipedUp = 0, onSheetHeightChange,
 }: MapListSheetProps) {
   const [state, setState] = useState<SheetState>("peek");
   const [ratingsEnabled, setRatingsEnabled] = useState(false);
@@ -130,7 +130,7 @@ export default function MapListSheet({
     const vh = window.innerHeight;
     switch (s) {
       case "hidden": return HANDLE_HEIGHT;
-      case "peek": return 100;
+      case "peek": return 72;
       case "half": return Math.round(vh * 0.45);
       case "preview": return Math.round(vh * 0.45);
       case "full": return Math.round(vh * 0.85);
