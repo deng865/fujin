@@ -63,7 +63,10 @@ export default function ControlBar({
   };
 
   return (
-    <div className="absolute top-4 left-4 right-4 z-20 pointer-events-none flex justify-center">
+    <div
+      className="absolute left-4 right-4 z-20 pointer-events-none flex justify-center"
+      style={{ top: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
+    >
       <div className="pointer-events-auto bg-background/80 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/30 max-w-lg w-full">
         <div className="flex items-center gap-2 px-4 py-2.5">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
