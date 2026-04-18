@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { fuzzifyLocation } from "@/lib/fuzzyLocation";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, Scale,
