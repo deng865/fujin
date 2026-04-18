@@ -26,6 +26,7 @@ const initialFormData = {
   salaryRange: "", jobType: "",
   is24Hours: false,
   weeklySchedule: defaultSchedule(),
+  mobileLocationPrecise: false,
 };
 
 export default function CreatePost() {
