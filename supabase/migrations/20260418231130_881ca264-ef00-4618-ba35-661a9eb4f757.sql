@@ -1,0 +1,1 @@
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS mobile_location_precise boolean NOT NULL DEFAULT false;

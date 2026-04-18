@@ -592,6 +592,7 @@ export type Database = {
           live_longitude: number | null
           live_updated_at: string | null
           longitude: number
+          mobile_location_precise: boolean
           operating_hours: Json | null
           price: number | null
           title: string
@@ -614,6 +615,7 @@ export type Database = {
           live_longitude?: number | null
           live_updated_at?: string | null
           longitude: number
+          mobile_location_precise?: boolean
           operating_hours?: Json | null
           price?: number | null
           title: string
@@ -636,6 +638,7 @@ export type Database = {
           live_longitude?: number | null
           live_updated_at?: string | null
           longitude?: number
+          mobile_location_precise?: boolean
           operating_hours?: Json | null
           price?: number | null
           title?: string

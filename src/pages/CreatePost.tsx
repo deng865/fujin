@@ -26,6 +26,7 @@ const initialFormData = {
   salaryRange: "", jobType: "",
   is24Hours: false,
   weeklySchedule: defaultSchedule(),
+  mobileLocationPrecise: false,
 };
 
 export default function CreatePost() {
@@ -92,6 +93,7 @@ export default function CreatePost() {
         imageUrls: data.image_urls || [],
         is24Hours,
         weeklySchedule,
+        mobileLocationPrecise: (data as any).mobile_location_precise ?? false,
       });
       setLocation({ lat: data.latitude, lng: data.longitude });
       setInitialLoading(false);
@@ -237,6 +239,7 @@ export default function CreatePost() {
         contact_wechat: formData.wechatId.trim() || null,
         is_mobile: isMobile,
         operating_hours: operatingHours,
+        mobile_location_precise: isMobile ? formData.mobileLocationPrecise : false,
       };
 
       if (editId) {
@@ -352,10 +355,51 @@ export default function CreatePost() {
           )}
 
           {category && isMobile && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 bg-primary/5 border border-primary/20 rounded-xl p-4 text-center space-y-1">
-              <Truck className="h-6 w-6 mx-auto text-primary" />
-              <p className="text-sm font-medium text-foreground">移动服务模式</p>
-              <p className="text-xs text-muted-foreground">发布后将自动追踪您的位置，在地图上以模糊区域显示</p>
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-3">
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center space-y-1">
+                <Truck className="h-6 w-6 mx-auto text-primary" />
+                <p className="text-sm font-medium text-foreground">移动服务模式</p>
+                <p className="text-xs text-muted-foreground">发布后将自动追踪您的实时位置</p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">地图位置显示方式</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateForm({ mobileLocationPrecise: false })}
+                    className={`flex-1 py-3 px-3 rounded-xl text-sm font-medium border-2 transition-all ${
+                      !formData.mobileLocationPrecise
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/50 text-muted-foreground"
+                    }`}
+                  >
+                    模糊位置
+                    <span className="block text-[10px] mt-0.5 opacity-80">推荐 · 安全</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateForm({ mobileLocationPrecise: true })}
+                    className={`flex-1 py-3 px-3 rounded-xl text-sm font-medium border-2 transition-all ${
+                      formData.mobileLocationPrecise
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/50 text-muted-foreground"
+                    }`}
+                  >
+                    精确位置
+                    <span className="block text-[10px] mt-0.5 opacity-80">实时跟随</span>
+                  </button>
+                </div>
+                {formData.mobileLocationPrecise ? (
+                  <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-2.5">
+                    ⚠️ 您的实时精确位置将公开显示在地图上，并跟随您的移动而移动。请确认人身安全后再开启。
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-2.5">
+                    地图上将以模糊偏移（约 110–330 米）显示您的位置，保护您的精确坐标。
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

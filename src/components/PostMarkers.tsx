@@ -50,6 +50,7 @@ interface Post {
   image_urls: string[] | null;
   created_at: string;
   is_mobile?: boolean;
+  mobile_location_precise?: boolean | null;
   live_latitude?: number | null;
   live_longitude?: number | null;
   live_updated_at?: string | null;
@@ -225,7 +226,9 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       features: mobilePosts.map((post) => {
         const realLat = post.live_latitude != null ? post.live_latitude : post.latitude;
         const realLng = post.live_longitude != null ? post.live_longitude : post.longitude;
-        const { lat, lng } = fuzzifyLocation(realLat, realLng, post.id);
+        const { lat, lng } = post.mobile_location_precise
+          ? { lat: realLat, lng: realLng }
+          : fuzzifyLocation(realLat, realLng, post.id);
         const iconName = catMap[post.category] || "MapPin";
         return {
           type: "Feature" as const,
@@ -449,6 +452,9 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     if (selectedPost.is_mobile) {
       const realLat = selectedPost.live_latitude != null ? selectedPost.live_latitude : selectedPost.latitude;
       const realLng = selectedPost.live_longitude != null ? selectedPost.live_longitude : selectedPost.longitude;
+      if (selectedPost.mobile_location_precise) {
+        return { lat: realLat, lng: realLng };
+      }
       const { lat, lng } = fuzzifyLocation(realLat, realLng, selectedPost.id);
       return { lat, lng };
     }
