@@ -1,39 +1,41 @@
 
 
-## 不需要在 Xcode 里改
+## 理解需求
 
-底部白条是 **Web 端 CSS 问题**，跟 Xcode/iOS 原生壳无关。原生壳只是个浏览器容器，所有布局都来自网页。
+把"首页/消息/收藏/我的"图标整体**往下移**，让它们贴近 Home Indicator，消除 iPhone 16 上图标上方那一大块空白感。
 
-## 重新排查
+## 当前问题根因
 
-之前改了 `MapListSheet.tsx` 的 `bottom: calc(72px + env(safe-area-inset-bottom))`，但用户说"还是不行"。需要再读实际代码确认改动是否生效，以及 BottomNav 当前结构。
+`BottomNav.tsx` 当前结构：
+```
+fixed bottom-0 容器（白底）
+├─ 图标行（py-2，本身就有上下 padding）
+└─ paddingBottom: env(safe-area-inset-bottom)  ← iPhone 16 上 ~34px
+```
 
-需重读：
-- `src/components/MapListSheet.tsx`（确认上次改动是否落地）
-- `src/components/BottomNav.tsx`（确认背景层是否真正延伸到底）
-- `src/components/map/MapHomeContent.tsx`（看抽屉外面是否还有别的容器留白）
+iPhone 16：safe-area-inset-bottom = 34px，于是图标被往**上**推了 34px，看起来图标上方有大片空白
+iPhone XS Max：safe-area-inset-bottom 较小或为 0，所以图标贴底，没问题
 
-## 可能的真凶（待确认）
+## 方案
 
-**怀疑 1**：BottomNav 外层 `fixed bottom-0` 容器的背景色被 `border-t` 或子元素结构破坏，safe-area 那段实际是透明的，露出底下地图/白底。
+让图标行**视觉上贴近 Home Indicator**，而不是被推到很高的位置：
 
-**怀疑 2**：MapListSheet 的 `bottom` 改了但 `height` 没相应减少，抽屉被推上去后底部和 BottomNav 之间反而出现新缝。
+1. 减少图标行自身的 `py-2` → `py-1`，让图标整体下沉
+2. 把 safe-area padding 减半（`calc(env(safe-area-inset-bottom) / 2)`），图标进入安全区一部分但不会被 Home Indicator 压住
+3. 或者：取消顶部的 `pt-1`，只保留必要的底部 safe-area
 
-**怀疑 3**：抽屉的"peek"高度本身就小于 safe-area，导致 peek 模式下露出缝隙。
+这样 iPhone 16 图标会下移约 17–20px，更贴近底部；XS Max 视觉无变化。
 
-## 建议的下一步
+## 改动清单
 
-请在 Lovable 里**点 Build 模式**让我直接读代码并修复。需要在浏览器实际渲染时用 DevTools 量一下白条具体在哪一层，但因为是真机问题，我可以：
+| 文件 | 改动 |
+|------|------|
+| `src/components/BottomNav.tsx` | 外层 padding：`pt-1` → 去掉；`paddingBottom` 从 `env(safe-area-inset-bottom)` 改为 `calc(env(safe-area-inset-bottom) * 0.4)`，图标整体下移 |
 
-1. 重读三个文件，对比上次改动
-2. 给 BottomNav 加一个绝对定位的"安全区填充层"兜底
-3. 如果还不行，请你截一张 iPhone 16 上首页底部的截图发给我，我能直接看到白条位置并精确定位
+## 验证
 
-## 改动清单（待 Build 模式确认后执行）
-
-| 文件 | 预期改动 |
-|------|---------|
-| `src/components/BottomNav.tsx` | 确保最外层 fixed 容器背景色铺满，包括 safe-area 区域 |
-| `src/components/MapListSheet.tsx` | 复核 `bottom` 值；必要时让抽屉底部直接贴到屏幕底部，内部用 padding 抬高内容 |
-| `src/components/map/MapHomeContent.tsx` | 检查地图容器底部是否有未覆盖的区域 |
+发布后：
+- iPhone 16：图标贴近底部，上方空白消失
+- iPhone XS Max：视觉无明显变化
+- 安卓：无变化
 
