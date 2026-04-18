@@ -366,7 +366,13 @@ export default function MapHomeContent() {
           const map = e.target;
           try {
             const hits = map.queryRenderedFeatures(e.point, {
-              layers: ["posts-points", "posts-clusters", "posts-icons"],
+              layers: [
+                "posts-points",
+                "posts-clusters",
+                "posts-icons",
+                "posts-mobile-center-dot",
+                "posts-mobile-center-icon",
+              ],
             });
             if (hits && hits.length > 0) return;
           } catch {}
