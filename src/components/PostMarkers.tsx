@@ -69,6 +69,12 @@ const POINT_LAYER = "posts-points";
 const ICON_LAYER = "posts-icons";
 const FAV_LAYER = "posts-fav-badge";
 
+// Mobile (fuzzy) merchants — separate source so they aren't clustered with fixed pins.
+const MOBILE_SOURCE_ID = "posts-mobile-source";
+const MOBILE_AREA_FILL = "posts-mobile-area-fill";
+const MOBILE_AREA_STROKE = "posts-mobile-area-stroke";
+const MOBILE_CENTER_DOT = "posts-mobile-center-dot";
+
 const ICON_PIXEL = 36; // logical px (we render @2x for retina)
 
 /**
@@ -168,16 +174,42 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     return () => { map.off("styleimagemissing", onMissing); };
   }, [mapRef]);
 
-  // Build a GeoJSON FeatureCollection — Mapbox handles clustering on the GPU.
+  // Split posts: fixed merchants render precise pins; mobile merchants render fuzzy service areas.
+  const fixedPosts = useMemo(() => posts.filter((p) => p.is_mobile !== true), [posts]);
+  const mobilePosts = useMemo(() => posts.filter((p) => p.is_mobile === true), [posts]);
+
+  // Fixed merchants — clustered precise points with category icons.
   const geojson = useMemo(() => {
     return {
       type: "FeatureCollection" as const,
-      features: posts.map((post) => {
-        const isMobile = post.is_mobile === true;
-        const lat = isMobile && post.live_latitude != null ? post.live_latitude : post.latitude;
-        const lng = isMobile && post.live_longitude != null ? post.live_longitude : post.longitude;
+      features: fixedPosts.map((post) => {
         const color = hashColor(post.category);
         const iconName = catMap[post.category] || "MapPin";
+        return {
+          type: "Feature" as const,
+          id: post.id,
+          geometry: {
+            type: "Point" as const,
+            coordinates: [post.longitude, post.latitude],
+          },
+          properties: {
+            postId: post.id,
+            color,
+            isFav: favoriteIds?.has(post.id) ? 1 : 0,
+            icon: `sprite-${iconName}`,
+          },
+        };
+      }),
+    };
+  }, [fixedPosts, favoriteIds, catMap]);
+
+  // Mobile merchants — fuzzy point (no precise icon) used to render service area circles.
+  const mobileGeojson = useMemo(() => {
+    return {
+      type: "FeatureCollection" as const,
+      features: mobilePosts.map((post) => {
+        const lat = post.live_latitude != null ? post.live_latitude : post.latitude;
+        const lng = post.live_longitude != null ? post.live_longitude : post.longitude;
         return {
           type: "Feature" as const,
           id: post.id,
@@ -187,15 +219,12 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
           },
           properties: {
             postId: post.id,
-            color,
-            isMobile,
-            isFav: favoriteIds?.has(post.id) ? 1 : 0,
-            icon: `sprite-${iconName}`,
+            color: hashColor(post.category),
           },
         };
       }),
     };
-  }, [posts, favoriteIds, catMap]);
+  }, [mobilePosts]);
 
   const selectedPost = useMemo(
     () => posts.find((p) => p.id === selectedPostId) ?? null,
@@ -208,7 +237,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       if (!map) return;
 
       const features = map.queryRenderedFeatures(e.point, {
-        layers: [POINT_LAYER, ICON_LAYER, CLUSTER_LAYER],
+        layers: [POINT_LAYER, ICON_LAYER, CLUSTER_LAYER, MOBILE_AREA_FILL, MOBILE_CENTER_DOT],
       });
       if (!features.length) return;
 
@@ -249,6 +278,10 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     map.on("mouseleave", ICON_LAYER, onLeave);
     map.on("mouseenter", CLUSTER_LAYER, onEnter);
     map.on("mouseleave", CLUSTER_LAYER, onLeave);
+    map.on("mouseenter", MOBILE_AREA_FILL, onEnter);
+    map.on("mouseleave", MOBILE_AREA_FILL, onLeave);
+    map.on("mouseenter", MOBILE_CENTER_DOT, onEnter);
+    map.on("mouseleave", MOBILE_CENTER_DOT, onLeave);
 
     return () => {
       map.off("click", handleMapClick);
@@ -258,6 +291,10 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       map.off("mouseleave", ICON_LAYER, onLeave);
       map.off("mouseenter", CLUSTER_LAYER, onEnter);
       map.off("mouseleave", CLUSTER_LAYER, onLeave);
+      map.off("mouseenter", MOBILE_AREA_FILL, onEnter);
+      map.off("mouseleave", MOBILE_AREA_FILL, onLeave);
+      map.off("mouseenter", MOBILE_CENTER_DOT, onEnter);
+      map.off("mouseleave", MOBILE_CENTER_DOT, onLeave);
     };
   }, [mapRef, handleMapClick]);
 
@@ -347,6 +384,54 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     },
   };
 
+  // ===== Mobile (fuzzy) merchants — service area circle =====
+  // Radius represents ~500m on screen, interpolated across zoom levels.
+  const mobileAreaFillLayer: CircleLayerSpecification = {
+    id: MOBILE_AREA_FILL,
+    type: "circle",
+    source: MOBILE_SOURCE_ID,
+    paint: {
+      "circle-color": ["get", "color"],
+      "circle-opacity": 0.18,
+      "circle-radius": [
+        "interpolate", ["exponential", 2], ["zoom"],
+        8, 1, 10, 4, 12, 16, 14, 63, 16, 252, 18, 1009,
+      ],
+      "circle-pitch-alignment": "map",
+    },
+  };
+
+  const mobileAreaStrokeLayer: CircleLayerSpecification = {
+    id: MOBILE_AREA_STROKE,
+    type: "circle",
+    source: MOBILE_SOURCE_ID,
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-stroke-color": ["get", "color"],
+      "circle-stroke-width": 1.5,
+      "circle-stroke-opacity": 0.55,
+      "circle-radius": [
+        "interpolate", ["exponential", 2], ["zoom"],
+        8, 1, 10, 4, 12, 16, 14, 63, 16, 252, 18, 1009,
+      ],
+      "circle-pitch-alignment": "map",
+    },
+  };
+
+  // Small center dot — provides a click target and visual anchor for the fuzzy area.
+  const mobileCenterDotLayer: CircleLayerSpecification = {
+    id: MOBILE_CENTER_DOT,
+    type: "circle",
+    source: MOBILE_SOURCE_ID,
+    paint: {
+      "circle-color": ["get", "color"],
+      "circle-radius": 6,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 0.9,
+    },
+  };
+
   // Selected marker (DOM) — re-uses the existing icon styling on a single node.
   const selectedIconName = selectedPost ? catMap[selectedPost.category] : undefined;
   const SelectedIcon = (selectedIconName && iconMap[selectedIconName]) || MapPin;
@@ -378,6 +463,12 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
         <Layer {...pointLayer} />
         <Layer {...iconLayer} />
         <Layer {...favLayer} />
+      </Source>
+
+      <Source id={MOBILE_SOURCE_ID} type="geojson" data={mobileGeojson}>
+        <Layer {...mobileAreaFillLayer} />
+        <Layer {...mobileAreaStrokeLayer} />
+        <Layer {...mobileCenterDotLayer} />
       </Source>
 
       {selectedPost && (

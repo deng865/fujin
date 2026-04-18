@@ -175,11 +175,15 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
                         )}
                       </>
                     ) : (
-                      post.operating_hours && (
-                        <span className="ml-1.5 text-muted-foreground">
-                          · {post.operating_hours.open}-{post.operating_hours.close}
-                        </span>
-                      )
+                      (() => {
+                        const fixedOpen = post.operating_hours ? isCurrentlyOpen(post.operating_hours) : null;
+                        if (fixedOpen === null) return null;
+                        return (
+                          <span className={`ml-1.5 ${fixedOpen ? "text-emerald-500" : "text-destructive"}`}>
+                            · {fixedOpen ? "🟢 营业中" : "🔴 已打烊"}
+                          </span>
+                        );
+                      })()
                     )}
                   </p>
                 </div>
