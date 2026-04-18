@@ -258,7 +258,7 @@ export default function MapListSheet({
         "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
         "will-change-transform",
         selectedPost ? "" : "touch-none select-none",
-        !isDragging && "transition-[height] duration-300 ease-out"
+        !isDragging && "transition-[height] duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]"
       )}
       style={{
         bottom: `${BOTTOM_NAV}px`,
