@@ -288,19 +288,26 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       }
     }
 
-    // Selected-post mode: discrete behavior preserved
+    // Selected-post mode: snap between half and full; pull down past peek dismisses detail.
     if (selectedPost) {
       const dy = heightRef.current - d.startHeight;
       const threshold = 50;
-      if (state === "preview") {
+      const halfH = getHeight("half");
+      // Down-fling beyond half → close detail and return to list peek.
+      if ((dy < -threshold || velocity < -0.6) && heightRef.current < halfH - 40) {
+        onSelectPost(null);
+        setState("peek");
+        forceRender((n) => n + 1);
+        return;
+      }
+      if (state === "half") {
         if (dy > threshold || velocity > 0.4) setState("full");
-        else if (dy < -threshold || velocity < -0.4) { onSelectPost(null); setState("half"); }
-        else animateTo(getHeight(state));
+        else animateTo(getHeight("half"), velocity * 1000);
       } else if (state === "full") {
-        if (dy < -threshold || velocity < -0.4) setState("preview");
-        else animateTo(getHeight(state));
+        if (dy < -threshold || velocity < -0.4) setState("half");
+        else animateTo(getHeight("full"), velocity * 1000);
       } else {
-        animateTo(getHeight(state));
+        animateTo(getHeight(state), velocity * 1000);
       }
       forceRender((n) => n + 1);
       return;
