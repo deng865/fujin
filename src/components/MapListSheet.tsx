@@ -84,7 +84,7 @@ import { type MapFilters } from "@/components/MapFilterChips";
 
 type SheetState = "hidden" | "peek" | "half" | "preview" | "full";
 
-const BOTTOM_NAV = 72;
+const BOTTOM_NAV = 56;
 const HANDLE_HEIGHT = 28;
 
 export default function MapListSheet({
@@ -255,7 +255,7 @@ export default function MapListSheet({
         !isDragging && "transition-[height] duration-300 ease-out"
       )}
       style={{
-        bottom: `calc(${BOTTOM_NAV}px + env(safe-area-inset-bottom))`,
+        bottom: `calc(${BOTTOM_NAV}px + env(safe-area-inset-bottom) * 0.15)`,
         height: `${displayHeight}px`,
       }}
       onTouchStart={onTouchStart}

@@ -64,13 +64,7 @@ export default function BottomNav() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[999] bg-background border-t border-border/30">
-      {/* Solid safe-area filler to prevent white strip on devices with home indicator */}
-      <div
-        aria-hidden
-        className="absolute left-0 right-0 top-full bg-background"
-        style={{ height: "env(safe-area-inset-bottom)" }}
-      />
-      <div className="px-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) * 0.4)" }}>
+      <div className="px-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) * 0.15)" }}>
         <div className="flex items-center justify-around max-w-lg mx-auto relative">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -98,7 +92,7 @@ export default function BottomNav() {
                 onTouchStart={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
                 onMouseEnter={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
                 className={cn(
-                  "relative flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all active:scale-95",
+                  "relative flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all active:scale-95",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}
               >
