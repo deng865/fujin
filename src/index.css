@@ -107,6 +107,11 @@ All colors MUST be HSL.
     overflow: hidden;
     overscroll-behavior: none;
   }
+
+  #root {
+    @apply bg-background;
+    min-height: 100dvh;
+  }
 }
 
 @layer utilities {
