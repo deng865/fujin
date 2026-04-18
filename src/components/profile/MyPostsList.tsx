@@ -139,7 +139,17 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
             </button>
           </div>
         ) : (
-          posts.map((post) => (
+          posts.map((post) => {
+            const scheduledOpen = post.is_mobile && post.operating_hours
+              ? isCurrentlyOpen(post.operating_hours)
+              : null;
+            // Effective online status for mobile merchants: scheduler overrides manual
+            const effectiveOnline = post.is_mobile
+              ? (scheduledOpen !== null ? scheduledOpen : post.is_visible)
+              : post.is_visible;
+            const scheduleLockedOff = scheduledOpen === false;
+
+            return (
             <div
               key={post.id}
               className="bg-card border border-border rounded-2xl p-4 space-y-3"
@@ -157,8 +167,8 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
                     {new Date(post.created_at).toLocaleDateString()}
                     {post.is_mobile ? (
                       <>
-                        <span className={`ml-1.5 ${post.is_visible ? "text-emerald-500" : "text-muted-foreground"}`}>
-                          · {post.is_visible ? "在线" : "离线"}
+                        <span className={`ml-1.5 ${effectiveOnline ? "text-emerald-500" : "text-destructive"}`}>
+                          · {effectiveOnline ? "🟢 服务中" : "🔴 已下班"}
                         </span>
                         {post.operating_hours && (
                           <span className="ml-1 text-amber-500">· ⏰ 已定时</span>
@@ -183,16 +193,19 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
                   <>
                     <button
                       onClick={() => handleToggleOnline(post)}
+                      disabled={scheduleLockedOff}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors ${
-                        post.is_visible
-                          ? "bg-orange-500/10 text-orange-600 hover:bg-orange-500/20"
-                          : !locationSharing
-                            ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
-                            : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                        scheduleLockedOff
+                          ? "bg-muted text-muted-foreground opacity-60 cursor-not-allowed"
+                          : effectiveOnline
+                            ? "bg-orange-500/10 text-orange-600 hover:bg-orange-500/20"
+                            : !locationSharing
+                              ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                              : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
                       }`}
                     >
-                      {post.is_visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      {post.is_visible ? "下线" : "上线"}
+                      {effectiveOnline ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      {scheduleLockedOff ? "已自动下线" : effectiveOnline ? "下线" : "上线"}
                     </button>
                     <button
                       onClick={() => openScheduleDialog(post)}
@@ -222,7 +235,6 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
                     </button>
                   </>
                 ) : (
-                  /* === Fixed merchant actions === */
                   <>
                     <button
                       onClick={() => navigate(`/create-post?edit=${post.id}`)}
