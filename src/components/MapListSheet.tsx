@@ -125,19 +125,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     }
   }, [mapTapped, selectedPost, onSelectPost]);
 
-  const prevMapSwipedUp = useRef(mapSwipedUp);
-  useEffect(() => {
-    if (mapSwipedUp > 0 && mapSwipedUp !== prevMapSwipedUp.current) {
-      prevMapSwipedUp.current = mapSwipedUp;
-      if (selectedPost) return;
-      setState((s) => {
-        if (s === "hidden") return "peek";
-        if (s === "peek") return "half";
-        if (s === "half") return "full";
-        return s;
-      });
-    }
-  }, [mapSwipedUp, selectedPost]);
+  // mapSwipedUp prop is kept for backward compat but no longer triggers discrete state jumps.
+  // Drawer drag is now driven directly via the imperative handle for smooth follow-finger motion.
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
