@@ -1,59 +1,57 @@
 
 
-## 关键观察
-
-这次日志和上次几乎完全一样，但增加了两条新信息：
+## 找到真凶了！
 
 ```
-🟡 START: https://fujin.life/
-🟢 DONE: https://fujin.life/
-Snapshot request ... code: 6 ("anulled")
-Gesture: System gesture gate timed out.
+map-y0ye4rtO.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'createContext')
 ```
 
-**🟢 DONE 触发了**，说明 fujin.life 的 HTML 已经下载并解析完成。但紧接着 WebContent 进程 unresponsive + Snapshot 取消 + 手势网关超时 = **JS 在 React mount 过程中卡死**。
+这是经典的 **React 重复打包问题**。`map-*.js` 这个 chunk（地图相关代码）里调用 `React.createContext()`，但 `React` 是 `undefined`。
 
-我之前加了 `showFatalOverlay` 红色错误条 + `window.onerror` 全局捕获。但是**你没有提到看到任何红色错误条**。这意味着两种可能：
-- A) JS 没抛错，是死循环/同步阻塞导致主线程卡死（红条没机会显示）
-- B) 部署还没生效，新代码还没上 fujin.life
+## 根因
+
+Vite 把 React 和地图相关的库（`react-map-gl`、`@mapbox/mapbox-gl-*` 等依赖 React 的库）拆到了不同的 chunk 里：
+- `map-*.js` chunk 加载时，依赖的 `react` 还没就绪
+- 或者 React 被打包了两份，导致 `react-map-gl` 拿到的是空的 React 模块
+
+这导致 React 还没初始化完，map chunk 就同步执行了 `React.createContext`，直接抛错 → 整个 React 树挂不上去 → 6秒兜底触发 → 白屏。
+
+**这跟 WKWebView 无关，谷歌浏览器也复现，是个纯打包问题。**
 
 ## 排查计划（READ-ONLY）
 
-我需要先读这几个文件确认当前状态和根因：
+需要读这几个文件确认：
 
-1. `index.html` —— 检查 boot screen 8 秒兜底逻辑、是否有同步阻塞脚本
-2. `src/App.tsx` —— 路由根入口，是否有同步初始化崩溃
-3. `src/hooks/useAuth.tsx` —— 启动时的 session 恢复，是否有阻塞
-4. `src/pages/MapHome.tsx` —— 首页，Mapbox 是否同步初始化
-5. `src/lib/mapbox.ts` —— Mapbox token 加载方式
-6. `vite.config.ts` —— 是否有 PWA / Service Worker 注册
+1. `vite.config.ts` —— 看 `manualChunks` 配置，确认 React 是否被错误拆分
+2. `package.json` —— 看 React 版本和 mapbox 相关依赖
+3. `src/components/map/MapHomeContent.tsx` —— 地图组件实际用了什么库
+4. `src/pages/MapHome.tsx` —— 当前 lazy 加载逻辑
+5. 检查是否有 `react-map-gl` 这种依赖 React 的二次封装库
 
-## 可能的修复方向
+## 修复方向（预判）
 
-| 嫌疑 | 现象 | 修复 |
+| 方案 | 改动 |
+|------|------|
+| **A. 修 `vite.config.ts` manualChunks** | 把 `react`、`react-dom` 强制打到 `vendor` chunk，确保最先加载 |
+| **B. 移除自定义 manualChunks** | 让 Vite 用默认策略，避免人为拆分错误 |
+| **C. optimizeDeps.include** | 强制预构建 mapbox 相关依赖，避免运行时模块解析失败 |
+
+最可能是 A 或 B。预计改 1 个文件（`vite.config.ts`）就能修好。
+
+## 顺带修品牌名
+
+之前批准过的 `index.html` "华人生活圈" → "华人街坊" 一并改掉（4 处）。
+
+## 实施清单
+
+| 步骤 | 文件 | 改动 |
 |------|------|------|
-| Mapbox GL 在 WKWebView 启动崩溃 | DONE 后立即 unresponsive | 首页延迟挂载地图（点击后才 mount），或捕获 mapbox 异常降级 |
-| `useAuth` 启动死循环 | 主线程卡死无报错 | 检查 onAuthStateChange 是否有同步副作用 |
-| Service Worker 注册阻塞 | 进程消息堆积 129 条 | 在 WKWebView 里跳过 SW 注册 |
-| 部署延迟 | 新 fix 未生效 | 让用户硬刷新或等部署 |
+| 1 | `vite.config.ts` | 修复 React chunk 拆分（确认根因后精准改） |
+| 2 | `index.html` | "华人生活圈" → "华人街坊"（title / og / boot screen 共 4 处） |
 
-## 同时建议你做的事（关键）
-
-请**确认两点**，缺一不可：
-
-1. **底部红条**：iPhone 上重新打开 App，停留 10 秒，**屏幕底部有没有红色错误条**？
-   - 有 → 截图发我，能精准定位
-   - 没有 → 说明 JS 没抛错，是阻塞/死循环
-
-2. **Safari 远程调试**：之前一直没拿到这个数据，这是**唯一能看到 JS 真实状态**的方法
-   - iPhone 设置 → Safari → 高级 → 网页检查器 ON
-   - Mac Safari → 开发菜单 → 你的 iPhone → fujin.life
-   - 截 Console 标签 + Network 标签
-
-## 下一步
-
-批准后我会：
-1. 读 6 个关键文件确认根因
-2. 根据代码 + 你的反馈（红条 / Safari 调试）给出**精准修复**
-3. 预计改 1-2 个文件，主要是首页 Mapbox 延迟初始化 + 启动阶段的兜底捕获
+改完后用户：
+1. 等 Lovable 自动重新构建（约 1-2 分钟）
+2. 浏览器硬刷新 `fujin.life`（Cmd+Shift+R）
+3. 确认能看到正确首页 + 标题"华人街坊"
+4. iPhone App 重新打开验证
 
