@@ -10,10 +10,11 @@ interface MediaUploadProps {
   onChange: (urls: string[]) => void;
 }
 
-async function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promise<File> {
+async function compressImage(file: File, maxWidth = 1080, quality = 0.72): Promise<File> {
   if (!file.type.startsWith("image/")) return file;
   return new Promise((resolve) => {
     const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       let w = img.width, h = img.height;
       if (w > maxWidth) { h = (maxWidth / w) * h; w = maxWidth; }
@@ -21,11 +22,15 @@ async function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promis
       canvas.width = w; canvas.height = h;
       canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
       canvas.toBlob(
-        (blob) => resolve(new File([blob!], file.name, { type: "image/jpeg" })),
+        (blob) => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(blob ? new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }) : file);
+        },
         "image/jpeg", quality
       );
     };
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
   });
 }
 
@@ -42,41 +47,44 @@ export default function MediaUpload({ mediaUrls, onChange }: MediaUploadProps) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("请先登录");
 
-      const newUrls: string[] = [];
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const endpoint = `https://${projectId}.supabase.co/functions/v1/upload-to-r2`;
 
-      for (const file of Array.from(files)) {
+      // Filter out oversized files first
+      const validFiles = Array.from(files).filter((file) => {
         if (file.size > 50 * 1024 * 1024) {
           toast.error(`${file.name} 超过50MB限制`);
-          continue;
+          return false;
         }
+        return true;
+      });
 
-        // Compress images before upload
-        const processedFile = await compressImage(file);
-
-        const formData = new FormData();
-        formData.append("file", processedFile);
-
-        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-        const res = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/upload-to-r2`,
-          {
+      // Compress + upload all files in PARALLEL for much faster experience
+      const uploadOne = async (file: File): Promise<string | null> => {
+        try {
+          const processedFile = await compressImage(file);
+          const formData = new FormData();
+          formData.append("file", processedFile);
+          const res = await fetch(endpoint, {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
+            headers: { Authorization: `Bearer ${session.access_token}` },
             body: formData,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: "上传失败" }));
+            toast.error(err.error || `上传失败: ${file.name}`);
+            return null;
           }
-        );
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: "上传失败" }));
-          toast.error(err.error || `上传失败: ${file.name}`);
-          continue;
+          const { url } = await res.json();
+          return url as string;
+        } catch (err: any) {
+          toast.error(err?.message || `上传失败: ${file.name}`);
+          return null;
         }
+      };
 
-        const { url } = await res.json();
-        newUrls.push(url);
-      }
+      const results = await Promise.all(validFiles.map(uploadOne));
+      const newUrls = results.filter((u): u is string => !!u);
 
       if (newUrls.length > 0) {
         onChange([...mediaUrls, ...newUrls]);

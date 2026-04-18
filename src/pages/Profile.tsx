@@ -230,8 +230,8 @@ export default function ProfilePage() {
   // Sub-pages
   if (subPage === "posts") {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
+      <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
+        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
           <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
             <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
               <ChevronRight className="h-5 w-5 rotate-180" />
@@ -249,8 +249,8 @@ export default function ProfilePage() {
 
   if (subPage === "privacy") {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
+      <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
+        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
           <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
             <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
               <ChevronRight className="h-5 w-5 rotate-180" />
@@ -274,8 +274,8 @@ export default function ProfilePage() {
 
   if (subPage === "reviews") {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50">
+      <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
+        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
           <div className="flex items-center px-4 py-3 max-w-lg mx-auto">
             <button onClick={() => setSubPage("main")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
               <ChevronRight className="h-5 w-5 rotate-180" />
