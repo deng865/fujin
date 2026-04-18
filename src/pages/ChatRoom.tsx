@@ -1187,7 +1187,7 @@ export default function ChatRoom() {
       )}
 
       {/* Header */}
-      <div className="shrink-0 bg-background/90 backdrop-blur-xl border-b border-border/50 z-10">
+      <div className="shrink-0 bg-background/90 backdrop-blur-xl border-b border-border/50 z-10 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
           <div className="flex items-center gap-2">
             <button onClick={() => navigate("/messages")} className="p-2 -ml-2 hover:bg-accent rounded-xl">
