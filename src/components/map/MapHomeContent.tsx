@@ -15,7 +15,7 @@ import MapControls from "@/components/MapControls";
 import PostMarkers from "@/components/PostMarkers";
 import { useVisitTracker } from "@/hooks/useVisitTracker";
 import MapFilterChips, { defaultFilters, type MapFilters } from "@/components/MapFilterChips";
-import MapListSheet from "@/components/MapListSheet";
+import MapListSheet, { type MapListSheetHandle } from "@/components/MapListSheet";
 import { toast } from "@/hooks/use-toast";
 
 const DEFAULT_CENTER = { lat: 32.7767, lng: -96.797 };
@@ -94,8 +94,8 @@ export default function MapHomeContent() {
   const [bearing, setBearing] = useState(0);
   const [filters, setFilters] = useState<MapFilters>(defaultFilters);
   const [mapTapped, setMapTapped] = useState(0);
-  const [mapSwipedUp, setMapSwipedUp] = useState(0);
   const [sheetHeight, setSheetHeight] = useState(100);
+  const sheetHandleRef = useRef<MapListSheetHandle>(null);
   const { toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
   useVisitTracker(user?.id ?? null, userPos, posts);
@@ -299,9 +299,17 @@ export default function MapHomeContent() {
     return true;
   }), [posts, selectedCategory, center.lat, center.lng, searchRadius, filters]);
 
-  // Detect single-finger swipe-up on the map area to expand the drawer.
-  // Skip multi-touch (pinch-zoom), require vertical-dominant motion, start in lower 60%.
-  const swipeRef = useRef<{ x: number; y: number; t: number; fired: boolean; touches: number } | null>(null);
+  // Single-finger vertical swipes anywhere on the map drive the drawer height
+  // continuously via the imperative handle. We only intercept once vertical
+  // motion clearly dominates so map pan/pinch-zoom keep working.
+  const swipeRef = useRef<{
+    x: number;
+    y: number;
+    active: boolean;
+    claimed: boolean;
+    touches: number;
+  } | null>(null);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length !== 1) {
       swipeRef.current = null;
@@ -311,25 +319,41 @@ export default function MapHomeContent() {
     swipeRef.current = {
       x: t.clientX,
       y: t.clientY,
-      t: Date.now(),
-      fired: false,
+      active: true,
+      claimed: false,
       touches: 1,
     };
   }, []);
+
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     const s = swipeRef.current;
-    if (!s || s.fired) return;
+    if (!s || !s.active) return;
     if (e.touches.length !== 1) {
+      if (s.claimed) sheetHandleRef.current?.endDrag();
       swipeRef.current = null;
       return;
     }
     const t = e.touches[0];
     const dx = t.clientX - s.x;
     const dy = s.y - t.clientY; // positive when swiping up
-    if (dy > 40 && dy > Math.abs(dx) * 1.5 && s.y > window.innerHeight * 0.4) {
-      s.fired = true;
-      setMapSwipedUp((v) => v + 1);
+
+    if (!s.claimed) {
+      // Need clear vertical intent before claiming the gesture from the map.
+      // Start point must be in lower 60% of screen to avoid hijacking top controls.
+      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx) * 1.5 && s.y > window.innerHeight * 0.4) {
+        s.claimed = true;
+        sheetHandleRef.current?.beginDrag(s.y);
+      } else {
+        return;
+      }
     }
+    sheetHandleRef.current?.updateDrag(t.clientY);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    const s = swipeRef.current;
+    if (s?.claimed) sheetHandleRef.current?.endDrag();
+    swipeRef.current = null;
   }, []);
 
   return (
@@ -337,6 +361,8 @@ export default function MapHomeContent() {
       className="relative h-[100dvh] w-screen overflow-hidden bg-background"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       <MapGL
         ref={mapRef}
@@ -402,6 +428,7 @@ export default function MapHomeContent() {
       />
 
       <MapListSheet
+        ref={sheetHandleRef}
         posts={filtered}
         userLat={userPos?.lat ?? center.lat}
         userLng={userPos?.lng ?? center.lng}
@@ -414,7 +441,6 @@ export default function MapHomeContent() {
         onFiltersChange={setFilters}
         selectedCategory={selectedCategory}
         mapTapped={mapTapped}
-        mapSwipedUp={mapSwipedUp}
         onSheetHeightChange={setSheetHeight}
       />
     </div>
