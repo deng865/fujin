@@ -727,10 +727,15 @@ const ListCard = memo(function ListCard({
 
   let statusText = "";
   let statusColor = "";
-  if (!post.is_mobile && post.operating_hours) {
+  if (post.operating_hours) {
     const open = isCurrentlyOpen(post.operating_hours);
-    statusText = open ? "营业中" : "已打烊";
-    statusColor = open ? "text-emerald-600" : "text-destructive";
+    if (open === true) {
+      statusText = post.is_mobile ? "服务中" : "营业中";
+      statusColor = "text-emerald-600";
+    } else if (open === false) {
+      statusText = post.is_mobile ? "已下班" : "已打烊";
+      statusColor = "text-destructive";
+    }
   } else if (post.is_mobile) {
     statusText = "移动服务";
     statusColor = "text-primary";
@@ -906,10 +911,15 @@ function PreviewCard({
 
   let statusText = "";
   let statusColor = "";
-  if (!post.is_mobile && post.operating_hours) {
+  if (post.operating_hours) {
     const open = isCurrentlyOpen(post.operating_hours);
-    statusText = open ? "🟢 营业中" : "🔴 已打烊";
-    statusColor = open ? "text-emerald-600" : "text-destructive";
+    if (open === true) {
+      statusText = post.is_mobile ? "🟢 服务中" : "🟢 营业中";
+      statusColor = "text-emerald-600";
+    } else if (open === false) {
+      statusText = post.is_mobile ? "🔴 已下班" : "🔴 已打烊";
+      statusColor = "text-destructive";
+    }
   } else if (post.is_mobile) {
     statusText = "📍 移动服务中";
     statusColor = "text-primary";

@@ -25,37 +25,35 @@ interface FavoritePost {
   } | null;
 }
 
-const categoryLabels: Record<string, string> = {
-  housing: "🏠 房产",
-  jobs: "💼 找工",
-  auto: "🚗 汽车",
-  food: "🍜 美食",
-  education: "📚 教育",
-  travel: "✈️ 旅游",
-  driver: "🚕 司机",
-  legal: "⚖️ 法律",
-};
-
 export default function Favorites() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [favorites, setFavorites] = useState<FavoritePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { navigate("/auth"); return; }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("favorites")
-        .select("id, post_id, created_at, posts(id, title, description, category, price, latitude, longitude, image_urls, created_at)")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const [favRes, catRes] = await Promise.all([
+        supabase
+          .from("favorites")
+          .select("id, post_id, created_at, posts(id, title, description, category, price, latitude, longitude, image_urls, created_at)")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase.from("categories").select("name, label"),
+      ]);
       if (cancelled) return;
-      if (data) {
-        setFavorites(data.map((f: any) => ({ ...f, post: f.posts })));
+      if (favRes.data) {
+        setFavorites(favRes.data.map((f: any) => ({ ...f, post: f.posts })));
+      }
+      if (catRes.data) {
+        const map: Record<string, string> = {};
+        for (const c of catRes.data as any[]) map[c.name] = c.label;
+        setCategoryLabels(map);
       }
       setLoading(false);
     })();
