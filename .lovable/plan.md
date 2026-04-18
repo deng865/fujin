@@ -1,44 +1,33 @@
 
 
-## 移动商家增加"精确/模糊位置"切换
+## 修复两个问题
 
-### 现状
-- **固定商家**：CreatePost 中有 `LocationPicker` 提供"精确/模糊"切换（模糊会在保存时给坐标加 ±0.01° 随机偏移）
-- **移动商家**：当前没有这个选项。地图渲染时统一调用 `fuzzifyLocation`，强制对所有移动商家做 110–330m 偏移
+### 问题 1：编辑页未回填司机的车辆信息
+**现状**：`CreatePost.tsx` 编辑模式下从 `posts` 表读取数据时，只回填了标题/描述/价格/联系方式/图片/营业时间等字段，**完全没有回填司机分类的车型/车色/车牌**。这些信息其实存在 `profiles` 表（发布时同步过去），所以编辑时显示为空，用户被迫重新输入，进而触发"重复信息"校验冲突。
 
-### 目标
-让移动商家在发布/编辑时也能选择：
-- **精确位置**：地图显示真实实时坐标，跟随商家移动而移动
-- **模糊位置**：地图显示 `fuzzifyLocation` 处理后的坐标（默认行为，保护人身安全）
+**修复方案**：编辑模式下，若 `category === "driver"`，从 `profiles` 表查询当前用户的 `vehicle_model / vehicle_color / license_plate` 并回填到 `formData.carModel / vehicleColor / licensePlate`。
 
-### 实现方案
+> 备注：车辆信息原本就以 emoji 拼接在 `description` 里，所以 description 已经包含可见的车辆信息文本。但表单字段需要单独回填，否则用户看不到结构化字段。同时为避免编辑保存时 description 里出现重复的 emoji 拼接，需要先剥离旧的 `🚗/🎨/🔢/🕐` 行再回填到 `description` 字段。
 
-**1. 数据库**
-新增 `posts.mobile_location_precise` (boolean, 默认 `false`) — 仅对 `is_mobile = true` 的帖子有意义。默认为模糊以保证安全。
+### 问题 2：精确位置模式下，地图标记位置与商家实际位置不一致
+**根因**：`PostMarkers.tsx` 第 229 行使用真实的 `live_latitude/live_longitude`，但移动商家如果**还没开始上报实时位置**（`live_latitude` 为 null），就会回落到发帖时存的 `latitude/longitude`——而那个坐标可能是发帖瞬间的位置，与商家"现在"的位置不一致。更重要的是：移动商家发布后需要打开 App 才会触发实时位置上报，未在线时地图会停留在最后已知的 `live_*` 坐标，不会跟随移动。
 
-**2. CreatePost.tsx**
-当 `category && isMobile` 时，在"移动服务模式"提示卡之后新增一个简洁的双按钮切换器：
-- 模糊位置（默认，推荐）— 显示安全提示
-- 精确位置 — 显示风险警告："您的实时位置将公开显示，请确认安全"
+**这是预期行为**——精确模式只能显示"最近一次上报的位置"。但用户感知到的"位置不一致"很可能是：
+1. **`live_latitude` 字段从未被写入** → 显示的是发帖时的初始坐标（可能距离当前位置很远）
+2. **实时位置上报机制未触发** → 需要排查 `useMobileTracking` hook 是否在精确模式下正常运行
 
-把选择写入 `formData.mobileLocationPrecise`，提交时随 `mobile_location_precise` 字段一并保存。编辑模式下回填。
-
-**3. PostMarkers.tsx**
-构建 `mobileGeojson` 时，按每个 post 的 `mobile_location_precise` 决定坐标来源：
-- `true` → 直接使用真实 `live_latitude/live_longitude`
-- `false` → 走现有 `fuzzifyLocation` 逻辑
-
-实时订阅已经会推送坐标更新，所以"精确模式"下图标会自然跟随商家移动。
-
-**4. 类型**
-`PostMarker` 类型增加 `mobile_location_precise?: boolean` 字段（`MapHomeContent.tsx` 的 posts 查询已 `select("*")`，无需改 SQL）。
+**修复方案**：
+1. 检查 `useMobileTracking` 是否正确为移动商家上报 `live_latitude/live_longitude`
+2. 在 `PostMarkers.tsx` 中：精确模式下若 `live_*` 为 null，退回 `latitude/longitude` 时**主动触发一次定位刷新**（仅对当前用户自己的帖子）
+3. 在精确模式发布时，立即将当前 GPS 坐标写入 `live_latitude/live_longitude` 字段，避免初次显示位置错位
 
 ### 涉及文件
-- 新建迁移：添加 `posts.mobile_location_precise` 字段
-- `src/pages/CreatePost.tsx` — 表单字段、UI 切换器、提交/编辑回填（约 30 行）
-- `src/components/PostMarkers.tsx` — 按字段决定是否调用 `fuzzifyLocation`（约 5 行）
-- `mem://features/mobile-fuzzy-location.md` — 更新策略说明
+- `src/pages/CreatePost.tsx`：编辑模式下加载车辆信息回填，并在精确模式下提交时同步初始化 `live_latitude/live_longitude`
+- `src/hooks/useMobileTracking.ts`（需先查看）：确认精确模式下的上报逻辑
+- 可能涉及 `src/components/map/MapHomeContent.tsx` 或 Profile 页：确保移动商家在线时持续上报位置
 
-### 隐私默认
-新建移动商家默认 `false`（模糊），用户必须主动开启精确并确认风险，符合"安全优先"原则。
+### 实现步骤
+1. CreatePost 编辑模式：driver 分类时查询 profiles 表回填 carModel/vehicleColor/licensePlate
+2. CreatePost 提交：移动商家+精确模式时，将 `latitude/longitude` 同步写入 `live_latitude/live_longitude`，确保发布瞬间地图就能正确显示
+3. 检查并完善 `useMobileTracking` 确保精确模式下持续上报实时坐标
 
