@@ -69,6 +69,12 @@ const POINT_LAYER = "posts-points";
 const ICON_LAYER = "posts-icons";
 const FAV_LAYER = "posts-fav-badge";
 
+// Mobile (fuzzy) merchants — separate source so they aren't clustered with fixed pins.
+const MOBILE_SOURCE_ID = "posts-mobile-source";
+const MOBILE_AREA_FILL = "posts-mobile-area-fill";
+const MOBILE_AREA_STROKE = "posts-mobile-area-stroke";
+const MOBILE_CENTER_DOT = "posts-mobile-center-dot";
+
 const ICON_PIXEL = 36; // logical px (we render @2x for retina)
 
 /**
