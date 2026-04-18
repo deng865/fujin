@@ -373,7 +373,26 @@ export default function MapHomeContent() {
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={MAP_STYLES[mapType]}
         style={{ width: "100%", height: "100%" }}
-        onLoad={() => {
+        // Native-app-like inertia & smooth zoom
+        dragPan={{
+          linearity: 0.28,
+          easing: (t: number) => 1 - Math.pow(1 - t, 3), // easeOutCubic
+          maxSpeed: 1600,
+          deceleration: 2400,
+        }}
+        scrollZoom={{ around: "center" }}
+        touchZoomRotate={{ around: "center" }}
+        touchPitch={true}
+        pitchWithRotate={true}
+        renderWorldCopies={false}
+        fadeDuration={120}
+        onLoad={(e) => {
+          const map = e.target as mapboxgl.Map;
+          // Smoother continuous wheel/trackpad zoom
+          try {
+            map.scrollZoom.setWheelZoomRate(1 / 200);
+            map.scrollZoom.setZoomRate(1 / 80);
+          } catch {}
           void fetchPosts();
           setTimeout(() => geolocateRef.current?.trigger(), 350);
         }}
