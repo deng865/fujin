@@ -83,14 +83,47 @@ export default function CreatePost() {
         }
       }
 
+      // Strip auto-appended emoji metadata lines so the user only sees their own text
+      // and we don't double-append on save. Matches the join produced in handleSubmit.
+      const stripExtras = (text: string | null): string => {
+        if (!text) return "";
+        // Remove the trailing extras block (preceded by a blank line and starting with our emoji prefixes)
+        return text
+          .replace(/\n\n(?:[🏠💰🚗🎨🔢🕐📋][^\n]*(?:\s\|\s|$))+$/u, "")
+          .trim();
+      };
+
+      // Backfill driver vehicle info from profiles (kept in sync at publish time)
+      let carModel = "";
+      let vehicleColor = "";
+      let licensePlate = "";
+      if (data.category === "driver") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("vehicle_model, vehicle_color, license_plate")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (prof) {
+            carModel = prof.vehicle_model || "";
+            vehicleColor = prof.vehicle_color || "";
+            licensePlate = prof.license_plate || "";
+          }
+        }
+      }
+
       setFormData({
         ...initialFormData,
         title: data.title || "",
-        description: data.description || "",
+        description: stripExtras(data.description),
         price: data.price != null ? String(data.price) : "",
         phone: data.contact_phone || "",
         wechatId: data.contact_wechat || "",
         imageUrls: data.image_urls || [],
+        carModel,
+        vehicleColor,
+        licensePlate,
         is24Hours,
         weeklySchedule,
         mobileLocationPrecise: (data as any).mobile_location_precise ?? false,
@@ -227,7 +260,8 @@ export default function CreatePost() {
         }
       }
 
-      const postPayload = {
+      const usePrecise = isMobile && formData.mobileLocationPrecise;
+      const postPayload: any = {
         title: formData.title.trim(),
         description: desc?.trim() || null,
         category,
@@ -241,6 +275,13 @@ export default function CreatePost() {
         operating_hours: operatingHours,
         mobile_location_precise: isMobile ? formData.mobileLocationPrecise : false,
       };
+      // For precise mobile merchants, seed live_* immediately so the map icon
+      // is in the right place before the tracker streams its first update.
+      if (usePrecise) {
+        postPayload.live_latitude = finalLat;
+        postPayload.live_longitude = finalLng;
+        postPayload.live_updated_at = new Date().toISOString();
+      }
 
       if (editId) {
         const { error } = await supabase.from("posts").update(postPayload).eq("id", editId);
