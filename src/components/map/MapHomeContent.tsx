@@ -15,7 +15,7 @@ import MapControls from "@/components/MapControls";
 import PostMarkers from "@/components/PostMarkers";
 import { useVisitTracker } from "@/hooks/useVisitTracker";
 import MapFilterChips, { defaultFilters, type MapFilters } from "@/components/MapFilterChips";
-import MapListSheet from "@/components/MapListSheet";
+import MapListSheet, { type MapListSheetHandle } from "@/components/MapListSheet";
 import { toast } from "@/hooks/use-toast";
 
 const DEFAULT_CENTER = { lat: 32.7767, lng: -96.797 };
