@@ -361,6 +361,8 @@ export default function MapHomeContent() {
       className="relative h-[100dvh] w-screen overflow-hidden bg-background"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       <MapGL
         ref={mapRef}
