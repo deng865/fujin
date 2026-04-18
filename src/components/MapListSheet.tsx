@@ -78,12 +78,11 @@ interface MapListSheetProps {
   selectedCategory?: string | null;
   mapTapped?: number;
   mapSwipedUp?: number;
-  onSheetHeightChange?: (height: number) => void;
 }
 
 import { type MapFilters } from "@/components/MapFilterChips";
 
-type SheetState = "hidden" | "peek" | "half" | "preview" | "full";
+type SheetState = "hidden" | "peek" | "half" | "full";
 
 const BOTTOM_NAV = 56;
 const HANDLE_HEIGHT = 28;
@@ -97,15 +96,17 @@ export interface MapListSheetHandle {
 const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function MapListSheet({
   posts, userLat, userLng, hasUserLocation = false, selectedPost, onSelectPost,
   favoriteIds, onToggleFavorite, filters, onFiltersChange,
-  selectedCategory, mapTapped = 0, mapSwipedUp = 0, onSheetHeightChange,
+  selectedCategory, mapTapped = 0, mapSwipedUp = 0,
 }, ref) {
   const [state, setState] = useState<SheetState>("peek");
   const [ratingsEnabled, setRatingsEnabled] = useState(false);
   const prevMapTapped = useRef(mapTapped);
 
+  // When a post is selected (from marker or list), spring the drawer up to half.
+  // User can then drag up to full to read more, like Google Maps.
   useEffect(() => {
     if (selectedPost) {
-      setState("preview");
+      setState("half");
     }
   }, [selectedPost]);
 
@@ -140,7 +141,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       case "hidden": return HANDLE_HEIGHT;
       case "peek": return 72;
       case "half": return Math.round(vh * 0.45);
-      case "preview": return Math.round(vh * 0.45);
       case "full": return Math.round(vh * 0.85);
     }
   }, []);
@@ -176,8 +176,7 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     heightRef.current = h;
     const el = sheetRef.current;
     if (el) el.style.height = `${h}px`;
-    onSheetHeightChange?.(h);
-  }, [onSheetHeightChange]);
+  }, []);
 
   // Sync height when state changes externally (selectedPost, mapTapped, etc.)
   // Spring-animate to the new target instead of CSS transition.
@@ -289,19 +288,26 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       }
     }
 
-    // Selected-post mode: discrete behavior preserved
+    // Selected-post mode: snap between half and full; pull down past peek dismisses detail.
     if (selectedPost) {
       const dy = heightRef.current - d.startHeight;
       const threshold = 50;
-      if (state === "preview") {
+      const halfH = getHeight("half");
+      // Down-fling beyond half → close detail and return to list peek.
+      if ((dy < -threshold || velocity < -0.6) && heightRef.current < halfH - 40) {
+        onSelectPost(null);
+        setState("peek");
+        forceRender((n) => n + 1);
+        return;
+      }
+      if (state === "half") {
         if (dy > threshold || velocity > 0.4) setState("full");
-        else if (dy < -threshold || velocity < -0.4) { onSelectPost(null); setState("half"); }
-        else animateTo(getHeight(state));
+        else animateTo(getHeight("half"), velocity * 1000);
       } else if (state === "full") {
-        if (dy < -threshold || velocity < -0.4) setState("preview");
-        else animateTo(getHeight(state));
+        if (dy < -threshold || velocity < -0.4) setState("half");
+        else animateTo(getHeight("full"), velocity * 1000);
       } else {
-        animateTo(getHeight(state));
+        animateTo(getHeight(state), velocity * 1000);
       }
       forceRender((n) => n + 1);
       return;
@@ -412,14 +418,10 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
 
   const handleBackToList = useCallback(() => {
     onSelectPost(null);
-    setState("half");
+    setState("peek");
   }, [onSelectPost]);
 
-  const isPreview = state === "preview" && selectedPost;
-  const isFull = state === "full" && selectedPost;
-
-  // Header (title row) is ALWAYS visible whenever drawer is open — never hidden behind map controls.
-  // List/peek body switches based on drawer height.
+  // Header (title row) shows in list mode only.
   const showHeader = !selectedPost && state !== "hidden";
   const showList = !selectedPost && displayHeight > 140;
   const showPeek = !selectedPost && !showList && state !== "hidden" && sorted.length > 0;
@@ -463,22 +465,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
         )}
       </div>
 
-      {/* Preview mode */}
-      {isPreview && (
-        <PreviewCard
-          post={selectedPost}
-          userLat={userLat}
-          userLng={userLng}
-          hasUserLocation={hasUserLocation}
-          isFavorite={favoriteIds.has(selectedPost.id)}
-          onToggleFavorite={onToggleFavorite}
-          onExpand={() => setState("full")}
-          onBack={handleBackToList}
-        />
-      )}
-
-      {/* Full detail mode */}
-      {isFull && (
+      {/* Detail mode — direct full content, like Google Maps */}
+      {selectedPost && (
         <InlinePostDetail
           post={selectedPost}
           onBack={handleBackToList}
