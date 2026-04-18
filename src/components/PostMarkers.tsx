@@ -477,16 +477,21 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
   const SelectedIcon = (selectedIconName && iconMap[selectedIconName]) || MapPin;
   const selectedColorClass = selectedPost ? hashColor(selectedPost.category) : null;
 
-  const selectedLat = selectedPost
-    ? selectedPost.is_mobile && selectedPost.live_latitude != null
-      ? selectedPost.live_latitude
-      : selectedPost.latitude
-    : 0;
-  const selectedLng = selectedPost
-    ? selectedPost.is_mobile && selectedPost.live_longitude != null
-      ? selectedPost.live_longitude
-      : selectedPost.longitude
-    : 0;
+  // For mobile merchants the highlight marker MUST use fuzzified coords too,
+  // otherwise selecting a post would reveal the real position.
+  const selectedCoords = useMemo(() => {
+    if (!selectedPost) return { lat: 0, lng: 0 };
+    if (selectedPost.is_mobile) {
+      const realLat = selectedPost.live_latitude != null ? selectedPost.live_latitude : selectedPost.latitude;
+      const realLng = selectedPost.live_longitude != null ? selectedPost.live_longitude : selectedPost.longitude;
+      const { lat, lng } = fuzzifyLocation(realLat, realLng, selectedPost.id);
+      return { lat, lng };
+    }
+    return { lat: selectedPost.latitude, lng: selectedPost.longitude };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPost, fuzzyTick]);
+  const selectedLat = selectedCoords.lat;
+  const selectedLng = selectedCoords.lng;
 
   return (
     <>
