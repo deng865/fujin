@@ -66,51 +66,9 @@ const CLUSTER_COUNT_LAYER = "posts-cluster-count";
 const POINT_LAYER = "posts-points";
 const FAV_LAYER = "posts-fav-badge";
 
-// Pre-rendered SVG icons converted to Mapbox images so the GPU can draw them
-// instead of mounting hundreds of React DOM nodes.
-function renderIconToImage(
-  Icon: React.ComponentType<{ className?: string }>,
-  bg: string,
-): HTMLCanvasElement {
-  const size = 64;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return canvas;
-
-  // Background circle
-  ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
-  ctx.fillStyle = bg;
-  ctx.shadowColor = "rgba(0,0,0,0.25)";
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetY = 2;
-  ctx.fill();
-
-  // White ring
-  ctx.shadowColor = "transparent";
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "rgba(255,255,255,0.85)";
-  ctx.stroke();
-
-  // Render lucide icon: lucide exports React components, we need raw SVG.
-  // The simplest path: draw a generic glyph (white dot) since all lucide
-  // icons can't be rasterized inside this util without a renderer. Symbol
-  // recognition is done via background color + text caption.
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 28px system-ui, -apple-system, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("•", size / 2, size / 2 + 2);
-
-  return canvas;
-}
-
 export default function PostMarkers({ posts, onSelectPost, favoriteIds, selectedPostId }: PostMarkersProps) {
   const { current: mapRef } = useMap();
   const [catMap, setCatMap] = useState<Record<string, string>>({});
-  const registeredImagesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     supabase
