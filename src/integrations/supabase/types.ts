@@ -1294,6 +1294,10 @@ export type Database = {
             }
             Returns: string
           }
+      can_user_rate_target: {
+        Args: { _receiver: string; _sender: string }
+        Returns: Json
+      }
       can_user_review_post: {
         Args: { _device_id?: string; _post_id: string; _user_id: string }
         Returns: Json
