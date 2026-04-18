@@ -430,9 +430,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       className={cn(
         "absolute left-0 right-0 z-30 bg-background rounded-t-2xl flex flex-col",
         "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
-        "will-change-transform",
-        selectedPost ? "" : "touch-none select-none",
-        !isDragging && "transition-[height] duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]"
+        "will-change-[height]",
+        selectedPost ? "" : "touch-none select-none"
       )}
       style={{
         bottom: `${BOTTOM_NAV}px`,
