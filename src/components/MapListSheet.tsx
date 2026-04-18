@@ -308,12 +308,12 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       return;
     }
 
-    // List mode: velocity-aware snap.
-    const order: SheetState[] = ["hidden", "peek", "half", "full"];
+    // List mode: velocity-aware snap with enlarged deadzone (Google Maps-like).
+    const order: SheetState[] = ["peek", "half", "full"];
     const heights = order.map(getHeight);
     const cur = heightRef.current;
 
-    // Find current "between" index
+    // Find nearest anchor by distance
     let nearestIdx = 0;
     let bestDist = Infinity;
     for (let i = 0; i < heights.length; i++) {
@@ -322,30 +322,39 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     }
 
     let targetIdx = nearestIdx;
-    const VELOCITY_THRESHOLD = 0.5; // px/ms
+    const VELOCITY_THRESHOLD = 0.5; // px/ms — fling intent
+    const SNAP_DEADZONE = 80;       // within this distance, always go to nearest
+
     if (Math.abs(velocity) > VELOCITY_THRESHOLD) {
-      // Fling toward next anchor in the velocity direction
+      // Fling toward next anchor in velocity direction
       if (velocity > 0) {
-        // growing → next higher anchor at or above current
         targetIdx = order.findIndex((_, i) => heights[i] > cur);
         if (targetIdx === -1) targetIdx = order.length - 1;
       } else {
-        // shrinking → next lower anchor at or below current
         for (let i = order.length - 1; i >= 0; i--) {
           if (heights[i] < cur) { targetIdx = i; break; }
         }
+        if (targetIdx === nearestIdx && cur < heights[0]) targetIdx = 0;
+      }
+    } else if (bestDist > SNAP_DEADZONE) {
+      // Outside deadzone but slow — snap toward direction of drag
+      const dy = cur - d.startHeight;
+      if (dy > 0) {
+        targetIdx = order.findIndex((_, i) => heights[i] > cur);
+        if (targetIdx === -1) targetIdx = order.length - 1;
+      } else if (dy < 0) {
+        for (let i = order.length - 1; i >= 0; i--) {
+          if (heights[i] < cur) { targetIdx = i; break; }
+        }
+        if (targetIdx < 0) targetIdx = 0;
       }
     }
 
     const targetState = order[targetIdx];
-    // Pass velocity in px/s to spring as initial velocity
     if (targetState === state) {
       animateTo(heights[targetIdx], velocity * 1000);
     } else {
-      // setState will trigger the effect above which re-animates with 0 velocity;
-      // do it imperatively here with current velocity for momentum continuity.
       setState(targetState);
-      // override the effect's animation: slight delay so React commits state, then animate w/ velocity
       requestAnimationFrame(() => animateTo(heights[targetIdx], velocity * 1000));
     }
     forceRender((n) => n + 1);
