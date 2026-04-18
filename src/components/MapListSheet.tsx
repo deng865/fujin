@@ -148,6 +148,56 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
 
   const currentHeight = getHeight(state);
 
+  // Core drag primitives — used by both the drawer's own touch handlers
+  // and by the parent map area via the imperative ref.
+  const beginDragInternal = useCallback((clientY: number) => {
+    dragRef.current.startY = clientY;
+    dragRef.current.startState = state;
+    setIsDragging(true);
+    setDragOffset(0);
+  }, [state]);
+
+  const updateDragInternal = useCallback((clientY: number) => {
+    const dy = dragRef.current.startY - clientY;
+    setDragOffset(dy);
+  }, []);
+
+  const endDragInternal = useCallback(() => {
+    setIsDragging((dragging) => {
+      if (!dragging) return false;
+      const dy = dragOffset;
+
+      // Selected-post mode: keep discrete behavior to avoid disturbing preview/full UX
+      if (selectedPost) {
+        const threshold = 50;
+        if (state === "preview") {
+          if (dy > threshold) setState("full");
+          else if (dy < -threshold) { onSelectPost(null); setState("half"); }
+        } else if (state === "full") {
+          if (dy < -threshold) setState("preview");
+        }
+        setDragOffset(0);
+        return false;
+      }
+
+      // List mode: snap to NEAREST anchor based on final displayHeight
+      const finalHeight = Math.max(
+        HANDLE_HEIGHT,
+        Math.min(window.innerHeight * 0.85, currentHeight + dy)
+      );
+      const candidates: SheetState[] = ["hidden", "peek", "half", "full"];
+      let nearest: SheetState = "peek";
+      let bestDist = Infinity;
+      for (const c of candidates) {
+        const d = Math.abs(getHeight(c) - finalHeight);
+        if (d < bestDist) { bestDist = d; nearest = c; }
+      }
+      setState(nearest);
+      setDragOffset(0);
+      return false;
+    });
+  }, [dragOffset, selectedPost, state, currentHeight, getHeight, onSelectPost]);
+
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     if (selectedPost && state === "full") {
       const detailEl = detailScrollRef.current;
@@ -165,57 +215,24 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       if (touchY >= listRect.top && touchY <= listRect.bottom && list.scrollTop > 0) return;
     }
 
-    dragRef.current.startY = e.touches[0].clientY;
-    dragRef.current.startState = state;
-    setIsDragging(true);
-  }, [state, selectedPost]);
+    beginDragInternal(e.touches[0].clientY);
+  }, [state, selectedPost, beginDragInternal]);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging) return;
-    const dy = dragRef.current.startY - e.touches[0].clientY;
-    setDragOffset(dy);
-  }, [isDragging]);
+    updateDragInternal(e.touches[0].clientY);
+  }, [isDragging, updateDragInternal]);
 
   const onTouchEnd = useCallback(() => {
     if (!isDragging) return;
-    setIsDragging(false);
-    const dy = dragOffset;
-    const threshold = 50;
+    endDragInternal();
+  }, [isDragging, endDragInternal]);
 
-    if (selectedPost) {
-      if (state === "preview") {
-        if (dy > threshold) {
-          setState("full");
-        } else if (dy < -threshold) {
-          onSelectPost(null);
-          setState("half");
-        }
-      } else if (state === "full") {
-        if (dy < -threshold) {
-          setState("preview");
-        }
-      }
-      setDragOffset(0);
-      return;
-    }
-
-    if (dy > threshold) {
-      setState((s) => {
-        if (s === "hidden") return "peek";
-        if (s === "peek") return "half";
-        if (s === "half") return "full";
-        return s;
-      });
-    } else if (dy < -threshold) {
-      setState((s) => {
-        if (s === "full") return "half";
-        if (s === "half") return "peek";
-        if (s === "peek") return "hidden";
-        return s;
-      });
-    }
-    setDragOffset(0);
-  }, [isDragging, dragOffset, selectedPost, onSelectPost, state]);
+  useImperativeHandle(ref, () => ({
+    beginDrag: beginDragInternal,
+    updateDrag: updateDragInternal,
+    endDrag: endDragInternal,
+  }), [beginDragInternal, updateDragInternal, endDragInternal]);
 
   const displayHeight = isDragging
     ? Math.max(HANDLE_HEIGHT, Math.min(window.innerHeight * 0.85, currentHeight + dragOffset))
