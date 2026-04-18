@@ -74,6 +74,7 @@ const MOBILE_SOURCE_ID = "posts-mobile-source";
 const MOBILE_AREA_FILL = "posts-mobile-area-fill";
 const MOBILE_AREA_STROKE = "posts-mobile-area-stroke";
 const MOBILE_CENTER_DOT = "posts-mobile-center-dot";
+const MOBILE_CENTER_ICON = "posts-mobile-center-icon";
 
 const ICON_PIXEL = 36; // logical px (we render @2x for retina)
 
@@ -203,13 +204,16 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     };
   }, [fixedPosts, favoriteIds, catMap]);
 
-  // Mobile merchants — fuzzy point (no precise icon) used to render service area circles.
+  // Mobile merchants — fuzzy point used for service area circles + a precise-looking
+  // center pin (icon) so users can recognize the merchant category at a glance.
+  // The CIRCLE is the privacy layer; the icon sits at the (already coarsened) center.
   const mobileGeojson = useMemo(() => {
     return {
       type: "FeatureCollection" as const,
       features: mobilePosts.map((post) => {
         const lat = post.live_latitude != null ? post.live_latitude : post.latitude;
         const lng = post.live_longitude != null ? post.live_longitude : post.longitude;
+        const iconName = catMap[post.category] || "MapPin";
         return {
           type: "Feature" as const,
           id: post.id,
@@ -220,11 +224,12 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
           properties: {
             postId: post.id,
             color: hashColor(post.category),
+            icon: `sprite-${iconName}`,
           },
         };
       }),
     };
-  }, [mobilePosts]);
+  }, [mobilePosts, catMap]);
 
   const selectedPost = useMemo(
     () => posts.find((p) => p.id === selectedPostId) ?? null,
@@ -237,7 +242,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       if (!map) return;
 
       const features = map.queryRenderedFeatures(e.point, {
-        layers: [POINT_LAYER, ICON_LAYER, CLUSTER_LAYER, MOBILE_AREA_FILL, MOBILE_CENTER_DOT],
+        layers: [POINT_LAYER, ICON_LAYER, CLUSTER_LAYER, MOBILE_AREA_FILL, MOBILE_CENTER_DOT, MOBILE_CENTER_ICON],
       });
       if (!features.length) return;
 
@@ -282,6 +287,8 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     map.on("mouseleave", MOBILE_AREA_FILL, onLeave);
     map.on("mouseenter", MOBILE_CENTER_DOT, onEnter);
     map.on("mouseleave", MOBILE_CENTER_DOT, onLeave);
+    map.on("mouseenter", MOBILE_CENTER_ICON, onEnter);
+    map.on("mouseleave", MOBILE_CENTER_ICON, onLeave);
 
     return () => {
       map.off("click", handleMapClick);
@@ -295,6 +302,8 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       map.off("mouseleave", MOBILE_AREA_FILL, onLeave);
       map.off("mouseenter", MOBILE_CENTER_DOT, onEnter);
       map.off("mouseleave", MOBILE_CENTER_DOT, onLeave);
+      map.off("mouseenter", MOBILE_CENTER_ICON, onEnter);
+      map.off("mouseleave", MOBILE_CENTER_ICON, onLeave);
     };
   }, [mapRef, handleMapClick]);
 
@@ -385,17 +394,18 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
   };
 
   // ===== Mobile (fuzzy) merchants — service area circle =====
-  // Radius represents ~500m on screen, interpolated across zoom levels.
+  // Larger, more vibrant circle communicates a "service area" rather than a precise pin,
+  // protecting the mobile merchant's exact location for personal safety.
   const mobileAreaFillLayer: CircleLayerSpecification = {
     id: MOBILE_AREA_FILL,
     type: "circle",
     source: MOBILE_SOURCE_ID,
     paint: {
       "circle-color": ["get", "color"],
-      "circle-opacity": 0.18,
+      "circle-opacity": 0.28,
       "circle-radius": [
         "interpolate", ["exponential", 2], ["zoom"],
-        8, 1, 10, 4, 12, 16, 14, 63, 16, 252, 18, 1009,
+        8, 2, 10, 8, 12, 32, 14, 126, 16, 504, 18, 2018,
       ],
       "circle-pitch-alignment": "map",
     },
@@ -408,27 +418,40 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-stroke-color": ["get", "color"],
-      "circle-stroke-width": 1.5,
-      "circle-stroke-opacity": 0.55,
+      "circle-stroke-width": 2,
+      "circle-stroke-opacity": 0.7,
       "circle-radius": [
         "interpolate", ["exponential", 2], ["zoom"],
-        8, 1, 10, 4, 12, 16, 14, 63, 16, 252, 18, 1009,
+        8, 2, 10, 8, 12, 32, 14, 126, 16, 504, 18, 2018,
       ],
       "circle-pitch-alignment": "map",
     },
   };
 
-  // Small center dot — provides a click target and visual anchor for the fuzzy area.
+  // Colored pin background at the (already-fuzzy) center — matches fixed merchant style.
   const mobileCenterDotLayer: CircleLayerSpecification = {
     id: MOBILE_CENTER_DOT,
     type: "circle",
     source: MOBILE_SOURCE_ID,
     paint: {
       "circle-color": ["get", "color"],
-      "circle-radius": 6,
-      "circle-stroke-width": 2,
+      "circle-radius": 16,
+      "circle-stroke-width": 2.5,
       "circle-stroke-color": "#ffffff",
-      "circle-opacity": 0.9,
+      "circle-opacity": 0.95,
+    },
+  };
+
+  // White Lucide icon overlaid on the center pin — mirrors fixed merchants.
+  const mobileCenterIconLayer: SymbolLayerSpecification = {
+    id: MOBILE_CENTER_ICON,
+    type: "symbol",
+    source: MOBILE_SOURCE_ID,
+    layout: {
+      "icon-image": ["get", "icon"],
+      "icon-size": 0.5,
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
     },
   };
 
@@ -469,6 +492,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
         <Layer {...mobileAreaFillLayer} />
         <Layer {...mobileAreaStrokeLayer} />
         <Layer {...mobileCenterDotLayer} />
+        <Layer {...mobileCenterIconLayer} />
       </Source>
 
       {selectedPost && (
