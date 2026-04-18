@@ -63,8 +63,11 @@ export default function BottomNav() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[999] bg-background border-t border-border/30">
-      <div className="px-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) * 0.15)" }}>
+    <div
+      className="fixed bottom-0 left-0 right-0 z-[999] bg-background border-t border-border/30"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      <div className="px-2 pb-1">
         <div className="flex items-center justify-around max-w-lg mx-auto relative">
           {tabs.map((tab) => {
             const Icon = tab.icon;
