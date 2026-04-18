@@ -299,9 +299,17 @@ export default function MapHomeContent() {
     return true;
   }), [posts, selectedCategory, center.lat, center.lng, searchRadius, filters]);
 
-  // Detect single-finger swipe-up on the map area to expand the drawer.
-  // Skip multi-touch (pinch-zoom), require vertical-dominant motion, start in lower 60%.
-  const swipeRef = useRef<{ x: number; y: number; t: number; fired: boolean; touches: number } | null>(null);
+  // Single-finger vertical swipes anywhere on the map drive the drawer height
+  // continuously via the imperative handle. We only intercept once vertical
+  // motion clearly dominates so map pan/pinch-zoom keep working.
+  const swipeRef = useRef<{
+    x: number;
+    y: number;
+    active: boolean;
+    claimed: boolean;
+    touches: number;
+  } | null>(null);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length !== 1) {
       swipeRef.current = null;
@@ -311,25 +319,41 @@ export default function MapHomeContent() {
     swipeRef.current = {
       x: t.clientX,
       y: t.clientY,
-      t: Date.now(),
-      fired: false,
+      active: true,
+      claimed: false,
       touches: 1,
     };
   }, []);
+
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     const s = swipeRef.current;
-    if (!s || s.fired) return;
+    if (!s || !s.active) return;
     if (e.touches.length !== 1) {
+      if (s.claimed) sheetHandleRef.current?.endDrag();
       swipeRef.current = null;
       return;
     }
     const t = e.touches[0];
     const dx = t.clientX - s.x;
     const dy = s.y - t.clientY; // positive when swiping up
-    if (dy > 40 && dy > Math.abs(dx) * 1.5 && s.y > window.innerHeight * 0.4) {
-      s.fired = true;
-      setMapSwipedUp((v) => v + 1);
+
+    if (!s.claimed) {
+      // Need clear vertical intent before claiming the gesture from the map.
+      // Start point must be in lower 60% of screen to avoid hijacking top controls.
+      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx) * 1.5 && s.y > window.innerHeight * 0.4) {
+        s.claimed = true;
+        sheetHandleRef.current?.beginDrag(s.y);
+      } else {
+        return;
+      }
     }
+    sheetHandleRef.current?.updateDrag(t.clientY);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    const s = swipeRef.current;
+    if (s?.claimed) sheetHandleRef.current?.endDrag();
+    swipeRef.current = null;
   }, []);
 
   return (
