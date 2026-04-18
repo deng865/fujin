@@ -289,7 +289,7 @@ export default function CreatePost() {
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col">
-      <div className="flex-shrink-0 z-20 bg-background/90 backdrop-blur-xl border-b border-border/50">
+      <div className="flex-shrink-0 z-20 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-accent rounded-xl active:scale-95">
             <ArrowLeft className="h-5 w-5" />
