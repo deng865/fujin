@@ -158,6 +158,10 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     samples: Array<{ y: number; t: number }>;
     rafPending: boolean;
     pendingY: number;
+    // Nested-scroll lock state: once the user is scrolling the inner list,
+    // we must NOT hijack the gesture into a drawer drag until the touch ends.
+    deferredFromList: boolean;
+    listEl: HTMLElement | null;
   }>({
     active: false,
     startY: 0,
@@ -165,6 +169,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     samples: [],
     rafPending: false,
     pendingY: 0,
+    deferredFromList: false,
+    listEl: null,
   });
 
   const setHeight = useCallback((h: number) => {
