@@ -68,6 +68,7 @@ interface MapListSheetProps {
   posts: Post[];
   userLat: number;
   userLng: number;
+  hasUserLocation?: boolean;
   selectedPost: Post | null;
   onSelectPost: (post: Post | null) => void;
   favoriteIds: Set<string>;
@@ -87,7 +88,7 @@ const BOTTOM_NAV = 72;
 const HANDLE_HEIGHT = 28;
 
 export default function MapListSheet({
-  posts, userLat, userLng, selectedPost, onSelectPost,
+  posts, userLat, userLng, hasUserLocation = false, selectedPost, onSelectPost,
   favoriteIds, onToggleFavorite, filters, onFiltersChange,
   selectedCategory, mapTapped = 0, onSheetHeightChange,
 }: MapListSheetProps) {
@@ -289,6 +290,7 @@ export default function MapListSheet({
           post={selectedPost}
           userLat={userLat}
           userLng={userLng}
+          hasUserLocation={hasUserLocation}
           isFavorite={favoriteIds.has(selectedPost.id)}
           onToggleFavorite={onToggleFavorite}
           onExpand={() => setState("full")}
@@ -305,6 +307,7 @@ export default function MapListSheet({
           onToggleFavorite={onToggleFavorite}
           userLat={userLat}
           userLng={userLng}
+          hasUserLocation={hasUserLocation}
           scrollRef={detailScrollRef}
         />
       )}
@@ -331,6 +334,7 @@ export default function MapListSheet({
                   post={post}
                   userLat={userLat}
                   userLng={userLng}
+                  hasUserLocation={hasUserLocation}
                   isFavorite={favoriteIds.has(post.id)}
                   onToggleFavorite={onToggleFavorite}
                   onSelect={() => onSelectPost(post)}
@@ -358,7 +362,9 @@ export default function MapListSheet({
             <div className="flex-1 min-w-0">
               <h4 className="text-sm font-semibold text-foreground line-clamp-1">{sorted[0].title}</h4>
               <span className="text-xs text-muted-foreground">
-                {kmToMiles(haversineKm(userLat, userLng, sorted[0].latitude, sorted[0].longitude)).toFixed(1)} mi
+                {hasUserLocation
+                  ? `${kmToMiles(haversineKm(userLat, userLng, sorted[0].latitude, sorted[0].longitude)).toFixed(1)} mi`
+                  : "需要定位"}
               </span>
             </div>
           </div>
@@ -436,11 +442,12 @@ function ImageGallery({ urls, onClickExpand }: { urls: string[]; onClickExpand?:
 
 /* ─── Google Maps style list card ─── */
 function ListCard({
-  post, userLat, userLng, isFavorite, onToggleFavorite, onSelect, showDivider, ratingData,
+  post, userLat, userLng, hasUserLocation, isFavorite, onToggleFavorite, onSelect, showDivider, ratingData,
 }: {
   post: Post;
   userLat: number;
   userLng: number;
+  hasUserLocation: boolean;
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
   onSelect: () => void;
@@ -555,7 +562,7 @@ function ListCard({
             </>
           )}
           <span className="text-muted-foreground">
-            {distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
+            {!hasUserLocation ? "需要定位" : distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
           </span>
         </div>
 
@@ -601,11 +608,12 @@ function ListCard({
 
 /* ─── Preview card (45% height, Google Maps style) ─── */
 function PreviewCard({
-  post, userLat, userLng, isFavorite, onToggleFavorite, onExpand, onBack,
+  post, userLat, userLng, hasUserLocation, isFavorite, onToggleFavorite, onExpand, onBack,
 }: {
   post: Post;
   userLat: number;
   userLng: number;
+  hasUserLocation: boolean;
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
   onExpand: () => void;
@@ -698,7 +706,7 @@ function PreviewCard({
           </>
         )}
         <span className="text-muted-foreground">
-          {distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
+          {!hasUserLocation ? "需要定位" : distMi < 0.1 ? "附近" : `${distMi.toFixed(1)} mi`}
         </span>
       </div>
 
