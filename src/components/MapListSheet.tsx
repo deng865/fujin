@@ -408,7 +408,9 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       )}
     </div>
   );
-}
+});
+
+export default MapListSheet;
 
 /* ─── Responsive image gallery ─── */
 function ImageGallery({ urls, onClickExpand }: { urls: string[]; onClickExpand?: () => void }) {
