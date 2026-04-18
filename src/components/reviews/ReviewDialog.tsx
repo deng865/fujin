@@ -197,8 +197,8 @@ export default function ReviewDialog({
           </div>
         )}
 
-        {/* Eligibility banner — fixed merchants only */}
-        {targetType === "fixed_merchant" && eligibility && !eligibility.allowed && (
+        {/* Eligibility banner — applies to all target types */}
+        {eligibility && !eligibility.allowed && !checkingEligibility && (
           <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-500/10 rounded-xl py-2 px-3">
             <Lock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             <span>{eligibility.reason || "暂无评价资格"}</span>
