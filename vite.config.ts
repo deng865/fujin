@@ -16,11 +16,23 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
-          if (id.includes("mapbox-gl") || id.includes("react-map-gl")) return "map";
+          // Keep React + all React-dependent libs together to avoid
+          // "Cannot read properties of undefined (reading 'createContext')"
+          // caused by chunk load order races.
+          if (
+            id.includes("/react/") ||
+            id.includes("/react-dom/") ||
+            id.includes("react-router") ||
+            id.includes("scheduler") ||
+            id.includes("react-map-gl") ||
+            id.includes("@radix-ui") ||
+            id.includes("use-sync-external-store")
+          ) {
+            return "react-vendor";
+          }
+          if (id.includes("mapbox-gl")) return "mapbox";
           if (id.includes("@supabase")) return "supabase";
-          if (id.includes("lucide-react") || id.includes("sonner")) return "ui";
           if (id.includes("date-fns")) return "date";
-          if (id.includes("react-router") || id.includes("/react-dom/") || id.includes("/react/")) return "react";
         },
       },
     },
