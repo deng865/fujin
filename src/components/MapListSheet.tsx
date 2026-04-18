@@ -77,6 +77,7 @@ interface MapListSheetProps {
   onFiltersChange: (filters: MapFilters) => void;
   selectedCategory?: string | null;
   mapTapped?: number;
+  mapSwipedUp?: number;
   onSheetHeightChange?: (height: number) => void;
 }
 
