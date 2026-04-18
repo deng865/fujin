@@ -204,13 +204,16 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     };
   }, [fixedPosts, favoriteIds, catMap]);
 
-  // Mobile merchants — fuzzy point (no precise icon) used to render service area circles.
+  // Mobile merchants — fuzzy point used for service area circles + a precise-looking
+  // center pin (icon) so users can recognize the merchant category at a glance.
+  // The CIRCLE is the privacy layer; the icon sits at the (already coarsened) center.
   const mobileGeojson = useMemo(() => {
     return {
       type: "FeatureCollection" as const,
       features: mobilePosts.map((post) => {
         const lat = post.live_latitude != null ? post.live_latitude : post.latitude;
         const lng = post.live_longitude != null ? post.live_longitude : post.longitude;
+        const iconName = catMap[post.category] || "MapPin";
         return {
           type: "Feature" as const,
           id: post.id,
@@ -221,11 +224,12 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
           properties: {
             postId: post.id,
             color: hashColor(post.category),
+            icon: `sprite-${iconName}`,
           },
         };
       }),
     };
-  }, [mobilePosts]);
+  }, [mobilePosts, catMap]);
 
   const selectedPost = useMemo(
     () => posts.find((p) => p.id === selectedPostId) ?? null,
