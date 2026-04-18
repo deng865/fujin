@@ -82,7 +82,7 @@ interface MapListSheetProps {
 
 import { type MapFilters } from "@/components/MapFilterChips";
 
-type SheetState = "hidden" | "peek" | "half" | "full";
+type SheetState = "peek" | "half" | "full";
 
 const BOTTOM_NAV = 56;
 const HANDLE_HEIGHT = 28;
@@ -102,19 +102,15 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   const [ratingsEnabled, setRatingsEnabled] = useState(false);
   const prevMapTapped = useRef(mapTapped);
 
-  // When a post is selected (from marker or list), spring the drawer up to half.
-  // User can then drag up to full to read more, like Google Maps.
+  // When a post is selected, spring to half ONLY if currently in peek (preserve half/full).
   useEffect(() => {
-    if (selectedPost) {
+    if (selectedPost && state === "peek") {
       setState("half");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPost]);
 
-  useEffect(() => {
-    if (selectedCategory && !selectedPost) {
-      setState("half");
-    }
-  }, [selectedCategory, selectedPost]);
+  // Selecting a category should NOT force a state change — keep current drawer position.
 
   useEffect(() => {
     if (mapTapped > 0 && mapTapped !== prevMapTapped.current) {
@@ -138,10 +134,9 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   const getHeight = useCallback((s: SheetState) => {
     const vh = window.innerHeight;
     switch (s) {
-      case "hidden": return HANDLE_HEIGHT;
-      case "peek": return 72;
-      case "half": return Math.round(vh * 0.45);
-      case "full": return Math.round(vh * 0.85);
+      case "peek": return 120;
+      case "half": return Math.round(vh * 0.5);
+      case "full": return Math.round(vh * 0.9);
     }
   }, []);
 
@@ -184,8 +179,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     springRef.current = { velocity: initialVelocity, target, lastTs: 0 };
 
-    const stiffness = 220; // higher = snappier
-    const damping = 28;    // higher = less oscillation
+    const stiffness = 180; // softer = more iOS-like
+    const damping = 26;
 
     const tick = (ts: number) => {
       const s = springRef.current;
@@ -223,12 +218,12 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // Rubber-band: limit overshoot beyond [HANDLE_HEIGHT, vh*0.95]
+  // Rubber-band: limit overshoot below peek (60px give) and above full
   const clampWithRubber = useCallback((h: number) => {
     const vh = window.innerHeight;
-    const min = HANDLE_HEIGHT;
-    const max = Math.round(vh * 0.85);
-    if (h < min) return min - (min - h) * 0.3;
+    const min = 120 - 60; // peek - rubber give
+    const max = Math.round(vh * 0.9);
+    if (h < min) return min - (min - h) * 0.4;
     if (h > max) return max + (h - max) * 0.3;
     return h;
   }, []);
@@ -313,12 +308,12 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       return;
     }
 
-    // List mode: velocity-aware snap.
-    const order: SheetState[] = ["hidden", "peek", "half", "full"];
+    // List mode: velocity-aware snap with enlarged deadzone (Google Maps-like).
+    const order: SheetState[] = ["peek", "half", "full"];
     const heights = order.map(getHeight);
     const cur = heightRef.current;
 
-    // Find current "between" index
+    // Find nearest anchor by distance
     let nearestIdx = 0;
     let bestDist = Infinity;
     for (let i = 0; i < heights.length; i++) {
@@ -327,30 +322,39 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     }
 
     let targetIdx = nearestIdx;
-    const VELOCITY_THRESHOLD = 0.5; // px/ms
+    const VELOCITY_THRESHOLD = 0.5; // px/ms — fling intent
+    const SNAP_DEADZONE = 80;       // within this distance, always go to nearest
+
     if (Math.abs(velocity) > VELOCITY_THRESHOLD) {
-      // Fling toward next anchor in the velocity direction
+      // Fling toward next anchor in velocity direction
       if (velocity > 0) {
-        // growing → next higher anchor at or above current
         targetIdx = order.findIndex((_, i) => heights[i] > cur);
         if (targetIdx === -1) targetIdx = order.length - 1;
       } else {
-        // shrinking → next lower anchor at or below current
         for (let i = order.length - 1; i >= 0; i--) {
           if (heights[i] < cur) { targetIdx = i; break; }
         }
+        if (targetIdx === nearestIdx && cur < heights[0]) targetIdx = 0;
+      }
+    } else if (bestDist > SNAP_DEADZONE) {
+      // Outside deadzone but slow — snap toward direction of drag
+      const dy = cur - d.startHeight;
+      if (dy > 0) {
+        targetIdx = order.findIndex((_, i) => heights[i] > cur);
+        if (targetIdx === -1) targetIdx = order.length - 1;
+      } else if (dy < 0) {
+        for (let i = order.length - 1; i >= 0; i--) {
+          if (heights[i] < cur) { targetIdx = i; break; }
+        }
+        if (targetIdx < 0) targetIdx = 0;
       }
     }
 
     const targetState = order[targetIdx];
-    // Pass velocity in px/s to spring as initial velocity
     if (targetState === state) {
       animateTo(heights[targetIdx], velocity * 1000);
     } else {
-      // setState will trigger the effect above which re-animates with 0 velocity;
-      // do it imperatively here with current velocity for momentum continuity.
       setState(targetState);
-      // override the effect's animation: slight delay so React commits state, then animate w/ velocity
       requestAnimationFrame(() => animateTo(heights[targetIdx], velocity * 1000));
     }
     forceRender((n) => n + 1);
@@ -422,9 +426,9 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   }, [onSelectPost]);
 
   // Header (title row) shows in list mode only.
-  const showHeader = !selectedPost && state !== "hidden";
+  const showHeader = !selectedPost;
   const showList = !selectedPost && displayHeight > 140;
-  const showPeek = !selectedPost && !showList && state !== "hidden" && sorted.length > 0;
+  const showPeek = !selectedPost && !showList && sorted.length > 0;
 
   return (
     <div
@@ -455,12 +459,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
               <h3 className="text-base font-bold text-foreground">附近</h3>
               <span className="text-xs text-muted-foreground">{sorted.length} 个结果</span>
             </div>
-            <button
-              onClick={() => setState("hidden")}
-              className="p-1.5 rounded-full hover:bg-accent transition-colors"
-            >
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
           </div>
         )}
       </div>

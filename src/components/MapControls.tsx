@@ -20,8 +20,8 @@ export default function MapControls({ onLocateMe, onMapTypeChange, currentMapTyp
 
   return (
     <div
-      className="absolute right-4 z-20 flex flex-col gap-2 items-end"
-      style={{ top: `calc(env(safe-area-inset-top, 0px) + 5rem)` }}
+      className="absolute right-4 z-20 flex flex-col gap-1.5 items-end"
+      style={{ top: `calc(env(safe-area-inset-top, 0px) + 8.5rem)` }}
     >
       <button
         onClick={onResetNorth}
