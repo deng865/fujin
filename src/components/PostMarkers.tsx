@@ -216,12 +216,18 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
   // Mobile merchants — fuzzy point used for service area circles + a precise-looking
   // center pin (icon) so users can recognize the merchant category at a glance.
   // The CIRCLE is the privacy layer; the icon sits at the (already coarsened) center.
+  //
+  // Privacy: real coordinates NEVER reach the render layer. We snap to a
+  // ~500m grid and add a per-(grid+post+10min) deterministic offset so the
+  // center stays put while the merchant moves inside their grid cell, and
+  // rotates every 10 minutes to confuse longitudinal observers.
   const mobileGeojson = useMemo(() => {
     return {
       type: "FeatureCollection" as const,
       features: mobilePosts.map((post) => {
-        const lat = post.live_latitude != null ? post.live_latitude : post.latitude;
-        const lng = post.live_longitude != null ? post.live_longitude : post.longitude;
+        const realLat = post.live_latitude != null ? post.live_latitude : post.latitude;
+        const realLng = post.live_longitude != null ? post.live_longitude : post.longitude;
+        const { lat, lng } = fuzzifyLocation(realLat, realLng, post.id);
         const iconName = catMap[post.category] || "MapPin";
         return {
           type: "Feature" as const,
@@ -238,7 +244,9 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
         };
       }),
     };
-  }, [mobilePosts, catMap]);
+    // fuzzyTick intentionally included so the offset rotates over time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobilePosts, catMap, fuzzyTick]);
 
   const selectedPost = useMemo(
     () => posts.find((p) => p.id === selectedPostId) ?? null,
