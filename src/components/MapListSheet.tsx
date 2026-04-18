@@ -82,7 +82,7 @@ interface MapListSheetProps {
 
 import { type MapFilters } from "@/components/MapFilterChips";
 
-type SheetState = "hidden" | "peek" | "half" | "full";
+type SheetState = "peek" | "half" | "full";
 
 const BOTTOM_NAV = 56;
 const HANDLE_HEIGHT = 28;
