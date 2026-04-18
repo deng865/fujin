@@ -261,7 +261,7 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       deferredFromList: false,
       listEl: null,
     };
-    forceRender((n) => n + 1); // mark dragging for class toggling
+    // Drag state lives in refs only — no React re-render during gesture.
   }, []);
 
   const updateDragInternal = useCallback((clientY: number) => {
@@ -314,7 +314,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       if ((dy < -threshold || velocity < -0.6) && heightRef.current < halfH - 40) {
         onSelectPost(null);
         setState("peek");
-        forceRender((n) => n + 1);
         return;
       }
       if (state === "half") {
@@ -326,7 +325,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       } else {
         animateTo(getHeight(state), velocity * 1000);
       }
-      forceRender((n) => n + 1);
       return;
     }
 
@@ -379,7 +377,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       setState(targetState);
       requestAnimationFrame(() => animateTo(heights[targetIdx], velocity * 1000));
     }
-    forceRender((n) => n + 1);
   }, [animateTo, getHeight, onSelectPost, selectedPost, state]);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
@@ -450,8 +447,9 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     endDrag: endDragInternal,
   }), [beginDragInternal, updateDragInternal, endDragInternal]);
 
-  const isDragging = dragRef.current.active;
-  const displayHeight = heightRef.current;
+  // Note: do NOT read heightRef.current into a render-time variable; height is
+  // applied directly to the DOM via setHeight(). React renders are decoupled
+  // from drag frames so the list never re-renders during interaction.
 
   // Stable sort by distance, with id as tie-breaker so equal distances never swap order.
   const liveSorted = useMemo(() => {
@@ -486,11 +484,14 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
 
   const sorted = snapshotRef.current;
 
+  // Ratings load once after the list is non-empty and stay enabled — no
+  // dependency on `state`, so dragging the drawer never causes a flash.
   useEffect(() => {
-    setRatingsEnabled(false);
+    if (sorted.length === 0) return;
+    if (ratingsEnabled) return;
     const timer = window.setTimeout(() => setRatingsEnabled(true), 250);
     return () => window.clearTimeout(timer);
-  }, [sorted.length, state]);
+  }, [sorted.length, ratingsEnabled]);
 
   const ratingInputs = useMemo(() => {
     if (!ratingsEnabled) return [];
@@ -506,10 +507,17 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     setState("peek");
   }, [onSelectPost]);
 
-  // Header (title row) shows in list mode only.
+  // Mounting decisions are driven by SNAP STATE, not the live drag height.
+  // This guarantees the list/peek subtree is never mounted/unmounted mid-drag,
+  // eliminating the "flicker" that happens when crossing pixel thresholds.
   const showHeader = !selectedPost;
-  const showList = !selectedPost && displayHeight > 140;
-  const showPeek = !selectedPost && !showList && sorted.length > 0;
+  const showList = !selectedPost && (state === "half" || state === "full");
+  const showPeek = !selectedPost && state === "peek" && sorted.length > 0;
+
+  // The sheet is always rendered at MAX height (90dvh). Visible portion is
+  // controlled exclusively by `transform: translate3d(0, Y, 0)` — runs on the
+  // GPU compositor, never triggers layout/paint of children.
+  const maxHeight = getMaxHeight();
 
   return (
     <div
@@ -517,14 +525,15 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       className={cn(
         "absolute left-0 right-0 z-30 bg-background rounded-t-2xl flex flex-col",
         "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
-        "will-change-[height] overscroll-contain",
-        // Allow native vertical scroll inside (for the inner list); we still
-        // intercept gestures via touch handlers when appropriate.
-        "touch-pan-y select-none"
+        "overscroll-contain touch-pan-y"
       )}
       style={{
         bottom: `${BOTTOM_NAV}px`,
-        height: `${displayHeight}px`,
+        height: `${maxHeight}px`,
+        willChange: "transform",
+        transform: `translate3d(0, ${maxHeight - heightRef.current}px, 0)`,
+        backfaceVisibility: "hidden",
+        WebkitBackfaceVisibility: "hidden",
       }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
