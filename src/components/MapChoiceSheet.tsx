@@ -26,11 +26,11 @@ function MapChoiceSheet({ open, onClose, appleMapsUrl, googleMapsUrl }: MapChoic
 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="rounded-t-3xl focus:outline-none">
-        <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-muted-foreground/20" />
+      <DrawerContent className="rounded-t-3xl focus:outline-none max-h-[90dvh]">
+        <div className="mx-auto mt-2 h-1.5 w-12 rounded-full bg-muted-foreground/20 shrink-0" />
         <div
-          className="px-5 pt-4 space-y-3"
-          style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+          className="px-5 pt-4 space-y-3 overflow-y-auto"
+          style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
         >
           <h3 className="text-base font-semibold text-foreground text-center">选择地图应用</h3>
           <button
