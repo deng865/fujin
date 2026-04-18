@@ -50,6 +50,7 @@ interface Post {
   image_urls: string[] | null;
   created_at: string;
   is_mobile?: boolean;
+  mobile_location_precise?: boolean | null;
   live_latitude?: number | null;
   live_longitude?: number | null;
   live_updated_at?: string | null;
