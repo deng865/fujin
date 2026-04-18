@@ -110,6 +110,7 @@ export default function ReviewDialog({
   };
 
   const handleSubmit = async () => {
+    if (submitting) return; // hard guard against double-tap
     if (rating === 0) { toast.error("请选择评分"); return; }
     if (rating <= 2 && comment.trim().length < 10) {
       toast.error("低分评价请至少写10个字说明原因，以确保公正");
@@ -126,16 +127,16 @@ export default function ReviewDialog({
 
     setSubmitting(true);
 
-    // Server-side eligibility re-check for fixed merchants
+    // Server-side eligibility re-check for ALL target types
     const deviceId = getDeviceId();
-    if (targetType === "fixed_merchant" && postId) {
-      const { data: check } = await supabase
-        .rpc("can_user_review_post" as any, { _user_id: senderId, _post_id: postId, _device_id: deviceId });
-      if (check && !(check as any).allowed) {
-        toast.error((check as any).reason || "暂无评价资格");
-        setSubmitting(false);
-        return;
-      }
+    const recheck = postId
+      ? await supabase.rpc("can_user_review_post" as any, { _user_id: senderId, _post_id: postId, _device_id: deviceId })
+      : await supabase.rpc("can_user_rate_target" as any, { _sender: senderId, _receiver: receiverId });
+
+    if (recheck?.data && !(recheck.data as any).allowed) {
+      toast.error((recheck.data as any).reason || "暂无评价资格");
+      setSubmitting(false);
+      return;
     }
 
     const { error } = await supabase.from("reviews").insert({
@@ -153,7 +154,7 @@ export default function ReviewDialog({
     } as any);
 
     if (error?.code === "23505") {
-      toast.error("你已经评价过了");
+      toast.error(error.message || "24 小时内已评价过");
     } else if (error) {
       toast.error("评价失败，请重试");
     } else {
