@@ -244,6 +244,12 @@ export default function MapListSheet({
   const isPreview = state === "preview" && selectedPost;
   const isFull = state === "full" && selectedPost;
 
+  // Show title + list whenever the drawer is taller than peek (during drag too),
+  // so the header and content move together as one block.
+  const showHeader = !selectedPost && (state !== "hidden") && (displayHeight > 120);
+  const showList = !selectedPost && displayHeight > 140;
+  const showPeek = !selectedPost && !showList && state !== "hidden" && sorted.length > 0;
+
   return (
     <div
       ref={sheetRef}
