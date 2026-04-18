@@ -10,10 +10,11 @@ interface MediaUploadProps {
   onChange: (urls: string[]) => void;
 }
 
-async function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promise<File> {
+async function compressImage(file: File, maxWidth = 1080, quality = 0.72): Promise<File> {
   if (!file.type.startsWith("image/")) return file;
   return new Promise((resolve) => {
     const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       let w = img.width, h = img.height;
       if (w > maxWidth) { h = (maxWidth / w) * h; w = maxWidth; }
@@ -21,11 +22,15 @@ async function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promis
       canvas.width = w; canvas.height = h;
       canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
       canvas.toBlob(
-        (blob) => resolve(new File([blob!], file.name, { type: "image/jpeg" })),
+        (blob) => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(blob ? new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }) : file);
+        },
         "image/jpeg", quality
       );
     };
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
   });
 }
 
