@@ -384,6 +384,54 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     },
   };
 
+  // ===== Mobile (fuzzy) merchants — service area circle =====
+  // Radius represents ~500m on screen, interpolated across zoom levels.
+  const mobileAreaFillLayer: CircleLayerSpecification = {
+    id: MOBILE_AREA_FILL,
+    type: "circle",
+    source: MOBILE_SOURCE_ID,
+    paint: {
+      "circle-color": ["get", "color"],
+      "circle-opacity": 0.18,
+      "circle-radius": [
+        "interpolate", ["exponential", 2], ["zoom"],
+        8, 1, 10, 4, 12, 16, 14, 63, 16, 252, 18, 1009,
+      ],
+      "circle-pitch-alignment": "map",
+    },
+  };
+
+  const mobileAreaStrokeLayer: CircleLayerSpecification = {
+    id: MOBILE_AREA_STROKE,
+    type: "circle",
+    source: MOBILE_SOURCE_ID,
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-stroke-color": ["get", "color"],
+      "circle-stroke-width": 1.5,
+      "circle-stroke-opacity": 0.55,
+      "circle-radius": [
+        "interpolate", ["exponential", 2], ["zoom"],
+        8, 1, 10, 4, 12, 16, 14, 63, 16, 252, 18, 1009,
+      ],
+      "circle-pitch-alignment": "map",
+    },
+  };
+
+  // Small center dot — provides a click target and visual anchor for the fuzzy area.
+  const mobileCenterDotLayer: CircleLayerSpecification = {
+    id: MOBILE_CENTER_DOT,
+    type: "circle",
+    source: MOBILE_SOURCE_ID,
+    paint: {
+      "circle-color": ["get", "color"],
+      "circle-radius": 6,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 0.9,
+    },
+  };
+
   // Selected marker (DOM) — re-uses the existing icon styling on a single node.
   const selectedIconName = selectedPost ? catMap[selectedPost.category] : undefined;
   const SelectedIcon = (selectedIconName && iconMap[selectedIconName]) || MapPin;
