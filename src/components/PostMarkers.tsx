@@ -72,8 +72,6 @@ const FAV_LAYER = "posts-fav-badge";
 
 // Mobile (fuzzy) merchants — separate source so they aren't clustered with fixed pins.
 const MOBILE_SOURCE_ID = "posts-mobile-source";
-const MOBILE_AREA_FILL = "posts-mobile-area-fill";
-const MOBILE_AREA_STROKE = "posts-mobile-area-stroke";
 const MOBILE_CENTER_DOT = "posts-mobile-center-dot";
 const MOBILE_CENTER_ICON = "posts-mobile-center-icon";
 
@@ -259,7 +257,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       if (!map) return;
 
       const features = map.queryRenderedFeatures(e.point, {
-        layers: [POINT_LAYER, ICON_LAYER, CLUSTER_LAYER, MOBILE_AREA_FILL, MOBILE_CENTER_DOT, MOBILE_CENTER_ICON],
+        layers: [POINT_LAYER, ICON_LAYER, CLUSTER_LAYER, MOBILE_CENTER_DOT, MOBILE_CENTER_ICON],
       });
       if (!features.length) return;
 
@@ -300,8 +298,6 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     map.on("mouseleave", ICON_LAYER, onLeave);
     map.on("mouseenter", CLUSTER_LAYER, onEnter);
     map.on("mouseleave", CLUSTER_LAYER, onLeave);
-    map.on("mouseenter", MOBILE_AREA_FILL, onEnter);
-    map.on("mouseleave", MOBILE_AREA_FILL, onLeave);
     map.on("mouseenter", MOBILE_CENTER_DOT, onEnter);
     map.on("mouseleave", MOBILE_CENTER_DOT, onLeave);
     map.on("mouseenter", MOBILE_CENTER_ICON, onEnter);
@@ -315,8 +311,6 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       map.off("mouseleave", ICON_LAYER, onLeave);
       map.off("mouseenter", CLUSTER_LAYER, onEnter);
       map.off("mouseleave", CLUSTER_LAYER, onLeave);
-      map.off("mouseenter", MOBILE_AREA_FILL, onEnter);
-      map.off("mouseleave", MOBILE_AREA_FILL, onLeave);
       map.off("mouseenter", MOBILE_CENTER_DOT, onEnter);
       map.off("mouseleave", MOBILE_CENTER_DOT, onLeave);
       map.off("mouseenter", MOBILE_CENTER_ICON, onEnter);
@@ -410,40 +404,11 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     },
   };
 
-  // ===== Mobile (fuzzy) merchants — service area circle =====
-  // Larger, more vibrant circle communicates a "service area" rather than a precise pin,
-  // protecting the mobile merchant's exact location for personal safety.
-  const mobileAreaFillLayer: CircleLayerSpecification = {
-    id: MOBILE_AREA_FILL,
-    type: "circle",
-    source: MOBILE_SOURCE_ID,
-    paint: {
-      "circle-color": ["get", "color"],
-      "circle-opacity": 0.28,
-      "circle-radius": [
-        "interpolate", ["exponential", 2], ["zoom"],
-        8, 2, 10, 8, 12, 32, 14, 126, 16, 504, 18, 2018,
-      ],
-      "circle-pitch-alignment": "map",
-    },
-  };
-
-  const mobileAreaStrokeLayer: CircleLayerSpecification = {
-    id: MOBILE_AREA_STROKE,
-    type: "circle",
-    source: MOBILE_SOURCE_ID,
-    paint: {
-      "circle-color": "rgba(0,0,0,0)",
-      "circle-stroke-color": ["get", "color"],
-      "circle-stroke-width": 2,
-      "circle-stroke-opacity": 0.7,
-      "circle-radius": [
-        "interpolate", ["exponential", 2], ["zoom"],
-        8, 2, 10, 8, 12, 32, 14, 126, 16, 504, 18, 2018,
-      ],
-      "circle-pitch-alignment": "map",
-    },
-  };
+  // ===== Mobile (fuzzy) merchants =====
+  // Translucent service-area circles were removed per design — only the
+  // category center pin is shown. Privacy is still preserved because the
+  // pin sits on the fuzzified (grid-snapped + rotating offset) coordinate,
+  // never the merchant's real location.
 
   // Colored pin background at the (already-fuzzy) center — matches fixed merchant style.
   const mobileCenterDotLayer: CircleLayerSpecification = {
@@ -511,8 +476,6 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       </Source>
 
       <Source id={MOBILE_SOURCE_ID} type="geojson" data={mobileGeojson}>
-        <Layer {...mobileAreaFillLayer} />
-        <Layer {...mobileAreaStrokeLayer} />
         <Layer {...mobileCenterDotLayer} />
         <Layer {...mobileCenterIconLayer} />
       </Source>
