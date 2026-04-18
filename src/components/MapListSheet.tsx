@@ -426,9 +426,9 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   }, [onSelectPost]);
 
   // Header (title row) shows in list mode only.
-  const showHeader = !selectedPost && state !== "hidden";
+  const showHeader = !selectedPost;
   const showList = !selectedPost && displayHeight > 140;
-  const showPeek = !selectedPost && !showList && state !== "hidden" && sorted.length > 0;
+  const showPeek = !selectedPost && !showList && sorted.length > 0;
 
   return (
     <div
