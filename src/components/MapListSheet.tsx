@@ -551,8 +551,7 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
         <div
           ref={listRef}
           className={cn(
-            "flex-1 overflow-y-auto overscroll-contain",
-            state === "full" ? "touch-auto" : "touch-none"
+            "flex-1 overflow-y-auto overscroll-contain touch-pan-y"
           )}
         >
           {sorted.length === 0 ? (
