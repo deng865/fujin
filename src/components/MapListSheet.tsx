@@ -576,6 +576,7 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
           className={cn(
             "flex-1 overflow-y-auto overscroll-contain touch-pan-y"
           )}
+          style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
         >
           {sorted.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
