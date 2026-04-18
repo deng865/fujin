@@ -1,54 +1,53 @@
 
 
-## 三个问题的诊断与修复
+## 诊断：评价为何可被无限重复提交
 
-### 问题 1 — 发布页面无法滑动
-**根因**：`src/pages/CreatePost.tsx` 的滚动容器（第 302 行 `<div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">`）位于 `fixed inset-0` 的父级中。在 iOS WKWebView / 移动端浏览器里，Tailwind 的 `flex-1` 在某些情况下不会给子元素一个明确的 `min-height: 0`，导致 flex 子项撑满后无法触发内部滚动。同时缺少 `WebkitOverflowScrolling: "touch"`，iOS 原生惯性失效。
+我深入检查了 `ReviewDialog.tsx`、迁移文件和数据库约束，发现「连续评价」漏洞由 **3 个层面共同造成**。
 
-**修复**：
-- 给滚动容器加 `min-h-0` 并显式 `WebkitOverflowScrolling: "touch"`。
-- 文件：`src/pages/CreatePost.tsx`（约 1 行 className 改动 + 1 行 style）。
+### 根本原因
 
-### 问题 2 — 我的评价页面无法滑动
-**根因**：`src/pages/Profile.tsx` 第 277 行 `<div className="min-h-screen bg-background pb-...">`。`min-h-screen` 让外层只是"至少占满屏幕"，但内容超出后是依靠 **document body** 滚动的；而 Profile 所在的 `AppLayout` 是 `100dvh + overflow:hidden` 的全屏布局，body 不会滚动 → 内容就被裁掉看不到也滑不动。
+**1. 客户端：只有 `fixed_merchant` 触发资格检查**
+`ReviewDialog.tsx` 第 47-65 行 effect 里写了 `if (!open || targetType !== "fixed_merchant" || ...)` 才调用 `can_user_review_post` RPC。第 128 行的提交前再校验也是同样条件。
+→ 结果：**`mobile_merchant`（移动商家 / 司机）和 `user`（聊天评价）完全跳过频率检查**，可无限点击提交。
 
-**修复**：
-- 把 `min-h-screen` 改为 `h-[100dvh] overflow-y-auto overscroll-contain`，让该子页面自身成为滚动容器。
-- 同时修复同文件中其它 subPage（"posts" / "privacy"）的相同问题。
-- 文件：`src/pages/Profile.tsx`（3 处 className 改动）。
+**2. 数据库：UNIQUE 约束遇到 NULL 失效**
+`reviews` 表的唯一键是 `(sender_id, receiver_id, post_id)`。在 PostgreSQL 中，`NULL` 永不等于 `NULL`，所以聊天里 `post_id` 为 null 的评价（行程评分、用户互评）**任何数量都不会触发 23505 重复错误**。
+→ 结果：同一个对话里点几次评分按键 = 数据库里塞几条评价。
 
-### 问题 3 — 点击地图标记无法弹出详情 + 标记没有图标
-这是两个相关问题：
+**3. RPC 校验函数对移动商家无 24h 限制场景**
+`can_user_review_post` 函数虽然写了 24h 设备频率检查与"已评价过"检查，但只有 fixed_merchant 这一条路径会调用它；移动商家与聊天用户评价根本不走这函数。
 
-**3a. 点击地图标记无反应**
-**根因**：`MapHomeContent.tsx` 第 355 行 `onClick={() => setMapTapped(...)}` 在地图任意位置点击都会触发 `mapTapped` 自增。而 `MapListSheet` 第 115-123 行的 effect 监听 `mapTapped`，会立即 `onSelectPost(null)` + `setState("peek")`。
+### 修复方案
 
-时序：用户点击 marker → PostMarkers 内部 `map.on("click", ...)` 调用 `onSelectPost(post)` → 同一帧 MapGL 的 React `onClick` 也触发 `setMapTapped` → effect 把 `selectedPost` 立即清空。结果：抽屉永远不会打开详情。
+**Step 1 — 客户端：所有 targetType 都做资格校验（前置 + 提交前）**
+- `ReviewDialog.tsx`：把 effect 和 handleSubmit 中的条件从 `targetType === "fixed_merchant"` 改为「只要 `postId` 存在就 RPC」。聊天里如果有 `postId`（比如点评对方的某条 post）就走 RPC；行程评分场景则用本地 24h 检查 + DB 唯一约束兜底。
+- 提交失败时清晰提示"24 小时内已评价过该商家/用户"。
 
-**修复**：在 PostMarkers 的 click handler 里，命中 marker/cluster 时调用 `e.preventDefault()` 或 `e.originalEvent.stopPropagation()`，并在 MapHomeContent 的 `onClick` 里检查 `e.features` —— 如果点中了标记图层就不重置。最干净的做法是在 PostMarkers 里给 MapGL 的事件设置一个标志位（或检查 `queryRenderedFeatures` 后再决定是否触发 mapTapped）。我们采用：在 `MapHomeContent` 的 `onClick` 里先 `queryRenderedFeatures` 检查是否点到了 `posts-points` 或 `posts-clusters`，是的话不触发 `mapTapped`。
+**Step 2 — 数据库：补全 RPC 函数，使其对移动商家与用户互评同样生效**
+更新 `can_user_review_post`：移除函数末尾"仅 fixed_merchant 才检查 visit"的硬限制 → 仅在 fixed_merchant 时附加 visit 校验，但 24h 频率与"已评价过"检查对所有 target 类型都执行。（现有函数其实已经做到了这一点，只是客户端没调用。所以本步骤更多是「确认 + 兜底」。）
 
-**3b. 标记不再显示对应分类图标**
-**根因**：上一轮性能优化（点聚合）把 DOM Marker 改成 Mapbox `circle` 图层，只能渲染纯色圆点 —— 完全丢失了每个分类对应的 Lucide 图标（Home / Car / Coffee 等）。圆点全是颜色编码，用户无法一眼分辨这是餐馆还是律师。
+**Step 3 — 数据库：新增"按 sender + receiver + 24h"评价频率函数**
+新增一个 SQL 函数 `can_user_rate_target(_sender uuid, _receiver uuid)`：检查同一发送者对同一接收者 24 小时内是否已评价（适用于 `post_id` 为 null 的聊天行程评分）。客户端在没有 `postId` 时调用此函数。
 
-**修复**：用 Mapbox `symbol` 图层 + 自定义 SVG 图标 sprite 渲染分类图标。流程：
-1. 应用启动时把分类对应的 Lucide 图标转成 PNG 数据 URL，再通过 `map.addImage(name, image)` 注册为 Mapbox sprite（一次性，缓存到 ref）。
-2. GeoJSON feature 的 `properties.icon` 存图标名。
-3. 把当前的 `pointLayer`（circle）改为 `symbol` 图层，用 `icon-image: ['get', 'icon']`、`icon-size: 1`、`icon-allow-overlap: true`，并在图标下面叠一层小一点的 `circle` 做彩色背景圆。
-4. 这样既保留 GPU 渲染性能，又恢复了"一眼可识别"的图标体验，跟谷歌地图 POI 标记一致。
+**Step 4 — 数据库：补强 UNIQUE 约束（处理 post_id 为 null 的场景）**
+新增一个 partial unique index：当 `post_id IS NULL` 时，禁止同一 (sender_id, receiver_id) 在 24 小时内重复 ——
+```sql
+CREATE UNIQUE INDEX reviews_unique_chat_rating
+  ON reviews (sender_id, receiver_id, date_trunc('day', created_at))
+  WHERE post_id IS NULL;
+```
+（或更精确：让 trigger 在 INSERT 时检查 24h 窗口内是否已存在并 raise exception。）
 
-实现细节：
-- 在 `PostMarkers.tsx` 顶部用 `useEffect` + `renderToStaticMarkup`（或 `lucide-react` 的 createElement → canvas → toDataURL）把所有用到的图标预渲染成 32×32 白色 PNG，注册到 map。
-- 簇（cluster）保持现有彩色 circle + 数字 symbol 不变。
-- "已选中"标记仍然用 DOM Marker（保留缩放动画）。
+**Step 5 — UI：评价提交后禁用按钮 + 关闭弹窗**
+当前虽然提交后会 `onOpenChange(false)`，但若 RPC 还没失败/网络慢，用户连击 Submit 按钮可发出多个请求。在 ReviewDialog 提交按钮上加 `submitting` 立即 disable（已有 `submitting` 状态，但 race condition 仍存在）。改为提交开始的瞬间就把按钮置灰并防止重复 RPC 调用。
 
-### 涉及的文件与改动量
-- `src/pages/CreatePost.tsx` — 滚动容器加 `min-h-0` + iOS 惯性（约 2 行）
-- `src/pages/Profile.tsx` — 3 个 subPage 容器从 `min-h-screen` 改成自身滚动（约 3 行）
-- `src/components/map/MapHomeContent.tsx` — `onClick` 里先做 hit-test，命中标记则不重置抽屉（约 10 行）
-- `src/components/PostMarkers.tsx` — 新增图标 sprite 注册逻辑 + symbol 图层（约 60 行）
+### 涉及的文件
+- `src/components/reviews/ReviewDialog.tsx` — 扩展资格校验条件至所有 targetType（约 30 行改动）
+- 新建迁移文件 `supabase/migrations/<timestamp>_review_rate_limit.sql` — 新增 `can_user_rate_target` 函数 + partial unique index / 24h trigger（约 50 行 SQL）
 
 ### 预期效果
-- 发布页面、评价页面、我的发布、隐私设置都可正常上下滑动。
-- 点击地图上任何标记或聚合圆点，都能正确弹出详情或展开聚合。
-- 地图标记显示对应分类的白色图标（在彩色圆背景上），跟谷歌地图风格一致。
+- 移动商家（司机/上门服务）24 小时内同一用户只能评价一次。
+- 聊天行程评分（user 类型，无 postId）同一对发送者→接收者 24 小时内只能评价一次。
+- 客户端遇到重复时显示明确提示「24 小时内已评价过」。
+- 即使绕过前端，DB 层 trigger / unique index 也会硬阻挡。
 
