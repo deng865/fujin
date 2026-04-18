@@ -1,30 +1,33 @@
 
 
-## 两个问题修复
+## 两个改动
 
-### 问题 1 — 我的发布状态文案错误
-当前 `MyPostsList.tsx` 显示「服务中 / 已下班」，用户要求改回「在线 / 离线」。
+### 1. 固定商家状态需根据营业时间动态变化
+当前 `MyPostsList.tsx` 固定商家显示固定的「营业中/已打烊」文案，未跟随实际营业时间。
 
-**修复**（`src/components/profile/MyPostsList.tsx`）：
-- 移动商家状态文字统一为「🟢 在线 / 🔴 离线」
-- 固定商家保持「🟢 营业中 / 🔴 已打烊」
-- 保留「⏰ 已定时」徽章和定时锁定逻辑（点击上线时定时下班期仍提示）
+**修复**：引入 `isCurrentlyOpen(post.operating_hours)` 判断，固定商家：
+- 营业时段 → 「🟢 营业中」
+- 非营业时段 → 「🔴 已打烊」
+- 未配置营业时间 → 沿用 `is_visible` 字段
 
-### 问题 2 — 地图商家图标未默认展示
-当前 `PostMarkers.tsx` 用了 GeoJSON + Symbol 图层 + sprite 注册逻辑，但 sprite 是异步加载的（`ensureIconSprite` 通过 `Image.onload` 才注册到 map），首次渲染时图标尚未就绪，只显示彩色圆点；用户点击后由于 DOM Marker（selected）才看到图标。
+### 2. 移动商家地图上显示模糊服务区域
+当前 `PostMarkers.tsx` 移动商家显示精确点位（live_latitude/longitude）。需改为：
+- 移动商家在地图上显示一个圆形的「服务区域」（半径约 500m），不显示精确图标点
+- 圆心位置用真实坐标，但通过半径模糊化
+- 订单成交后（暂不实现这部分流程，仅做地图展示层），由其他场景显示精确位置
 
-**根因**：sprite 注册依赖 `<img>` 异步加载 → map symbol layer 找不到 image → 静默不渲染图标。且 sprite 注册完成后没有触发 source 重绘。
-
-**修复**（`src/components/PostMarkers.tsx`）：
-1. `ensureIconSprite` 完成后调用 `map.triggerRepaint()` 强制重绘 symbol layer。
-2. 在 useEffect 中，当 `catMap` 变化时，确保所有用到的图标在 sprite 注册完成后再触发一次 source data 更新（通过 setData 或 triggerRepaint）。
-3. 监听 map 的 `styleimagemissing` 事件，作为兜底：当 symbol 找不到 image 时按需注册对应 sprite。
+**实现**：
+- 在 `PostMarkers.tsx` 中将 posts 拆分为 `mobilePosts` 和 `fixedPosts` 两组
+- 固定商家维持现有 GeoJSON + symbol 图层（精确点 + 图标）
+- 移动商家用独立的 GeoJSON Source + Circle Layer 渲染半径 500m 的半透明圆（用 `circle-radius` 配合 zoom 插值，或使用 turf.js 生成实际地理圆 polygon）。为简单起见使用 `circle` 图层 + zoom-based radius 插值
+- 移动商家圆形中心放置一个小图标点（仍使用分类色），但不展示精确符号
+- 点击圆形或中心点 → 触发 `onSelectPost`
 
 ### 涉及文件
-- `src/components/profile/MyPostsList.tsx` — 状态文案改回「在线/离线」（约 4 行）
-- `src/components/PostMarkers.tsx` — sprite 加载完成后触发重绘 + styleimagemissing 兜底（约 20 行）
+- `src/components/profile/MyPostsList.tsx` — 固定商家状态跟随营业时间（约 6 行）
+- `src/components/PostMarkers.tsx` — 移动商家改为模糊圆形服务区（约 60 行）
 
 ### 预期效果
-- 我的发布页：移动商家显示「🟢 在线 / 🔴 离线」，固定商家显示「🟢 营业中 / 🔴 已打烊」，定时徽章和锁定逻辑保留。
-- 地图首次加载时，所有商家标记直接显示对应分类的白色 Lucide 图标（在彩色圆背景上），无需点击。
+- 我的发布页固定商家状态实时反映营业时间（开店/打烊）
+- 地图上移动商家不再显示精确位置点，而是显示一个分类色的半透明圆形区域，保护移动商家的精确位置隐私
 
