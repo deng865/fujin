@@ -106,6 +106,8 @@ function ensureIconSprite(map: any, name: string): Promise<void> {
           if (!map.hasImage(spriteId)) {
             map.addImage(spriteId, data, { pixelRatio: 2 });
           }
+          // Force symbol layer to repaint now that the image is registered.
+          map.triggerRepaint?.();
         } catch {}
         resolve();
       };
