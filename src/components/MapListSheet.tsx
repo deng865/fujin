@@ -88,11 +88,17 @@ type SheetState = "hidden" | "peek" | "half" | "preview" | "full";
 const BOTTOM_NAV = 56;
 const HANDLE_HEIGHT = 28;
 
-export default function MapListSheet({
+export interface MapListSheetHandle {
+  beginDrag: (clientY: number) => void;
+  updateDrag: (clientY: number) => void;
+  endDrag: () => void;
+}
+
+const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function MapListSheet({
   posts, userLat, userLng, hasUserLocation = false, selectedPost, onSelectPost,
   favoriteIds, onToggleFavorite, filters, onFiltersChange,
   selectedCategory, mapTapped = 0, mapSwipedUp = 0, onSheetHeightChange,
-}: MapListSheetProps) {
+}, ref) {
   const [state, setState] = useState<SheetState>("peek");
   const [ratingsEnabled, setRatingsEnabled] = useState(false);
   const prevMapTapped = useRef(mapTapped);
