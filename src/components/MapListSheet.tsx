@@ -255,7 +255,7 @@ export default function MapListSheet({
         !isDragging && "transition-[height] duration-300 ease-out"
       )}
       style={{
-        bottom: `${BOTTOM_NAV}px`,
+        bottom: `calc(${BOTTOM_NAV}px + env(safe-area-inset-bottom))`,
         height: `${displayHeight}px`,
       }}
       onTouchStart={onTouchStart}

@@ -22,7 +22,7 @@ export default function MapControls({ onLocateMe, onMapTypeChange, currentMapTyp
   return (
     <div
       className="absolute right-4 z-10 flex flex-col gap-2 items-end transition-[bottom] duration-300 ease-out"
-      style={{ bottom: `${72 + bottomOffset + 16}px` }}
+      style={{ bottom: `calc(${72 + bottomOffset + 16}px + env(safe-area-inset-bottom))` }}
     >
       {showLayers && (
         <div className="bg-background/80 backdrop-blur-2xl rounded-2xl shadow-xl border border-border/30 p-1.5 flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
