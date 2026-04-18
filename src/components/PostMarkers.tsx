@@ -298,8 +298,6 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     map.on("mouseleave", ICON_LAYER, onLeave);
     map.on("mouseenter", CLUSTER_LAYER, onEnter);
     map.on("mouseleave", CLUSTER_LAYER, onLeave);
-    map.on("mouseenter", MOBILE_AREA_FILL, onEnter);
-    map.on("mouseleave", MOBILE_AREA_FILL, onLeave);
     map.on("mouseenter", MOBILE_CENTER_DOT, onEnter);
     map.on("mouseleave", MOBILE_CENTER_DOT, onLeave);
     map.on("mouseenter", MOBILE_CENTER_ICON, onEnter);
