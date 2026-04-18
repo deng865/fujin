@@ -119,6 +119,20 @@ export default function MapListSheet({
     }
   }, [mapTapped, selectedPost, onSelectPost]);
 
+  const prevMapSwipedUp = useRef(mapSwipedUp);
+  useEffect(() => {
+    if (mapSwipedUp > 0 && mapSwipedUp !== prevMapSwipedUp.current) {
+      prevMapSwipedUp.current = mapSwipedUp;
+      if (selectedPost) return;
+      setState((s) => {
+        if (s === "hidden") return "peek";
+        if (s === "peek") return "half";
+        if (s === "half") return "full";
+        return s;
+      });
+    }
+  }, [mapSwipedUp, selectedPost]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const dragRef = useRef({ startY: 0, startState: state as SheetState });
