@@ -92,7 +92,7 @@ export default function BottomNav() {
                 onTouchStart={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
                 onMouseEnter={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
                 className={cn(
-                  "relative flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all active:scale-95",
+                  "relative flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all active:scale-95",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}
               >
