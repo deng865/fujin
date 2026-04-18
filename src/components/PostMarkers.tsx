@@ -394,17 +394,18 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
   };
 
   // ===== Mobile (fuzzy) merchants — service area circle =====
-  // Radius represents ~500m on screen, interpolated across zoom levels.
+  // Larger, more vibrant circle communicates a "service area" rather than a precise pin,
+  // protecting the mobile merchant's exact location for personal safety.
   const mobileAreaFillLayer: CircleLayerSpecification = {
     id: MOBILE_AREA_FILL,
     type: "circle",
     source: MOBILE_SOURCE_ID,
     paint: {
       "circle-color": ["get", "color"],
-      "circle-opacity": 0.18,
+      "circle-opacity": 0.28,
       "circle-radius": [
         "interpolate", ["exponential", 2], ["zoom"],
-        8, 1, 10, 4, 12, 16, 14, 63, 16, 252, 18, 1009,
+        8, 2, 10, 8, 12, 32, 14, 126, 16, 504, 18, 2018,
       ],
       "circle-pitch-alignment": "map",
     },
@@ -417,27 +418,40 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     paint: {
       "circle-color": "rgba(0,0,0,0)",
       "circle-stroke-color": ["get", "color"],
-      "circle-stroke-width": 1.5,
-      "circle-stroke-opacity": 0.55,
+      "circle-stroke-width": 2,
+      "circle-stroke-opacity": 0.7,
       "circle-radius": [
         "interpolate", ["exponential", 2], ["zoom"],
-        8, 1, 10, 4, 12, 16, 14, 63, 16, 252, 18, 1009,
+        8, 2, 10, 8, 12, 32, 14, 126, 16, 504, 18, 2018,
       ],
       "circle-pitch-alignment": "map",
     },
   };
 
-  // Small center dot — provides a click target and visual anchor for the fuzzy area.
+  // Colored pin background at the (already-fuzzy) center — matches fixed merchant style.
   const mobileCenterDotLayer: CircleLayerSpecification = {
     id: MOBILE_CENTER_DOT,
     type: "circle",
     source: MOBILE_SOURCE_ID,
     paint: {
       "circle-color": ["get", "color"],
-      "circle-radius": 6,
-      "circle-stroke-width": 2,
+      "circle-radius": 16,
+      "circle-stroke-width": 2.5,
       "circle-stroke-color": "#ffffff",
-      "circle-opacity": 0.9,
+      "circle-opacity": 0.95,
+    },
+  };
+
+  // White Lucide icon overlaid on the center pin — mirrors fixed merchants.
+  const mobileCenterIconLayer: SymbolLayerSpecification = {
+    id: MOBILE_CENTER_ICON,
+    type: "symbol",
+    source: MOBILE_SOURCE_ID,
+    layout: {
+      "icon-image": ["get", "icon"],
+      "icon-size": 0.5,
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
     },
   };
 
