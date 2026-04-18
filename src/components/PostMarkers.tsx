@@ -452,6 +452,9 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     if (selectedPost.is_mobile) {
       const realLat = selectedPost.live_latitude != null ? selectedPost.live_latitude : selectedPost.latitude;
       const realLng = selectedPost.live_longitude != null ? selectedPost.live_longitude : selectedPost.longitude;
+      if (selectedPost.mobile_location_precise) {
+        return { lat: realLat, lng: realLng };
+      }
       const { lat, lng } = fuzzifyLocation(realLat, realLng, selectedPost.id);
       return { lat, lng };
     }
