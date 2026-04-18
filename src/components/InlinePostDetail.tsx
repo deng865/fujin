@@ -47,6 +47,7 @@ interface InlinePostDetailProps {
   onToggleFavorite: (postId: string) => void;
   userLat: number;
   userLng: number;
+  hasUserLocation?: boolean;
   scrollRef?: React.RefObject<HTMLDivElement>;
 }
 
@@ -169,7 +170,7 @@ function ActionCapsule({ icon, label, primary = false, onClick }: {
   );
 }
 
-export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFavorite, userLat, userLng, scrollRef }: InlinePostDetailProps) {
+export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFavorite, userLat, userLng, hasUserLocation = false, scrollRef }: InlinePostDetailProps) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PostProfile | null>(null);
   const [postUserId, setPostUserId] = useState<string | null>(null);
@@ -308,7 +309,7 @@ export default function InlinePostDetail({ post, onBack, isFavorite, onToggleFav
             ) : null}
             <span className="flex items-center gap-1 text-muted-foreground ml-auto">
               <MapPin className="h-3 w-3" />
-              {distanceMi < 0.1 ? "附近" : `${distanceMi.toFixed(1)} mi`}
+              {!hasUserLocation ? "需要定位" : distanceMi < 0.1 ? "附近" : `${distanceMi.toFixed(1)} mi`}
             </span>
           </div>
 

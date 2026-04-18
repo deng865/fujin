@@ -73,7 +73,10 @@ export default function CategoryScroll({ selectedCategory, onSelectCategory }: C
   return (
     <>
       {/* Horizontal scroll bar */}
-      <div className="absolute top-[72px] left-0 right-0 z-10 pointer-events-none">
+      <div
+        className="absolute left-0 right-0 z-10 pointer-events-none"
+        style={{ top: "calc(env(safe-area-inset-top, 0px) + 72px)" }}
+      >
         <div className="pointer-events-auto px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
           <button onClick={() => handleSelect(null)} className={pillClass(!selectedCategory)}>
             全部

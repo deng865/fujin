@@ -299,7 +299,7 @@ export default function MapHomeContent() {
   }), [posts, selectedCategory, center.lat, center.lng, searchRadius, filters]);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-background">
+    <div className="relative h-[100dvh] w-screen overflow-hidden bg-background">
       <MapGL
         ref={mapRef}
         initialViewState={{
@@ -367,6 +367,7 @@ export default function MapHomeContent() {
         posts={filtered}
         userLat={userPos?.lat ?? center.lat}
         userLng={userPos?.lng ?? center.lng}
+        hasUserLocation={!!userPos}
         selectedPost={selectedPost}
         onSelectPost={setSelectedPost}
         favoriteIds={favoriteIds}
