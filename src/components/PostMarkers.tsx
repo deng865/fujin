@@ -1,5 +1,11 @@
-import { useState, useEffect } from "react";
-import { Marker } from "react-map-gl/mapbox";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Marker, Source, Layer, useMap } from "react-map-gl/mapbox";
+import type {
+  CircleLayerSpecification,
+  SymbolLayerSpecification,
+  MapMouseEvent as MapboxMapMouseEvent,
+  GeoJSONSource,
+} from "mapbox-gl";
 import {
   Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, Scale,
   MapPin, Wrench, ShoppingBag, Heart, Music, Camera, Star, Coffee, Scissors,
@@ -16,11 +22,12 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   BookOpen, Headphones, Truck, Wallet, Globe, Flower2, Sparkles, Pizza,
 };
 
+// HSL color pool aligned with the dot palette used in DOM markers.
 const colorPool = [
-  "bg-blue-500", "bg-emerald-500", "bg-orange-500", "bg-red-500",
-  "bg-purple-500", "bg-cyan-500", "bg-yellow-500", "bg-indigo-500",
-  "bg-pink-500", "bg-teal-500", "bg-lime-500", "bg-rose-500",
-  "bg-amber-500", "bg-violet-500", "bg-fuchsia-500", "bg-sky-500",
+  "#3b82f6", "#10b981", "#f97316", "#ef4444",
+  "#a855f7", "#06b6d4", "#eab308", "#6366f1",
+  "#ec4899", "#14b8a6", "#84cc16", "#f43f5e",
+  "#f59e0b", "#8b5cf6", "#d946ef", "#0ea5e9",
 ];
 
 function hashColor(name: string): string {
@@ -53,7 +60,14 @@ interface PostMarkersProps {
   selectedPostId?: string | null;
 }
 
+const SOURCE_ID = "posts-source";
+const CLUSTER_LAYER = "posts-clusters";
+const CLUSTER_COUNT_LAYER = "posts-cluster-count";
+const POINT_LAYER = "posts-points";
+const FAV_LAYER = "posts-fav-badge";
+
 export default function PostMarkers({ posts, onSelectPost, favoriteIds, selectedPostId }: PostMarkersProps) {
+  const { current: mapRef } = useMap();
   const [catMap, setCatMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -69,66 +83,228 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       });
   }, []);
 
-  return (
-    <>
-      {posts.map((post) => {
-        const iconName = catMap[post.category];
-        const Icon = (iconName && iconMap[iconName]) || MapPin;
-        const color = hashColor(post.category);
-        const isFav = favoriteIds?.has(post.id);
+  // Build a GeoJSON FeatureCollection — Mapbox handles clustering on the GPU.
+  const geojson = useMemo(() => {
+    return {
+      type: "FeatureCollection" as const,
+      features: posts.map((post) => {
         const isMobile = post.is_mobile === true;
-        const isSelected = selectedPostId === post.id;
-
         const lat = isMobile && post.live_latitude != null ? post.live_latitude : post.latitude;
         const lng = isMobile && post.live_longitude != null ? post.live_longitude : post.longitude;
+        const color = hashColor(post.category);
+        return {
+          type: "Feature" as const,
+          id: post.id,
+          geometry: {
+            type: "Point" as const,
+            coordinates: [lng, lat],
+          },
+          properties: {
+            postId: post.id,
+            color,
+            isMobile,
+            isFav: favoriteIds?.has(post.id) ? 1 : 0,
+          },
+        };
+      }),
+    };
+  }, [posts, favoriteIds]);
 
-        return (
-          <Marker
-            key={post.id}
-            latitude={lat}
-            longitude={lng}
-            anchor="center"
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              onSelectPost(post);
-            }}
-          >
+  // Selected post is still rendered as DOM Marker (single element, cheap)
+  // so the existing scale/ring animation feels native.
+  const selectedPost = useMemo(
+    () => posts.find((p) => p.id === selectedPostId) ?? null,
+    [posts, selectedPostId],
+  );
+
+  // Click handler — uses Mapbox queryRenderedFeatures so a single delegated
+  // listener replaces N per-marker handlers.
+  const handleMapClick = useCallback(
+    (e: MapboxMapMouseEvent & { features?: any[] }) => {
+      const map = mapRef?.getMap();
+      if (!map) return;
+
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: [POINT_LAYER, CLUSTER_LAYER],
+      });
+      if (!features.length) return;
+
+      const feature = features[0];
+      // Cluster click → expand by zooming in.
+      if (feature.layer.id === CLUSTER_LAYER) {
+        const clusterId = feature.properties?.cluster_id;
+        const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
+        if (!source || clusterId == null) return;
+        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+          if (err) return;
+          const coords = (feature.geometry as any).coordinates as [number, number];
+          map.easeTo({ center: coords, zoom: zoom ?? map.getZoom() + 1, duration: 500 });
+        });
+        return;
+      }
+
+      // Single point click → open the post.
+      const postId = feature.properties?.postId as string | undefined;
+      if (!postId) return;
+      const post = posts.find((p) => p.id === postId);
+      if (post) onSelectPost(post);
+    },
+    [mapRef, onSelectPost, posts],
+  );
+
+  // Pointer cursor + delegated click — re-bind whenever handler identity
+  // changes so we always have the freshest `posts` array in scope.
+  useEffect(() => {
+    const map = mapRef?.getMap();
+    if (!map) return;
+
+    const onEnter = () => { map.getCanvas().style.cursor = "pointer"; };
+    const onLeave = () => { map.getCanvas().style.cursor = ""; };
+
+    map.on("click", handleMapClick);
+    map.on("mouseenter", POINT_LAYER, onEnter);
+    map.on("mouseleave", POINT_LAYER, onLeave);
+    map.on("mouseenter", CLUSTER_LAYER, onEnter);
+    map.on("mouseleave", CLUSTER_LAYER, onLeave);
+
+    return () => {
+      map.off("click", handleMapClick);
+      map.off("mouseenter", POINT_LAYER, onEnter);
+      map.off("mouseleave", POINT_LAYER, onLeave);
+      map.off("mouseenter", CLUSTER_LAYER, onEnter);
+      map.off("mouseleave", CLUSTER_LAYER, onLeave);
+    };
+  }, [mapRef, handleMapClick]);
+
+  // Layer specs — clusters use circle layer (drawn on WebGL canvas, very fast).
+  const clusterLayer: CircleLayerSpecification = {
+    id: CLUSTER_LAYER,
+    type: "circle",
+    source: SOURCE_ID,
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-color": [
+        "step",
+        ["get", "point_count"],
+        "#3b82f6", 10,
+        "#6366f1", 30,
+        "#a855f7",
+      ],
+      "circle-radius": [
+        "step",
+        ["get", "point_count"],
+        18, 10,
+        24, 30,
+        30,
+      ],
+      "circle-stroke-width": 3,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 0.95,
+    },
+  };
+
+  const clusterCountLayer: SymbolLayerSpecification = {
+    id: CLUSTER_COUNT_LAYER,
+    type: "symbol",
+    source: SOURCE_ID,
+    filter: ["has", "point_count"],
+    layout: {
+      "text-field": ["get", "point_count_abbreviated"],
+      "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+      "text-size": 13,
+      "text-allow-overlap": true,
+    },
+    paint: {
+      "text-color": "#ffffff",
+    },
+  };
+
+  const pointLayer: CircleLayerSpecification = {
+    id: POINT_LAYER,
+    type: "circle",
+    source: SOURCE_ID,
+    filter: ["!", ["has", "point_count"]],
+    paint: {
+      "circle-color": ["get", "color"],
+      "circle-radius": 10,
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 0.95,
+    },
+  };
+
+  // Tiny red heart dot for favourites — just a colored ring overlay.
+  const favLayer: CircleLayerSpecification = {
+    id: FAV_LAYER,
+    type: "circle",
+    source: SOURCE_ID,
+    filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isFav"], 1]],
+    paint: {
+      "circle-color": "#ef4444",
+      "circle-radius": 4,
+      "circle-translate": [8, -8],
+      "circle-stroke-width": 1.5,
+      "circle-stroke-color": "#ffffff",
+    },
+  };
+
+  // Selected marker (DOM) — re-uses the existing icon styling on a single node.
+  const selectedIconName = selectedPost ? catMap[selectedPost.category] : undefined;
+  const SelectedIcon = (selectedIconName && iconMap[selectedIconName]) || MapPin;
+  const selectedColorClass = selectedPost
+    ? (() => {
+        const hex = hashColor(selectedPost.category);
+        // Map back to a tailwind bg-* using inline style for reliability.
+        return hex;
+      })()
+    : null;
+
+  const selectedLat = selectedPost
+    ? selectedPost.is_mobile && selectedPost.live_latitude != null
+      ? selectedPost.live_latitude
+      : selectedPost.latitude
+    : 0;
+  const selectedLng = selectedPost
+    ? selectedPost.is_mobile && selectedPost.live_longitude != null
+      ? selectedPost.live_longitude
+      : selectedPost.longitude
+    : 0;
+
+  return (
+    <>
+      <Source
+        id={SOURCE_ID}
+        type="geojson"
+        data={geojson}
+        cluster
+        clusterRadius={50}
+        clusterMaxZoom={14}
+      >
+        <Layer {...clusterLayer} />
+        <Layer {...clusterCountLayer} />
+        <Layer {...pointLayer} />
+        <Layer {...favLayer} />
+      </Source>
+
+      {selectedPost && (
+        <Marker latitude={selectedLat} longitude={selectedLng} anchor="center">
+          <div className="relative scale-[1.35] z-10 pointer-events-none">
             <div
               className={cn(
-                "relative cursor-pointer transition-transform duration-200",
-                isSelected && "scale-[1.35] z-10"
+                "text-white rounded-full p-2 shadow-xl ring-[3px] ring-white",
               )}
+              style={{ backgroundColor: selectedColorClass ?? "#3b82f6" }}
             >
-              {isMobile ? (
-                <div className="relative flex items-center justify-center">
-                  <div className="absolute h-12 w-12 rounded-full bg-primary/20 animate-ping" style={{ animationDuration: "2s" }} />
-                  <div className="absolute h-10 w-10 rounded-full bg-primary/15 backdrop-blur-sm" />
-                  <div className={cn(
-                    `${color} text-white rounded-full p-2 shadow-lg z-10`,
-                    isSelected ? "ring-[3px] ring-white shadow-xl" : "ring-2 ring-white/50"
-                  )}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                </div>
-              ) : (
-                <div className={cn(
-                  `${color} text-white rounded-full p-2 shadow-lg transition-all duration-200`,
-                  isSelected
-                    ? "ring-[3px] ring-white shadow-xl"
-                    : "hover:scale-110"
-                )}>
-                  <Icon className="h-4 w-4" />
-                </div>
-              )}
-              {isFav && (
-                <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-                  <Heart className="h-2.5 w-2.5 text-destructive fill-destructive" />
-                </div>
-              )}
+              <SelectedIcon className="h-4 w-4" />
             </div>
-          </Marker>
-        );
-      })}
+            {favoriteIds?.has(selectedPost.id) && (
+              <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                <Heart className="h-2.5 w-2.5 text-destructive fill-destructive" />
+              </div>
+            )}
+          </div>
+        </Marker>
+      )}
     </>
   );
 }
