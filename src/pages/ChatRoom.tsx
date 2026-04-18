@@ -1146,7 +1146,7 @@ export default function ChatRoom() {
 
   return (
     <>
-    <div className="flex flex-col h-[100dvh] bg-background">
+    <div className="flex flex-col h-[100dvh] bg-background" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
       {inCall && userId && conversationId && callSessionId && (
         <VoiceCall
           conversationId={conversationId}
@@ -1505,7 +1505,7 @@ export default function ChatRoom() {
       </div>
 
       {/* Input bar */}
-      <div className="shrink-0 border-t border-border/50 bg-background/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+      <div className="shrink-0 border-t border-border/50 bg-background/90 backdrop-blur-xl">
         <div className="flex items-center gap-1.5 px-3 py-2 max-w-lg mx-auto">
           {isRideChat && (
             <button
