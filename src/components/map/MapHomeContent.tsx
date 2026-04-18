@@ -428,6 +428,7 @@ export default function MapHomeContent() {
       />
 
       <MapListSheet
+        ref={sheetHandleRef}
         posts={filtered}
         userLat={userPos?.lat ?? center.lat}
         userLng={userPos?.lng ?? center.lng}
@@ -440,7 +441,6 @@ export default function MapHomeContent() {
         onFiltersChange={setFilters}
         selectedCategory={selectedCategory}
         mapTapped={mapTapped}
-        mapSwipedUp={mapSwipedUp}
         onSheetHeightChange={setSheetHeight}
       />
     </div>
