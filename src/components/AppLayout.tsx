@@ -4,6 +4,7 @@ import BottomNav from "./BottomNav";
 import AppErrorBoundary from "./AppErrorBoundary";
 
 const GlobalIncomingCallProvider = lazy(() => import("./GlobalIncomingCallProvider"));
+const MobileTrackingProvider = lazy(() => import("./MobileTrackingProvider"));
 
 const HIDE_NAV_ROUTES = ["/auth", "/reset-password", "/create-post"];
 
@@ -63,6 +64,7 @@ export default function AppLayout() {
       {mountGlobals && (
         <Suspense fallback={null}>
           <GlobalIncomingCallProvider />
+          <MobileTrackingProvider />
         </Suspense>
       )}
       <AppErrorBoundary resetKey={location.pathname}>
