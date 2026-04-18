@@ -88,7 +88,10 @@ export default function Favorites() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
+    <div
+      className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]"
+      style={{ WebkitOverflowScrolling: "touch" }}
+    >
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center px-4 py-3 max-w-lg mx-auto">

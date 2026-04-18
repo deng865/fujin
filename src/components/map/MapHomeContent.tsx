@@ -290,9 +290,16 @@ export default function MapHomeContent() {
       if (filters.price === "$$$" && price <= 200) return false;
     }
 
+    // Operating hours gate — applies to BOTH fixed and mobile merchants.
+    // Fixed merchants: always required (no operating_hours → hidden).
+    // Mobile merchants: optional. If a schedule exists (auto online/offline),
+    // hide them outside business hours. If no schedule, respect manual is_visible only.
     if (!post.is_mobile) {
       const open = isCurrentlyOpen(post.operating_hours);
       if (open !== true) return false;
+    } else if (post.operating_hours) {
+      const open = isCurrentlyOpen(post.operating_hours);
+      if (open === false) return false;
     }
 
     return true;
