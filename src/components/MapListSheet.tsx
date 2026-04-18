@@ -645,14 +645,15 @@ interface ListCardProps {
   hasUserLocation: boolean;
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
-  onSelect: () => void;
+  onSelectPost: (post: Post) => void;
   showDivider: boolean;
   ratingData?: { avgRating: number; totalReviews: number; topTag: string | null };
 }
 
 const ListCard = memo(function ListCard({
-  post, userLat, userLng, hasUserLocation, isFavorite, onToggleFavorite, onSelect, showDivider, ratingData,
+  post, userLat, userLng, hasUserLocation, isFavorite, onToggleFavorite, onSelectPost, showDivider, ratingData,
 }: ListCardProps) {
+  const onSelect = useCallback(() => onSelectPost(post), [onSelectPost, post]);
   const navigate = useNavigate();
   const { openMapChoice, MapChoice } = useMapChoice();
   const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
