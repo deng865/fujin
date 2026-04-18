@@ -459,12 +459,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
               <h3 className="text-base font-bold text-foreground">附近</h3>
               <span className="text-xs text-muted-foreground">{sorted.length} 个结果</span>
             </div>
-            <button
-              onClick={() => setState("hidden")}
-              className="p-1.5 rounded-full hover:bg-accent transition-colors"
-            >
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
           </div>
         )}
       </div>
