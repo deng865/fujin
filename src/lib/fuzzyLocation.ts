@@ -1,37 +1,18 @@
 /**
  * Fuzzy location for mobile merchants.
  *
- * Two-layer protection:
- * 1) Grid snap (~500m): the real coordinate is snapped to the center of a
- *    ~500m virtual grid cell. As long as the merchant stays inside that
- *    cell, the map circle does not move at all.
- * 2) Deterministic per-window offset (0.001°–0.003°, ~110–330m): a
- *    pseudo-random offset is added on top of the grid center. The offset is
- *    seeded by (gridId + postId + 10-minute time window), so it is stable
- *    inside one window (no jitter) and rotates every 10 minutes.
- *
- * The real coordinate never reaches the map render layer.
+ * Single-layer protection: a deterministic offset (0.001°–0.003°, ~110–330m)
+ * is added to the real coordinate. The offset is seeded by
+ * (postId + 10-minute time window), so it is stable inside one window (no
+ * jitter), rotates every 10 minutes, and lets the icon smoothly follow the
+ * merchant's real movement while never exposing the precise coordinate.
  */
 
-// 1° latitude ≈ 111 km → 500m ≈ 0.0045°
-const GRID_SIZE_DEG = 0.0045;
 const ROTATION_WINDOW_MS = 10 * 60 * 1000;
 
 export interface FuzzyResult {
   lat: number;
   lng: number;
-  gridId: string;
-}
-
-function snapToGrid(lat: number, lng: number) {
-  const gridLat =
-    Math.floor(lat / GRID_SIZE_DEG) * GRID_SIZE_DEG + GRID_SIZE_DEG / 2;
-  // Longitude degrees shrink toward the poles — keep cells roughly square.
-  const lngStep = GRID_SIZE_DEG / Math.max(Math.cos((lat * Math.PI) / 180), 0.01);
-  const gridLng =
-    Math.floor(lng / lngStep) * lngStep + lngStep / 2;
-  const gridId = `${Math.round(gridLat * 1e5)}_${Math.round(gridLng * 1e5)}`;
-  return { gridLat, gridLng, gridId };
 }
 
 /**
