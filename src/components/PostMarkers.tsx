@@ -74,6 +74,7 @@ const MOBILE_SOURCE_ID = "posts-mobile-source";
 const MOBILE_AREA_FILL = "posts-mobile-area-fill";
 const MOBILE_AREA_STROKE = "posts-mobile-area-stroke";
 const MOBILE_CENTER_DOT = "posts-mobile-center-dot";
+const MOBILE_CENTER_ICON = "posts-mobile-center-icon";
 
 const ICON_PIXEL = 36; // logical px (we render @2x for retina)
 
