@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { Marker, Source, Layer, useMap } from "react-map-gl/mapbox";
 import type {
   CircleLayerSpecification,
@@ -64,11 +66,61 @@ const SOURCE_ID = "posts-source";
 const CLUSTER_LAYER = "posts-clusters";
 const CLUSTER_COUNT_LAYER = "posts-cluster-count";
 const POINT_LAYER = "posts-points";
+const ICON_LAYER = "posts-icons";
 const FAV_LAYER = "posts-fav-badge";
+
+const ICON_PIXEL = 36; // logical px (we render @2x for retina)
+
+/**
+ * Render a Lucide icon component to a white-stroke PNG data url at 2x scale,
+ * then load it into the Mapbox map's image registry under `sprite-{name}`.
+ * Idempotent — repeat calls for the same name no-op.
+ */
+function ensureIconSprite(map: any, name: string): Promise<void> {
+  return new Promise((resolve) => {
+    const spriteId = `sprite-${name}`;
+    if (!map || map.hasImage?.(spriteId)) return resolve();
+    const Comp = iconMap[name];
+    if (!Comp) return resolve();
+
+    try {
+      // Render the Lucide React component to an SVG string (white stroke).
+      const svgString = renderToStaticMarkup(
+        createElement(Comp as any, {
+          color: "#ffffff",
+          strokeWidth: 2.5,
+          size: ICON_PIXEL,
+        }),
+      );
+      const svg64 = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+      const img = new Image(ICON_PIXEL * 2, ICON_PIXEL * 2);
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = ICON_PIXEL * 2;
+          canvas.height = ICON_PIXEL * 2;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return resolve();
+          ctx.drawImage(img, 0, 0, ICON_PIXEL * 2, ICON_PIXEL * 2);
+          const data = ctx.getImageData(0, 0, ICON_PIXEL * 2, ICON_PIXEL * 2);
+          if (!map.hasImage(spriteId)) {
+            map.addImage(spriteId, data, { pixelRatio: 2 });
+          }
+        } catch {}
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = svg64;
+    } catch {
+      resolve();
+    }
+  });
+}
 
 export default function PostMarkers({ posts, onSelectPost, favoriteIds, selectedPostId }: PostMarkersProps) {
   const { current: mapRef } = useMap();
   const [catMap, setCatMap] = useState<Record<string, string>>({});
+  const registeredIcons = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     supabase
@@ -83,6 +135,20 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       });
   }, []);
 
+  // Register Lucide icons as Mapbox sprites whenever a new icon name appears.
+  useEffect(() => {
+    const map = mapRef?.getMap();
+    if (!map) return;
+    const iconNames = new Set<string>();
+    Object.values(catMap).forEach((n) => n && iconNames.add(n));
+    iconNames.add("MapPin"); // fallback
+    iconNames.forEach((name) => {
+      if (registeredIcons.current.has(name)) return;
+      registeredIcons.current.add(name);
+      void ensureIconSprite(map, name);
+    });
+  }, [mapRef, catMap, posts]);
+
   // Build a GeoJSON FeatureCollection — Mapbox handles clustering on the GPU.
   const geojson = useMemo(() => {
     return {
@@ -92,6 +158,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
         const lat = isMobile && post.live_latitude != null ? post.live_latitude : post.latitude;
         const lng = isMobile && post.live_longitude != null ? post.live_longitude : post.longitude;
         const color = hashColor(post.category);
+        const iconName = catMap[post.category] || "MapPin";
         return {
           type: "Feature" as const,
           id: post.id,
@@ -104,28 +171,25 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
             color,
             isMobile,
             isFav: favoriteIds?.has(post.id) ? 1 : 0,
+            icon: `sprite-${iconName}`,
           },
         };
       }),
     };
-  }, [posts, favoriteIds]);
+  }, [posts, favoriteIds, catMap]);
 
-  // Selected post is still rendered as DOM Marker (single element, cheap)
-  // so the existing scale/ring animation feels native.
   const selectedPost = useMemo(
     () => posts.find((p) => p.id === selectedPostId) ?? null,
     [posts, selectedPostId],
   );
 
-  // Click handler — uses Mapbox queryRenderedFeatures so a single delegated
-  // listener replaces N per-marker handlers.
   const handleMapClick = useCallback(
     (e: MapboxMapMouseEvent & { features?: any[] }) => {
       const map = mapRef?.getMap();
       if (!map) return;
 
       const features = map.queryRenderedFeatures(e.point, {
-        layers: [POINT_LAYER, CLUSTER_LAYER],
+        layers: [POINT_LAYER, ICON_LAYER, CLUSTER_LAYER],
       });
       if (!features.length) return;
 
@@ -152,8 +216,6 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     [mapRef, onSelectPost, posts],
   );
 
-  // Pointer cursor + delegated click — re-bind whenever handler identity
-  // changes so we always have the freshest `posts` array in scope.
   useEffect(() => {
     const map = mapRef?.getMap();
     if (!map) return;
@@ -164,6 +226,8 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     map.on("click", handleMapClick);
     map.on("mouseenter", POINT_LAYER, onEnter);
     map.on("mouseleave", POINT_LAYER, onLeave);
+    map.on("mouseenter", ICON_LAYER, onEnter);
+    map.on("mouseleave", ICON_LAYER, onLeave);
     map.on("mouseenter", CLUSTER_LAYER, onEnter);
     map.on("mouseleave", CLUSTER_LAYER, onLeave);
 
@@ -171,12 +235,13 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       map.off("click", handleMapClick);
       map.off("mouseenter", POINT_LAYER, onEnter);
       map.off("mouseleave", POINT_LAYER, onLeave);
+      map.off("mouseenter", ICON_LAYER, onEnter);
+      map.off("mouseleave", ICON_LAYER, onLeave);
       map.off("mouseenter", CLUSTER_LAYER, onEnter);
       map.off("mouseleave", CLUSTER_LAYER, onLeave);
     };
   }, [mapRef, handleMapClick]);
 
-  // Layer specs — clusters use circle layer (drawn on WebGL canvas, very fast).
   const clusterLayer: CircleLayerSpecification = {
     id: CLUSTER_LAYER,
     type: "circle",
@@ -219,6 +284,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     },
   };
 
+  // Colored circle background for individual points (the "pin" base).
   const pointLayer: CircleLayerSpecification = {
     id: POINT_LAYER,
     type: "circle",
@@ -226,10 +292,24 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     filter: ["!", ["has", "point_count"]],
     paint: {
       "circle-color": ["get", "color"],
-      "circle-radius": 10,
+      "circle-radius": 16,
       "circle-stroke-width": 2.5,
       "circle-stroke-color": "#ffffff",
       "circle-opacity": 0.95,
+    },
+  };
+
+  // White Lucide icon overlaid on the colored circle.
+  const iconLayer: SymbolLayerSpecification = {
+    id: ICON_LAYER,
+    type: "symbol",
+    source: SOURCE_ID,
+    filter: ["!", ["has", "point_count"]],
+    layout: {
+      "icon-image": ["get", "icon"],
+      "icon-size": 0.5,
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
     },
   };
 
@@ -241,8 +321,8 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "isFav"], 1]],
     paint: {
       "circle-color": "#ef4444",
-      "circle-radius": 4,
-      "circle-translate": [8, -8],
+      "circle-radius": 5,
+      "circle-translate": [12, -12],
       "circle-stroke-width": 1.5,
       "circle-stroke-color": "#ffffff",
     },
@@ -251,13 +331,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
   // Selected marker (DOM) — re-uses the existing icon styling on a single node.
   const selectedIconName = selectedPost ? catMap[selectedPost.category] : undefined;
   const SelectedIcon = (selectedIconName && iconMap[selectedIconName]) || MapPin;
-  const selectedColorClass = selectedPost
-    ? (() => {
-        const hex = hashColor(selectedPost.category);
-        // Map back to a tailwind bg-* using inline style for reliability.
-        return hex;
-      })()
-    : null;
+  const selectedColorClass = selectedPost ? hashColor(selectedPost.category) : null;
 
   const selectedLat = selectedPost
     ? selectedPost.is_mobile && selectedPost.live_latitude != null
@@ -283,6 +357,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
         <Layer {...clusterLayer} />
         <Layer {...clusterCountLayer} />
         <Layer {...pointLayer} />
+        <Layer {...iconLayer} />
         <Layer {...favLayer} />
       </Source>
 

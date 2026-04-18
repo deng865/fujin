@@ -352,7 +352,19 @@ export default function MapHomeContent() {
         }}
         onMoveEnd={handleMoveEnd}
         onRotate={(event) => setBearing(event.viewState.bearing)}
-        onClick={() => setMapTapped((value) => value + 1)}
+        onClick={(e) => {
+          // Don't reset the drawer if user tapped on a marker / cluster — let
+          // PostMarkers handle that (otherwise the selected post is cleared
+          // immediately after it is set).
+          const map = e.target;
+          try {
+            const hits = map.queryRenderedFeatures(e.point, {
+              layers: ["posts-points", "posts-clusters", "posts-icons"],
+            });
+            if (hits && hits.length > 0) return;
+          } catch {}
+          setMapTapped((value) => value + 1);
+        }}
       >
         <GeolocateControl
           ref={geolocateRef}
