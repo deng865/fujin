@@ -226,7 +226,9 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       features: mobilePosts.map((post) => {
         const realLat = post.live_latitude != null ? post.live_latitude : post.latitude;
         const realLng = post.live_longitude != null ? post.live_longitude : post.longitude;
-        const { lat, lng } = fuzzifyLocation(realLat, realLng, post.id);
+        const { lat, lng } = post.mobile_location_precise
+          ? { lat: realLat, lng: realLng }
+          : fuzzifyLocation(realLat, realLng, post.id);
         const iconName = catMap[post.category] || "MapPin";
         return {
           type: "Feature" as const,
