@@ -814,7 +814,7 @@ const ListCard = memo(function ListCard({
     prev.userLat === next.userLat &&
     prev.userLng === next.userLng &&
     prev.ratingData === next.ratingData &&
-    prev.onSelect === next.onSelect &&
+    prev.onSelectPost === next.onSelectPost &&
     prev.onToggleFavorite === next.onToggleFavorite
   );
 });
