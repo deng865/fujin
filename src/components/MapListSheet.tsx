@@ -532,7 +532,7 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
                   hasUserLocation={hasUserLocation}
                   isFavorite={favoriteIds.has(post.id)}
                   onToggleFavorite={onToggleFavorite}
-                  onSelect={() => onSelectPost(post)}
+                  onSelectPost={onSelectPost}
                   showDivider={idx > 0}
                   ratingData={postRatings[post.id]}
                 />
