@@ -298,7 +298,7 @@ export default function ReviewDialog({
             submitting ||
             uploadingImage ||
             checkingEligibility ||
-            (targetType === "fixed_merchant" && eligibility?.allowed === false)
+            eligibility?.allowed === false
           }
           className="w-full rounded-xl"
         >
