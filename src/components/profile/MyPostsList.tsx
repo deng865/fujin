@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Trash2, Eye, EyeOff, ChevronRight, Edit, Clock, Settings } from "lucide-react";
 import { toast } from "sonner";
+import { isCurrentlyOpen } from "@/lib/operatingHours";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +61,14 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
     if (newVisible && !locationSharing) {
       toast.warning("请先开启位置共享，移动服务才能在地图上显示");
       return;
+    }
+    // Block manual "上线" if currently in scheduled off-duty period
+    if (newVisible && post.operating_hours) {
+      const scheduled = isCurrentlyOpen(post.operating_hours);
+      if (scheduled === false) {
+        toast.error("当前处于定时下班时段。请先在「自动上下线」中清除定时设置，再手动上线。");
+        return;
+      }
     }
     const { error } = await supabase
       .from("posts")
