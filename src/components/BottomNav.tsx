@@ -77,15 +77,16 @@ export default function BottomNav() {
 
             if (tab.id === "post") {
               return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab)}
-                  onTouchStart={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
-                  onMouseEnter={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
-                  className="relative -mt-5 bg-primary text-primary-foreground rounded-full p-4 shadow-xl hover:opacity-90 transition-all active:scale-90 ring-4 ring-background/80"
-                >
-                  <Plus className="h-6 w-6" />
-                </button>
+                <div key={tab.id} className="flex-1 flex justify-center">
+                  <button
+                    onClick={() => handleTabChange(tab)}
+                    onTouchStart={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
+                    onMouseEnter={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
+                    className="relative -mt-5 bg-primary text-primary-foreground rounded-full p-4 shadow-xl hover:opacity-90 transition-all active:scale-90 ring-4 ring-background/80"
+                  >
+                    <Plus className="h-6 w-6" />
+                  </button>
+                </div>
               );
             }
 
@@ -97,7 +98,7 @@ export default function BottomNav() {
                 onTouchStart={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
                 onMouseEnter={() => void preloadRoute(user || !tab.auth ? tab.path : "/auth")}
                 className={cn(
-                  "relative flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl transition-all active:scale-95 min-w-[52px]",
+                  "relative flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all active:scale-95",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}
               >
