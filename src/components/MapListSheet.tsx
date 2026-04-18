@@ -803,7 +803,20 @@ const ListCard = memo(function ListCard({
       {MapChoice}
     </>
   );
-}
+}, (prev, next) => {
+  // Re-render only when meaningful props change. Stable identity = stable position.
+  return (
+    prev.post.id === next.post.id &&
+    prev.isFavorite === next.isFavorite &&
+    prev.showDivider === next.showDivider &&
+    prev.hasUserLocation === next.hasUserLocation &&
+    prev.userLat === next.userLat &&
+    prev.userLng === next.userLng &&
+    prev.ratingData === next.ratingData &&
+    prev.onSelect === next.onSelect &&
+    prev.onToggleFavorite === next.onToggleFavorite
+  );
+});
 
 /* ─── Preview card (45% height, Google Maps style) ─── */
 function PreviewCard({
