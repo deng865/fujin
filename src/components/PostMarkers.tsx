@@ -410,40 +410,11 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     },
   };
 
-  // ===== Mobile (fuzzy) merchants — service area circle =====
-  // Larger, more vibrant circle communicates a "service area" rather than a precise pin,
-  // protecting the mobile merchant's exact location for personal safety.
-  const mobileAreaFillLayer: CircleLayerSpecification = {
-    id: MOBILE_AREA_FILL,
-    type: "circle",
-    source: MOBILE_SOURCE_ID,
-    paint: {
-      "circle-color": ["get", "color"],
-      "circle-opacity": 0.28,
-      "circle-radius": [
-        "interpolate", ["exponential", 2], ["zoom"],
-        8, 2, 10, 8, 12, 32, 14, 126, 16, 504, 18, 2018,
-      ],
-      "circle-pitch-alignment": "map",
-    },
-  };
-
-  const mobileAreaStrokeLayer: CircleLayerSpecification = {
-    id: MOBILE_AREA_STROKE,
-    type: "circle",
-    source: MOBILE_SOURCE_ID,
-    paint: {
-      "circle-color": "rgba(0,0,0,0)",
-      "circle-stroke-color": ["get", "color"],
-      "circle-stroke-width": 2,
-      "circle-stroke-opacity": 0.7,
-      "circle-radius": [
-        "interpolate", ["exponential", 2], ["zoom"],
-        8, 2, 10, 8, 12, 32, 14, 126, 16, 504, 18, 2018,
-      ],
-      "circle-pitch-alignment": "map",
-    },
-  };
+  // ===== Mobile (fuzzy) merchants =====
+  // Translucent service-area circles were removed per design — only the
+  // category center pin is shown. Privacy is still preserved because the
+  // pin sits on the fuzzified (grid-snapped + rotating offset) coordinate,
+  // never the merchant's real location.
 
   // Colored pin background at the (already-fuzzy) center — matches fixed merchant style.
   const mobileCenterDotLayer: CircleLayerSpecification = {
