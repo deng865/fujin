@@ -418,14 +418,10 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
 
   const handleBackToList = useCallback(() => {
     onSelectPost(null);
-    setState("half");
+    setState("peek");
   }, [onSelectPost]);
 
-  const isPreview = state === "preview" && selectedPost;
-  const isFull = state === "full" && selectedPost;
-
-  // Header (title row) is ALWAYS visible whenever drawer is open — never hidden behind map controls.
-  // List/peek body switches based on drawer height.
+  // Header (title row) shows in list mode only.
   const showHeader = !selectedPost && state !== "hidden";
   const showList = !selectedPost && displayHeight > 140;
   const showPeek = !selectedPost && !showList && state !== "hidden" && sorted.length > 0;
@@ -469,22 +465,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
         )}
       </div>
 
-      {/* Preview mode */}
-      {isPreview && (
-        <PreviewCard
-          post={selectedPost}
-          userLat={userLat}
-          userLng={userLng}
-          hasUserLocation={hasUserLocation}
-          isFavorite={favoriteIds.has(selectedPost.id)}
-          onToggleFavorite={onToggleFavorite}
-          onExpand={() => setState("full")}
-          onBack={handleBackToList}
-        />
-      )}
-
-      {/* Full detail mode */}
-      {isFull && (
+      {/* Detail mode — direct full content, like Google Maps */}
+      {selectedPost && (
         <InlinePostDetail
           post={selectedPost}
           onBack={handleBackToList}
