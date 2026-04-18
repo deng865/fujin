@@ -244,6 +244,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       samples: [{ y: clientY, t: performance.now() }],
       rafPending: false,
       pendingY: clientY,
+      deferredFromList: false,
+      listEl: null,
     };
     forceRender((n) => n + 1); // mark dragging for class toggling
   }, []);
