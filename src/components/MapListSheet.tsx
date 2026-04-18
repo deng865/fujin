@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Clock, Play, X, Navigation, Send, Phone, Share2, Bookmark } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -399,11 +399,38 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   const isDragging = dragRef.current.active;
   const displayHeight = heightRef.current;
 
-  const sorted = useMemo(() => [...posts].sort((a, b) => {
-    const dA = haversineKm(userLat, userLng, a.latitude, a.longitude);
-    const dB = haversineKm(userLat, userLng, b.latitude, b.longitude);
-    return dA - dB;
-  }), [posts, userLat, userLng]);
+  // Stable sort by distance, with id as tie-breaker so equal distances never swap order.
+  const liveSorted = useMemo(() => {
+    const withDist = posts.map((p) => ({
+      p,
+      d: haversineKm(userLat, userLng, p.latitude, p.longitude),
+    }));
+    withDist.sort((a, b) => {
+      if (a.d !== b.d) return a.d - b.d;
+      return a.p.id < b.p.id ? -1 : a.p.id > b.p.id ? 1 : 0;
+    });
+    return withDist.map((x) => x.p);
+  }, [posts, userLat, userLng]);
+
+  // Snapshot the list when the drawer is open (half/full) so async post updates
+  // don't reshuffle items while the user is browsing/scrolling.
+  // Refresh snapshot only when: drawer collapses to peek, category/filter changes,
+  // or user location changes meaningfully.
+  const snapshotRef = useRef<Post[]>(liveSorted);
+  const snapshotKeyRef = useRef<string>("");
+
+  // Build a key that represents "user-driven" context. Snapshot refreshes when this changes.
+  const contextKey = useMemo(
+    () => `${selectedCategory ?? ""}|${state === "peek" ? "open" : "frozen"}|${Math.round(userLat * 1000)}|${Math.round(userLng * 1000)}|${JSON.stringify(filters)}`,
+    [selectedCategory, state, userLat, userLng, filters]
+  );
+
+  if (state === "peek" || snapshotKeyRef.current !== contextKey) {
+    snapshotRef.current = liveSorted;
+    snapshotKeyRef.current = contextKey;
+  }
+
+  const sorted = snapshotRef.current;
 
   useEffect(() => {
     setRatingsEnabled(false);
@@ -505,7 +532,7 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
                   hasUserLocation={hasUserLocation}
                   isFavorite={favoriteIds.has(post.id)}
                   onToggleFavorite={onToggleFavorite}
-                  onSelect={() => onSelectPost(post)}
+                  onSelectPost={onSelectPost}
                   showDivider={idx > 0}
                   ratingData={postRatings[post.id]}
                 />
@@ -610,20 +637,23 @@ function ImageGallery({ urls, onClickExpand }: { urls: string[]; onClickExpand?:
   );
 }
 
-/* ─── Google Maps style list card ─── */
-function ListCard({
-  post, userLat, userLng, hasUserLocation, isFavorite, onToggleFavorite, onSelect, showDivider, ratingData,
-}: {
+/* ─── Google Maps style list card (memoized to prevent reshuffling re-renders) ─── */
+interface ListCardProps {
   post: Post;
   userLat: number;
   userLng: number;
   hasUserLocation: boolean;
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
-  onSelect: () => void;
+  onSelectPost: (post: Post) => void;
   showDivider: boolean;
   ratingData?: { avgRating: number; totalReviews: number; topTag: string | null };
-}) {
+}
+
+const ListCard = memo(function ListCard({
+  post, userLat, userLng, hasUserLocation, isFavorite, onToggleFavorite, onSelectPost, showDivider, ratingData,
+}: ListCardProps) {
+  const onSelect = useCallback(() => onSelectPost(post), [onSelectPost, post]);
   const navigate = useNavigate();
   const { openMapChoice, MapChoice } = useMapChoice();
   const distKm = haversineKm(userLat, userLng, post.latitude, post.longitude);
@@ -774,7 +804,20 @@ function ListCard({
       {MapChoice}
     </>
   );
-}
+}, (prev, next) => {
+  // Re-render only when meaningful props change. Stable identity = stable position.
+  return (
+    prev.post.id === next.post.id &&
+    prev.isFavorite === next.isFavorite &&
+    prev.showDivider === next.showDivider &&
+    prev.hasUserLocation === next.hasUserLocation &&
+    prev.userLat === next.userLat &&
+    prev.userLng === next.userLng &&
+    prev.ratingData === next.ratingData &&
+    prev.onSelectPost === next.onSelectPost &&
+    prev.onToggleFavorite === next.onToggleFavorite
+  );
+});
 
 /* ─── Preview card (45% height, Google Maps style) ─── */
 function PreviewCard({
