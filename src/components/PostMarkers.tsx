@@ -465,6 +465,12 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
         <Layer {...favLayer} />
       </Source>
 
+      <Source id={MOBILE_SOURCE_ID} type="geojson" data={mobileGeojson}>
+        <Layer {...mobileAreaFillLayer} />
+        <Layer {...mobileAreaStrokeLayer} />
+        <Layer {...mobileCenterDotLayer} />
+      </Source>
+
       {selectedPost && (
         <Marker latitude={selectedLat} longitude={selectedLng} anchor="center">
           <div className="relative scale-[1.35] z-10 pointer-events-none">
