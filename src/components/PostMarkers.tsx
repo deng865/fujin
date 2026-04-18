@@ -287,6 +287,8 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     map.on("mouseleave", MOBILE_AREA_FILL, onLeave);
     map.on("mouseenter", MOBILE_CENTER_DOT, onEnter);
     map.on("mouseleave", MOBILE_CENTER_DOT, onLeave);
+    map.on("mouseenter", MOBILE_CENTER_ICON, onEnter);
+    map.on("mouseleave", MOBILE_CENTER_ICON, onLeave);
 
     return () => {
       map.off("click", handleMapClick);
@@ -300,6 +302,8 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       map.off("mouseleave", MOBILE_AREA_FILL, onLeave);
       map.off("mouseenter", MOBILE_CENTER_DOT, onEnter);
       map.off("mouseleave", MOBILE_CENTER_DOT, onLeave);
+      map.off("mouseenter", MOBILE_CENTER_ICON, onEnter);
+      map.off("mouseleave", MOBILE_CENTER_ICON, onLeave);
     };
   }, [mapRef, handleMapClick]);
 
