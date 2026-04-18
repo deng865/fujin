@@ -102,19 +102,15 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   const [ratingsEnabled, setRatingsEnabled] = useState(false);
   const prevMapTapped = useRef(mapTapped);
 
-  // When a post is selected (from marker or list), spring the drawer up to half.
-  // User can then drag up to full to read more, like Google Maps.
+  // When a post is selected, spring to half ONLY if currently in peek (preserve half/full).
   useEffect(() => {
-    if (selectedPost) {
+    if (selectedPost && state === "peek") {
       setState("half");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPost]);
 
-  useEffect(() => {
-    if (selectedCategory && !selectedPost) {
-      setState("half");
-    }
-  }, [selectedCategory, selectedPost]);
+  // Selecting a category should NOT force a state change — keep current drawer position.
 
   useEffect(() => {
     if (mapTapped > 0 && mapTapped !== prevMapTapped.current) {
@@ -138,10 +134,9 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   const getHeight = useCallback((s: SheetState) => {
     const vh = window.innerHeight;
     switch (s) {
-      case "hidden": return HANDLE_HEIGHT;
-      case "peek": return 72;
-      case "half": return Math.round(vh * 0.45);
-      case "full": return Math.round(vh * 0.85);
+      case "peek": return 120;
+      case "half": return Math.round(vh * 0.5);
+      case "full": return Math.round(vh * 0.9);
     }
   }, []);
 
