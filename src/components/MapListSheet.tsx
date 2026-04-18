@@ -274,7 +274,7 @@ export default function MapListSheet({
           <div className="w-9 h-1 rounded-full bg-muted-foreground/25" />
         </div>
 
-        {state !== "hidden" && !selectedPost && (
+        {showHeader && (
           <div className="flex items-center justify-between px-4 pb-2">
             <div className="flex items-center gap-2">
               <h3 className="text-base font-bold text-foreground">附近</h3>
@@ -318,11 +318,14 @@ export default function MapListSheet({
         />
       )}
 
-      {/* List mode */}
-      {!selectedPost && (state === "half" || state === "full") && (
+      {/* List mode — render whenever drawer is open enough, so it scrolls in with the header */}
+      {showList && (
         <div
           ref={listRef}
-          className="flex-1 overflow-y-auto overscroll-contain touch-auto"
+          className={cn(
+            "flex-1 overflow-y-auto overscroll-contain",
+            state === "full" ? "touch-auto" : "touch-none"
+          )}
         >
           {sorted.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -354,7 +357,7 @@ export default function MapListSheet({
       )}
 
       {/* Peek mode */}
-      {!selectedPost && state === "peek" && sorted.length > 0 && (
+      {showPeek && (
         <div className="px-4 overflow-hidden flex-1">
           <div
             onClick={() => onSelectPost(sorted[0])}
