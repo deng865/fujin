@@ -254,7 +254,8 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
                 )}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
