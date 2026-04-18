@@ -239,6 +239,7 @@ export default function CreatePost() {
         contact_wechat: formData.wechatId.trim() || null,
         is_mobile: isMobile,
         operating_hours: operatingHours,
+        mobile_location_precise: isMobile ? formData.mobileLocationPrecise : false,
       };
 
       if (editId) {
