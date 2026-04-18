@@ -503,8 +503,10 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       className={cn(
         "absolute left-0 right-0 z-30 bg-background rounded-t-2xl flex flex-col",
         "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
-        "will-change-[height]",
-        selectedPost ? "" : "touch-none select-none"
+        "will-change-[height] overscroll-contain",
+        // Allow native vertical scroll inside (for the inner list); we still
+        // intercept gestures via touch handlers when appropriate.
+        "touch-pan-y select-none"
       )}
       style={{
         bottom: `${BOTTOM_NAV}px`,
