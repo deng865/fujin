@@ -43,26 +43,29 @@ export default function ReviewDialog({
 
   const tags = TAG_SETS[targetType] || TAG_SETS.user;
 
-  // Check review eligibility for fixed merchants when dialog opens
+  // Check review eligibility when dialog opens — applies to ALL target types
   useEffect(() => {
-    if (!open || targetType !== "fixed_merchant" || !postId || !senderId) {
+    if (!open || !senderId || !receiverId) {
       setEligibility({ allowed: true });
       return;
     }
     setCheckingEligibility(true);
     const deviceId = getDeviceId();
-    supabase
-      .rpc("can_user_review_post" as any, { _user_id: senderId, _post_id: postId, _device_id: deviceId })
-      .then(({ data, error }) => {
-        if (error) {
-          setEligibility({ allowed: false, reason: "无法验证评价资格，请稍后再试" });
-        } else {
-          const result = data as any;
-          setEligibility({ allowed: !!result?.allowed, reason: result?.reason });
-        }
-        setCheckingEligibility(false);
-      });
-  }, [open, targetType, postId, senderId]);
+
+    const check = postId
+      ? supabase.rpc("can_user_review_post" as any, { _user_id: senderId, _post_id: postId, _device_id: deviceId })
+      : supabase.rpc("can_user_rate_target" as any, { _sender: senderId, _receiver: receiverId });
+
+    check.then(({ data, error }) => {
+      if (error) {
+        setEligibility({ allowed: false, reason: "无法验证评价资格，请稍后再试" });
+      } else {
+        const result = data as any;
+        setEligibility({ allowed: !!result?.allowed, reason: result?.reason });
+      }
+      setCheckingEligibility(false);
+    });
+  }, [open, targetType, postId, senderId, receiverId]);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
