@@ -77,6 +77,7 @@ interface MapListSheetProps {
   onFiltersChange: (filters: MapFilters) => void;
   selectedCategory?: string | null;
   mapTapped?: number;
+  mapSwipedUp?: number;
   onSheetHeightChange?: (height: number) => void;
 }
 
@@ -90,7 +91,7 @@ const HANDLE_HEIGHT = 28;
 export default function MapListSheet({
   posts, userLat, userLng, hasUserLocation = false, selectedPost, onSelectPost,
   favoriteIds, onToggleFavorite, filters, onFiltersChange,
-  selectedCategory, mapTapped = 0, onSheetHeightChange,
+  selectedCategory, mapTapped = 0, mapSwipedUp = 0, onSheetHeightChange,
 }: MapListSheetProps) {
   const [state, setState] = useState<SheetState>("peek");
   const [ratingsEnabled, setRatingsEnabled] = useState(false);
@@ -118,6 +119,20 @@ export default function MapListSheet({
     }
   }, [mapTapped, selectedPost, onSelectPost]);
 
+  const prevMapSwipedUp = useRef(mapSwipedUp);
+  useEffect(() => {
+    if (mapSwipedUp > 0 && mapSwipedUp !== prevMapSwipedUp.current) {
+      prevMapSwipedUp.current = mapSwipedUp;
+      if (selectedPost) return;
+      setState((s) => {
+        if (s === "hidden") return "peek";
+        if (s === "peek") return "half";
+        if (s === "half") return "full";
+        return s;
+      });
+    }
+  }, [mapSwipedUp, selectedPost]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const dragRef = useRef({ startY: 0, startState: state as SheetState });
@@ -129,7 +144,7 @@ export default function MapListSheet({
     const vh = window.innerHeight;
     switch (s) {
       case "hidden": return HANDLE_HEIGHT;
-      case "peek": return 100;
+      case "peek": return 72;
       case "half": return Math.round(vh * 0.45);
       case "preview": return Math.round(vh * 0.45);
       case "full": return Math.round(vh * 0.85);
@@ -244,9 +259,9 @@ export default function MapListSheet({
   const isPreview = state === "preview" && selectedPost;
   const isFull = state === "full" && selectedPost;
 
-  // Show title + list whenever the drawer is taller than peek (during drag too),
-  // so the header and content move together as one block.
-  const showHeader = !selectedPost && (state !== "hidden") && (displayHeight > 120);
+  // Header (title row) is ALWAYS visible whenever drawer is open — never hidden behind map controls.
+  // List/peek body switches based on drawer height.
+  const showHeader = !selectedPost && state !== "hidden";
   const showList = !selectedPost && displayHeight > 140;
   const showPeek = !selectedPost && !showList && state !== "hidden" && sorted.length > 0;
 
@@ -254,7 +269,7 @@ export default function MapListSheet({
     <div
       ref={sheetRef}
       className={cn(
-        "absolute left-0 right-0 z-20 bg-background rounded-t-2xl flex flex-col",
+        "absolute left-0 right-0 z-30 bg-background rounded-t-2xl flex flex-col",
         "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
         "will-change-transform",
         selectedPost ? "" : "touch-none select-none",
