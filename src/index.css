@@ -122,4 +122,16 @@ All colors MUST be HSL.
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Force GPU acceleration for the Mapbox canvas to reduce repaints
+     and keep tile streaming smooth on mobile devices. */
+  .mapboxgl-map,
+  .mapboxgl-canvas-container,
+  .mapboxgl-canvas {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    -webkit-transform: translateZ(0);
+  }
 }

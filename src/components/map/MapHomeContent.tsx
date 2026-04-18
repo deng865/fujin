@@ -386,12 +386,23 @@ export default function MapHomeContent() {
         pitchWithRotate={true}
         renderWorldCopies={false}
         fadeDuration={120}
+        maxTileCacheSize={120}
+        refreshExpiredTiles={false}
+        antialias={false}
         onLoad={(e) => {
           const map = e.target as mapboxgl.Map;
           // Smoother continuous wheel/trackpad zoom
           try {
             map.scrollZoom.setWheelZoomRate(1 / 200);
             map.scrollZoom.setZoomRate(1 / 80);
+          } catch {}
+          // Hint the browser to keep the canvas on its own GPU layer
+          // so tile streaming never triggers full-page repaints.
+          try {
+            const canvas = map.getCanvas();
+            canvas.style.willChange = "transform";
+            canvas.style.transform = "translateZ(0)";
+            canvas.style.backfaceVisibility = "hidden";
           } catch {}
           void fetchPosts();
           setTimeout(() => geolocateRef.current?.trigger(), 350);
