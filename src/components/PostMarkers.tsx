@@ -106,6 +106,8 @@ function ensureIconSprite(map: any, name: string): Promise<void> {
           if (!map.hasImage(spriteId)) {
             map.addImage(spriteId, data, { pixelRatio: 2 });
           }
+          // Force symbol layer to repaint now that the image is registered.
+          map.triggerRepaint?.();
         } catch {}
         resolve();
       };
@@ -148,6 +150,23 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       void ensureIconSprite(map, name);
     });
   }, [mapRef, catMap, posts]);
+
+  // Fallback: if Mapbox requests a sprite image that hasn't loaded yet,
+  // register it on demand. This guarantees icons appear on first render.
+  useEffect(() => {
+    const map = mapRef?.getMap();
+    if (!map) return;
+    const onMissing = (e: any) => {
+      const id: string = e?.id || "";
+      if (!id.startsWith("sprite-")) return;
+      const name = id.slice("sprite-".length);
+      if (!iconMap[name]) return;
+      registeredIcons.current.add(name);
+      void ensureIconSprite(map, name);
+    };
+    map.on("styleimagemissing", onMissing);
+    return () => { map.off("styleimagemissing", onMissing); };
+  }, [mapRef]);
 
   // Build a GeoJSON FeatureCollection — Mapbox handles clustering on the GPU.
   const geojson = useMemo(() => {
