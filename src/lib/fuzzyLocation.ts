@@ -33,7 +33,8 @@ function seededRandom(seed: string): number {
 
 /**
  * Returns the fuzzified coordinate for a mobile merchant.
- * The output is stable for ~10 minutes inside the same grid cell.
+ * The offset is stable for ~10 minutes, so the icon smoothly follows the
+ * merchant's real movement while staying ~110–330m off the precise position.
  */
 export function fuzzifyLocation(
   lat: number,
@@ -41,20 +42,19 @@ export function fuzzifyLocation(
   postId: string,
   now: number = Date.now(),
 ): FuzzyResult {
-  const { gridLat, gridLng, gridId } = snapToGrid(lat, lng);
   const windowSlot = Math.floor(now / ROTATION_WINDOW_MS);
-  const seedBase = `${gridId}_${postId}_${windowSlot}`;
+  const seedBase = `${postId}_${windowSlot}`;
 
   const r1 = seededRandom(seedBase + "_lat");
   const r2 = seededRandom(seedBase + "_lng");
   const s1 = seededRandom(seedBase + "_slat");
   const s2 = seededRandom(seedBase + "_slng");
 
-  // Magnitude in [0.001°, 0.003°] with random sign.
+  // Magnitude in [0.001°, 0.003°] with deterministic sign.
   const offLat = (0.001 + r1 * 0.002) * (s1 > 0.5 ? 1 : -1);
   const offLng = (0.001 + r2 * 0.002) * (s2 > 0.5 ? 1 : -1);
 
-  return { lat: gridLat + offLat, lng: gridLng + offLng, gridId };
+  return { lat: lat + offLat, lng: lng + offLng };
 }
 
 /** Milliseconds until the next 10-minute rotation boundary. */
