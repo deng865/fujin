@@ -94,6 +94,7 @@ export default function MapHomeContent() {
   const [bearing, setBearing] = useState(0);
   const [filters, setFilters] = useState<MapFilters>(defaultFilters);
   const [mapTapped, setMapTapped] = useState(0);
+  const [mapSwipedUp, setMapSwipedUp] = useState(0);
   const [sheetHeight, setSheetHeight] = useState(100);
   const { toggleFavorite, favoriteIds, userId: favUserId } = useFavorites();
 
