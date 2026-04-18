@@ -1,35 +1,44 @@
 
 
-## 让移动商家在地图上跟随实时位置移动
+## 移动商家增加"精确/模糊位置"切换
 
-### 当前问题
-移动商家的图标位置目前通过 `fuzzifyLocation` 做了网格吸附（500m 网格 + 10 分钟轮转偏移），所以只要商家不跨出 500m 网格，地图上的图标**纹丝不动**。这与"商家移动时图标也跟着动"的诉求冲突。
+### 现状
+- **固定商家**：CreatePost 中有 `LocationPicker` 提供"精确/模糊"切换（模糊会在保存时给坐标加 ±0.01° 随机偏移）
+- **移动商家**：当前没有这个选项。地图渲染时统一调用 `fuzzifyLocation`，强制对所有移动商家做 110–330m 偏移
 
-### 与既有隐私策略的冲突
-之前已实现的方案目标是**保护移动商家人身安全**：真实坐标永不进入渲染层，圆心吸附到网格中心 + 偏移。如果让图标完全跟随真实坐标，会让任何人都能通过观察地图反推商家精确位置和行进轨迹，安全性归零。
+### 目标
+让移动商家在发布/编辑时也能选择：
+- **精确位置**：地图显示真实实时坐标，跟随商家移动而移动
+- **模糊位置**：地图显示 `fuzzifyLocation` 处理后的坐标（默认行为，保护人身安全）
 
-### 建议方案：松绑网格、保留偏移
+### 实现方案
 
-去掉"网格吸附"这一层，仅保留"基于真实坐标 + 每 10 分钟轮转的随机偏移（0.001°–0.003°，约 110–330m）"。效果：
+**1. 数据库**
+新增 `posts.mobile_location_precise` (boolean, 默认 `false`) — 仅对 `is_mobile = true` 的帖子有意义。默认为模糊以保证安全。
 
-- 商家移动时，图标会**平滑跟随**（中心 = 真实坐标 + 偏移），看起来"动了"
-- 偏移量在 10 分钟窗口内是恒定的（不抖动），保证视觉稳定
-- 真实坐标依然不出现在地图上，仍有 ~110–330m 的位置混淆，提供基本隐私保护
+**2. CreatePost.tsx**
+当 `category && isMobile` 时，在"移动服务模式"提示卡之后新增一个简洁的双按钮切换器：
+- 模糊位置（默认，推荐）— 显示安全提示
+- 精确位置 — 显示风险警告："您的实时位置将公开显示，请确认安全"
 
-副作用：观察者可通过长时间观察推算出真实轨迹的"形状"（仅平移了一个偏移量）。如果需要更强隐私，需要在轨迹上叠加噪声，但这与"跟随移动"会产生视觉抖动，二者不可兼得。
+把选择写入 `formData.mobileLocationPrecise`，提交时随 `mobile_location_precise` 字段一并保存。编辑模式下回填。
 
-### 实现改动
+**3. PostMarkers.tsx**
+构建 `mobileGeojson` 时，按每个 post 的 `mobile_location_precise` 决定坐标来源：
+- `true` → 直接使用真实 `live_latitude/live_longitude`
+- `false` → 走现有 `fuzzifyLocation` 逻辑
 
-**`src/lib/fuzzyLocation.ts`**
-- 移除 `snapToGrid` 调用，直接基于真实 `lat/lng` + `(postId + 10分钟窗口)` 哈希生成确定性偏移
-- 保留 `msUntilNextRotation` 和 `FUZZY_ROTATION_WINDOW_MS` 导出
+实时订阅已经会推送坐标更新，所以"精确模式"下图标会自然跟随商家移动。
 
-**`src/components/PostMarkers.tsx`**
-- 不需要逻辑改动，因为 `fuzzifyLocation` 签名不变；但实时订阅（`MapHomeContent.tsx` 已有的 `posts` UPDATE 监听）会推动 `posts` 状态更新 → `mobileGeojson` 重算 → 图标跟随移动
-
-### 需确认
-请确认是否接受"放弃网格吸附、仅保留 110–330m 随机偏移"作为隐私与跟随移动的折中。如希望保持更强隐私，可改为更小的网格（如 100m）让图标在小范围内频繁跳动，但不会平滑移动。
+**4. 类型**
+`PostMarker` 类型增加 `mobile_location_precise?: boolean` 字段（`MapHomeContent.tsx` 的 posts 查询已 `select("*")`，无需改 SQL）。
 
 ### 涉及文件
-- `src/lib/fuzzyLocation.ts`（约 15 行删改）
+- 新建迁移：添加 `posts.mobile_location_precise` 字段
+- `src/pages/CreatePost.tsx` — 表单字段、UI 切换器、提交/编辑回填（约 30 行）
+- `src/components/PostMarkers.tsx` — 按字段决定是否调用 `fuzzifyLocation`（约 5 行）
+- `mem://features/mobile-fuzzy-location.md` — 更新策略说明
+
+### 隐私默认
+新建移动商家默认 `false`（模糊），用户必须主动开启精确并确认风险，符合"安全优先"原则。
 
