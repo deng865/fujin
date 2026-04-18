@@ -93,6 +93,7 @@ export default function CreatePost() {
         imageUrls: data.image_urls || [],
         is24Hours,
         weeklySchedule,
+        mobileLocationPrecise: (data as any).mobile_location_precise ?? false,
       });
       setLocation({ lat: data.latitude, lng: data.longitude });
       setInitialLoading(false);
