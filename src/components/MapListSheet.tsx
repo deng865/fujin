@@ -369,32 +369,64 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   }, [animateTo, getHeight, onSelectPost, selectedPost, state]);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
-    if (selectedPost && state === "full") {
-      const detailEl = detailScrollRef.current;
-      const touchY = e.touches[0].clientY;
-      const sheetTop = sheetRef.current?.getBoundingClientRect().top ?? 0;
-      const handleZone = sheetTop + HANDLE_HEIGHT + 20;
-      if (touchY > handleZone && detailEl && detailEl.scrollTop > 0) return;
+    const touchY = e.touches[0].clientY;
+
+    // Determine which scrollable region (if any) is under the finger.
+    // Priority: detail-mode scroll, then list scroll. The drawer drag is only
+    // initiated when the inner scroller is already at the top.
+    let scroller: HTMLElement | null = null;
+    if (selectedPost) {
+      scroller = detailScrollRef.current;
+    } else if (state === "half" || state === "full") {
+      const list = listRef.current;
+      if (list) {
+        const r = list.getBoundingClientRect();
+        if (touchY >= r.top && touchY <= r.bottom) scroller = list;
+      }
     }
 
-    const list = listRef.current;
-    if (!selectedPost && list && state === "full" && list.scrollTop > 0) return;
-    if (!selectedPost && list && (state === "half" || state === "full")) {
-      const listRect = list.getBoundingClientRect();
-      const touchY = e.touches[0].clientY;
-      if (touchY >= listRect.top && touchY <= listRect.bottom && list.scrollTop > 0) return;
+    if (scroller && scroller.scrollTop > 0) {
+      // Inner content can scroll up — defer to native scroll, do NOT start a drawer drag.
+      dragRef.current.deferredFromList = true;
+      dragRef.current.listEl = scroller;
+      dragRef.current.startY = touchY;
+      dragRef.current.startHeight = heightRef.current;
+      dragRef.current.active = false;
+      return;
     }
 
-    beginDragInternal(e.touches[0].clientY);
+    beginDragInternal(touchY);
   }, [state, selectedPost, beginDragInternal]);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!dragRef.current.active) return;
-    updateDragInternal(e.touches[0].clientY);
-  }, [updateDragInternal]);
+    const d = dragRef.current;
+    const touchY = e.touches[0].clientY;
+
+    // If we deferred to inner scroll, watch for the user pulling DOWN at scrollTop===0.
+    // That's the canonical "release to drawer" gesture.
+    if (d.deferredFromList && d.listEl) {
+      const dy = touchY - d.startY; // positive = pulling down
+      if (d.listEl.scrollTop === 0 && dy > 6) {
+        // Promote to drawer drag from this point onward.
+        d.deferredFromList = false;
+        d.listEl = null;
+        beginDragInternal(touchY);
+      }
+      return;
+    }
+
+    if (!d.active) return;
+    updateDragInternal(touchY);
+  }, [beginDragInternal, updateDragInternal]);
 
   const onTouchEnd = useCallback(() => {
-    if (!dragRef.current.active) return;
+    const d = dragRef.current;
+    if (d.deferredFromList) {
+      d.deferredFromList = false;
+      d.listEl = null;
+      return;
+    }
+    if (!d.active) return;
     endDragInternal();
   }, [endDragInternal]);
 
