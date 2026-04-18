@@ -125,14 +125,21 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   // mapSwipedUp prop is kept for backward compat but no longer triggers discrete state jumps.
   // Drawer drag is now driven directly via the imperative handle for smooth follow-finger motion.
 
-  // Google Maps-style drawer: spring physics + velocity-based snap + rubber-band
-  // We drive height via a single value (animatedHeight) updated by rAF, not React state per frame.
+  // Google Maps-style drawer: spring physics + velocity-based snap + rubber-band.
+  // Animation is driven via transform: translate3d on the GPU compositor —
+  // the sheet is always rendered at MAX height and pushed off-screen with translateY.
+  // This eliminates layout thrash from per-frame `height` changes.
   const sheetRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const detailScrollRef = useRef<HTMLDivElement>(null);
 
+  const getMaxHeight = useCallback(() => {
+    if (typeof window === "undefined") return 800;
+    return Math.round(window.innerHeight * 0.9);
+  }, []);
+
   const getHeight = useCallback((s: SheetState) => {
-    const vh = window.innerHeight;
+    const vh = typeof window === "undefined" ? 800 : window.innerHeight;
     switch (s) {
       case "peek": return 120;
       case "half": return Math.round(vh * 0.5);
@@ -140,11 +147,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     }
   }, []);
 
-  const currentHeight = getHeight(state);
-
-  // Imperative animation engine — bypasses React state for 60fps drag/spring.
-  const heightRef = useRef(currentHeight);
-  const [, forceRender] = useState(0);
+  // Visible drawer height in px. We compute translateY = maxHeight - visibleHeight.
+  const heightRef = useRef(getHeight(state));
   const rafRef = useRef<number | null>(null);
   const springRef = useRef<{
     velocity: number;
@@ -158,8 +162,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     samples: Array<{ y: number; t: number }>;
     rafPending: boolean;
     pendingY: number;
-    // Nested-scroll lock state: once the user is scrolling the inner list,
-    // we must NOT hijack the gesture into a drawer drag until the touch ends.
     deferredFromList: boolean;
     listEl: HTMLElement | null;
   }>({
@@ -173,26 +175,30 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     listEl: null,
   });
 
+  // Apply visible height by translating the sheet on the GPU compositor.
+  // The sheet's actual `height` is fixed at maxHeight, so no layout occurs.
   const setHeight = useCallback((h: number) => {
     heightRef.current = h;
     const el = sheetRef.current;
-    if (el) el.style.height = `${h}px`;
-  }, []);
+    if (!el) return;
+    const max = getMaxHeight();
+    const offset = Math.max(0, max - h);
+    el.style.transform = `translate3d(0, ${offset}px, 0)`;
+  }, [getMaxHeight]);
 
-  // Sync height when state changes externally (selectedPost, mapTapped, etc.)
-  // Spring-animate to the new target instead of CSS transition.
+  // Spring-animate to a new visible height target.
   const animateTo = useCallback((target: number, initialVelocity = 0) => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     springRef.current = { velocity: initialVelocity, target, lastTs: 0 };
 
-    const stiffness = 180; // softer = more iOS-like
+    const stiffness = 180;
     const damping = 26;
 
     const tick = (ts: number) => {
       const s = springRef.current;
       if (!s) return;
       if (s.lastTs === 0) s.lastTs = ts;
-      const dt = Math.min((ts - s.lastTs) / 1000, 1 / 30); // clamp dt
+      const dt = Math.min((ts - s.lastTs) / 1000, 1 / 30);
       s.lastTs = ts;
 
       const x = heightRef.current;
@@ -212,6 +218,14 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
+  }, [setHeight]);
+
+  // Initialize transform on mount, and resync on resize.
+  useEffect(() => {
+    setHeight(heightRef.current);
+    const onResize = () => setHeight(heightRef.current);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, [setHeight]);
 
   // Re-target spring whenever React `state` changes (and we're not actively dragging)
@@ -247,7 +261,7 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       deferredFromList: false,
       listEl: null,
     };
-    forceRender((n) => n + 1); // mark dragging for class toggling
+    // Drag state lives in refs only — no React re-render during gesture.
   }, []);
 
   const updateDragInternal = useCallback((clientY: number) => {
@@ -300,7 +314,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       if ((dy < -threshold || velocity < -0.6) && heightRef.current < halfH - 40) {
         onSelectPost(null);
         setState("peek");
-        forceRender((n) => n + 1);
         return;
       }
       if (state === "half") {
@@ -312,7 +325,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       } else {
         animateTo(getHeight(state), velocity * 1000);
       }
-      forceRender((n) => n + 1);
       return;
     }
 
@@ -365,7 +377,6 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       setState(targetState);
       requestAnimationFrame(() => animateTo(heights[targetIdx], velocity * 1000));
     }
-    forceRender((n) => n + 1);
   }, [animateTo, getHeight, onSelectPost, selectedPost, state]);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
@@ -436,8 +447,9 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     endDrag: endDragInternal,
   }), [beginDragInternal, updateDragInternal, endDragInternal]);
 
-  const isDragging = dragRef.current.active;
-  const displayHeight = heightRef.current;
+  // Note: do NOT read heightRef.current into a render-time variable; height is
+  // applied directly to the DOM via setHeight(). React renders are decoupled
+  // from drag frames so the list never re-renders during interaction.
 
   // Stable sort by distance, with id as tie-breaker so equal distances never swap order.
   const liveSorted = useMemo(() => {
@@ -472,11 +484,14 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
 
   const sorted = snapshotRef.current;
 
+  // Ratings load once after the list is non-empty and stay enabled — no
+  // dependency on `state`, so dragging the drawer never causes a flash.
   useEffect(() => {
-    setRatingsEnabled(false);
+    if (sorted.length === 0) return;
+    if (ratingsEnabled) return;
     const timer = window.setTimeout(() => setRatingsEnabled(true), 250);
     return () => window.clearTimeout(timer);
-  }, [sorted.length, state]);
+  }, [sorted.length, ratingsEnabled]);
 
   const ratingInputs = useMemo(() => {
     if (!ratingsEnabled) return [];
@@ -492,10 +507,17 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     setState("peek");
   }, [onSelectPost]);
 
-  // Header (title row) shows in list mode only.
+  // Mounting decisions are driven by SNAP STATE, not the live drag height.
+  // This guarantees the list/peek subtree is never mounted/unmounted mid-drag,
+  // eliminating the "flicker" that happens when crossing pixel thresholds.
   const showHeader = !selectedPost;
-  const showList = !selectedPost && displayHeight > 140;
-  const showPeek = !selectedPost && !showList && sorted.length > 0;
+  const showList = !selectedPost && (state === "half" || state === "full");
+  const showPeek = !selectedPost && state === "peek" && sorted.length > 0;
+
+  // The sheet is always rendered at MAX height (90dvh). Visible portion is
+  // controlled exclusively by `transform: translate3d(0, Y, 0)` — runs on the
+  // GPU compositor, never triggers layout/paint of children.
+  const maxHeight = getMaxHeight();
 
   return (
     <div
@@ -503,14 +525,15 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       className={cn(
         "absolute left-0 right-0 z-30 bg-background rounded-t-2xl flex flex-col",
         "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
-        "will-change-[height] overscroll-contain",
-        // Allow native vertical scroll inside (for the inner list); we still
-        // intercept gestures via touch handlers when appropriate.
-        "touch-pan-y select-none"
+        "overscroll-contain touch-pan-y"
       )}
       style={{
         bottom: `${BOTTOM_NAV}px`,
-        height: `${displayHeight}px`,
+        height: `${maxHeight}px`,
+        willChange: "transform",
+        transform: `translate3d(0, ${maxHeight - heightRef.current}px, 0)`,
+        backfaceVisibility: "hidden",
+        WebkitBackfaceVisibility: "hidden",
       }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -553,6 +576,7 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
           className={cn(
             "flex-1 overflow-y-auto overscroll-contain touch-pan-y"
           )}
+          style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
         >
           {sorted.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
