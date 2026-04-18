@@ -128,9 +128,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   // mapSwipedUp prop is kept for backward compat but no longer triggers discrete state jumps.
   // Drawer drag is now driven directly via the imperative handle for smooth follow-finger motion.
 
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState(0);
-  const dragRef = useRef({ startY: 0, startState: state as SheetState });
+  // Google Maps-style drawer: spring physics + velocity-based snap + rubber-band
+  // We drive height via a single value (animatedHeight) updated by rAF, not React state per frame.
   const sheetRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const detailScrollRef = useRef<HTMLDivElement>(null);
@@ -148,55 +147,208 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
 
   const currentHeight = getHeight(state);
 
-  // Core drag primitives — used by both the drawer's own touch handlers
-  // and by the parent map area via the imperative ref.
-  const beginDragInternal = useCallback((clientY: number) => {
-    dragRef.current.startY = clientY;
-    dragRef.current.startState = state;
-    setIsDragging(true);
-    setDragOffset(0);
-  }, [state]);
+  // Imperative animation engine — bypasses React state for 60fps drag/spring.
+  const heightRef = useRef(currentHeight);
+  const [, forceRender] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  const springRef = useRef<{
+    velocity: number;
+    target: number;
+    lastTs: number;
+  } | null>(null);
+  const dragRef = useRef<{
+    active: boolean;
+    startY: number;
+    startHeight: number;
+    samples: Array<{ y: number; t: number }>;
+    rafPending: boolean;
+    pendingY: number;
+  }>({
+    active: false,
+    startY: 0,
+    startHeight: 0,
+    samples: [],
+    rafPending: false,
+    pendingY: 0,
+  });
 
-  const updateDragInternal = useCallback((clientY: number) => {
-    const dy = dragRef.current.startY - clientY;
-    setDragOffset(dy);
+  const setHeight = useCallback((h: number) => {
+    heightRef.current = h;
+    const el = sheetRef.current;
+    if (el) el.style.height = `${h}px`;
+    onSheetHeightChange?.(h);
+  }, [onSheetHeightChange]);
+
+  // Sync height when state changes externally (selectedPost, mapTapped, etc.)
+  // Spring-animate to the new target instead of CSS transition.
+  const animateTo = useCallback((target: number, initialVelocity = 0) => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    springRef.current = { velocity: initialVelocity, target, lastTs: 0 };
+
+    const stiffness = 220; // higher = snappier
+    const damping = 28;    // higher = less oscillation
+
+    const tick = (ts: number) => {
+      const s = springRef.current;
+      if (!s) return;
+      if (s.lastTs === 0) s.lastTs = ts;
+      const dt = Math.min((ts - s.lastTs) / 1000, 1 / 30); // clamp dt
+      s.lastTs = ts;
+
+      const x = heightRef.current;
+      const force = -stiffness * (x - s.target);
+      const damp = -damping * s.velocity;
+      const accel = force + damp;
+      s.velocity += accel * dt;
+      const next = x + s.velocity * dt;
+      setHeight(next);
+
+      if (Math.abs(s.velocity) < 0.5 && Math.abs(next - s.target) < 0.5) {
+        setHeight(s.target);
+        springRef.current = null;
+        rafRef.current = null;
+        return;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }, [setHeight]);
+
+  // Re-target spring whenever React `state` changes (and we're not actively dragging)
+  useEffect(() => {
+    if (dragRef.current.active) return;
+    animateTo(getHeight(state));
+  }, [state, animateTo, getHeight]);
+
+  useEffect(() => () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
   }, []);
 
-  const endDragInternal = useCallback(() => {
-    setIsDragging((dragging) => {
-      if (!dragging) return false;
-      const dy = dragOffset;
+  // Rubber-band: limit overshoot beyond [HANDLE_HEIGHT, vh*0.95]
+  const clampWithRubber = useCallback((h: number) => {
+    const vh = window.innerHeight;
+    const min = HANDLE_HEIGHT;
+    const max = Math.round(vh * 0.85);
+    if (h < min) return min - (min - h) * 0.3;
+    if (h > max) return max + (h - max) * 0.3;
+    return h;
+  }, []);
 
-      // Selected-post mode: keep discrete behavior to avoid disturbing preview/full UX
-      if (selectedPost) {
-        const threshold = 50;
-        if (state === "preview") {
-          if (dy > threshold) setState("full");
-          else if (dy < -threshold) { onSelectPost(null); setState("half"); }
-        } else if (state === "full") {
-          if (dy < -threshold) setState("preview");
-        }
-        setDragOffset(0);
-        return false;
-      }
+  const beginDragInternal = useCallback((clientY: number) => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    springRef.current = null;
+    dragRef.current = {
+      active: true,
+      startY: clientY,
+      startHeight: heightRef.current,
+      samples: [{ y: clientY, t: performance.now() }],
+      rafPending: false,
+      pendingY: clientY,
+    };
+    forceRender((n) => n + 1); // mark dragging for class toggling
+  }, []);
 
-      // List mode: snap to NEAREST anchor based on final displayHeight
-      const finalHeight = Math.max(
-        HANDLE_HEIGHT,
-        Math.min(window.innerHeight * 0.85, currentHeight + dy)
-      );
-      const candidates: SheetState[] = ["hidden", "peek", "half", "full"];
-      let nearest: SheetState = "peek";
-      let bestDist = Infinity;
-      for (const c of candidates) {
-        const d = Math.abs(getHeight(c) - finalHeight);
-        if (d < bestDist) { bestDist = d; nearest = c; }
-      }
-      setState(nearest);
-      setDragOffset(0);
-      return false;
+  const updateDragInternal = useCallback((clientY: number) => {
+    const d = dragRef.current;
+    if (!d.active) return;
+    d.pendingY = clientY;
+    if (d.rafPending) return;
+    d.rafPending = true;
+    requestAnimationFrame(() => {
+      d.rafPending = false;
+      if (!d.active) return;
+      const y = d.pendingY;
+      const dy = d.startY - y;
+      const target = clampWithRubber(d.startHeight + dy);
+      setHeight(target);
+      d.samples.push({ y, t: performance.now() });
+      if (d.samples.length > 6) d.samples.shift();
     });
-  }, [dragOffset, selectedPost, state, currentHeight, getHeight, onSelectPost]);
+  }, [clampWithRubber, setHeight]);
+
+  const endDragInternal = useCallback(() => {
+    const d = dragRef.current;
+    if (!d.active) return;
+    d.active = false;
+
+    // Compute velocity from last samples (px/ms, positive = moving up = drawer growing)
+    const samples = d.samples;
+    let velocity = 0;
+    if (samples.length >= 2) {
+      const last = samples[samples.length - 1];
+      // Use samples within last 100ms for a clean velocity reading
+      let first = samples[0];
+      for (let i = samples.length - 1; i >= 0; i--) {
+        if (last.t - samples[i].t > 100) { first = samples[i + 1] ?? samples[i]; break; }
+        first = samples[i];
+      }
+      const dt = last.t - first.t;
+      if (dt > 0) {
+        // dy in screen px (down positive); drawer grows when finger moves up → invert
+        velocity = -(last.y - first.y) / dt; // px/ms, positive = drawer growing
+      }
+    }
+
+    // Selected-post mode: discrete behavior preserved
+    if (selectedPost) {
+      const dy = heightRef.current - d.startHeight;
+      const threshold = 50;
+      if (state === "preview") {
+        if (dy > threshold || velocity > 0.4) setState("full");
+        else if (dy < -threshold || velocity < -0.4) { onSelectPost(null); setState("half"); }
+        else animateTo(getHeight(state));
+      } else if (state === "full") {
+        if (dy < -threshold || velocity < -0.4) setState("preview");
+        else animateTo(getHeight(state));
+      } else {
+        animateTo(getHeight(state));
+      }
+      forceRender((n) => n + 1);
+      return;
+    }
+
+    // List mode: velocity-aware snap.
+    const order: SheetState[] = ["hidden", "peek", "half", "full"];
+    const heights = order.map(getHeight);
+    const cur = heightRef.current;
+
+    // Find current "between" index
+    let nearestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < heights.length; i++) {
+      const dist = Math.abs(heights[i] - cur);
+      if (dist < bestDist) { bestDist = dist; nearestIdx = i; }
+    }
+
+    let targetIdx = nearestIdx;
+    const VELOCITY_THRESHOLD = 0.5; // px/ms
+    if (Math.abs(velocity) > VELOCITY_THRESHOLD) {
+      // Fling toward next anchor in the velocity direction
+      if (velocity > 0) {
+        // growing → next higher anchor at or above current
+        targetIdx = order.findIndex((_, i) => heights[i] > cur);
+        if (targetIdx === -1) targetIdx = order.length - 1;
+      } else {
+        // shrinking → next lower anchor at or below current
+        for (let i = order.length - 1; i >= 0; i--) {
+          if (heights[i] < cur) { targetIdx = i; break; }
+        }
+      }
+    }
+
+    const targetState = order[targetIdx];
+    // Pass velocity in px/s to spring as initial velocity
+    if (targetState === state) {
+      animateTo(heights[targetIdx], velocity * 1000);
+    } else {
+      // setState will trigger the effect above which re-animates with 0 velocity;
+      // do it imperatively here with current velocity for momentum continuity.
+      setState(targetState);
+      // override the effect's animation: slight delay so React commits state, then animate w/ velocity
+      requestAnimationFrame(() => animateTo(heights[targetIdx], velocity * 1000));
+    }
+    forceRender((n) => n + 1);
+  }, [animateTo, getHeight, onSelectPost, selectedPost, state]);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     if (selectedPost && state === "full") {
@@ -219,14 +371,14 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
   }, [state, selectedPost, beginDragInternal]);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging) return;
+    if (!dragRef.current.active) return;
     updateDragInternal(e.touches[0].clientY);
-  }, [isDragging, updateDragInternal]);
+  }, [updateDragInternal]);
 
   const onTouchEnd = useCallback(() => {
-    if (!isDragging) return;
+    if (!dragRef.current.active) return;
     endDragInternal();
-  }, [isDragging, endDragInternal]);
+  }, [endDragInternal]);
 
   useImperativeHandle(ref, () => ({
     beginDrag: beginDragInternal,
@@ -234,13 +386,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
     endDrag: endDragInternal,
   }), [beginDragInternal, updateDragInternal, endDragInternal]);
 
-  const displayHeight = isDragging
-    ? Math.max(HANDLE_HEIGHT, Math.min(window.innerHeight * 0.85, currentHeight + dragOffset))
-    : currentHeight;
-
-  useEffect(() => {
-    onSheetHeightChange?.(displayHeight);
-  }, [displayHeight, onSheetHeightChange]);
+  const isDragging = dragRef.current.active;
+  const displayHeight = heightRef.current;
 
   const sorted = useMemo(() => [...posts].sort((a, b) => {
     const dA = haversineKm(userLat, userLng, a.latitude, a.longitude);
@@ -283,9 +430,8 @@ const MapListSheet = forwardRef<MapListSheetHandle, MapListSheetProps>(function 
       className={cn(
         "absolute left-0 right-0 z-30 bg-background rounded-t-2xl flex flex-col",
         "shadow-[0_-4px_20px_rgba(0,0,0,0.12)]",
-        "will-change-transform",
-        selectedPost ? "" : "touch-none select-none",
-        !isDragging && "transition-[height] duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]"
+        "will-change-[height]",
+        selectedPost ? "" : "touch-none select-none"
       )}
       style={{
         bottom: `${BOTTOM_NAV}px`,
