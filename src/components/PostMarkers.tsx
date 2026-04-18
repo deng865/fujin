@@ -476,8 +476,6 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       </Source>
 
       <Source id={MOBILE_SOURCE_ID} type="geojson" data={mobileGeojson}>
-        <Layer {...mobileAreaFillLayer} />
-        <Layer {...mobileAreaStrokeLayer} />
         <Layer {...mobileCenterDotLayer} />
         <Layer {...mobileCenterIconLayer} />
       </Source>
