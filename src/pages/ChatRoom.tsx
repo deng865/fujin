@@ -57,6 +57,7 @@ async function cachedReverseGeocode(lat: number, lng: number, token: string): Pr
 
 import CreditBadge from "@/components/reviews/CreditBadge";
 import ReviewDialog from "@/components/reviews/ReviewDialog";
+import ChatHeaderMenu from "@/components/chat/ChatHeaderMenu";
 
 interface Message {
   id: string;
@@ -1210,14 +1211,22 @@ export default function ChatRoom() {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {/* Phone button removed per design — voice call still available via "+" menu */}
             <button
               onClick={() => setShowReviewDialog(true)}
-              className="p-2 -mr-2 hover:bg-accent rounded-xl text-primary"
+              className="p-2 hover:bg-accent rounded-xl text-primary"
               title="评价对方"
             >
               <Star className="h-5 w-5" />
             </button>
+            {userId && otherUserId && conversationId && (
+              <ChatHeaderMenu
+                myId={userId}
+                otherId={otherUserId}
+                otherName={otherUser?.name}
+                conversationId={conversationId}
+                onBlocked={() => navigate("/messages")}
+              />
+            )}
           </div>
         </div>
       </div>
