@@ -250,9 +250,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
         };
       }),
     };
-    // effectiveTick rotates the offset only when there are fuzzy posts.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mobilePosts, catMap, effectiveTick]);
+  }, [mobilePosts, catMap]);
 
   const selectedPost = useMemo(
     () => posts.find((p) => p.id === selectedPostId) ?? null,
