@@ -266,7 +266,7 @@ export default function Messages() {
     ));
     const conversationIds = data.map((c) => c.id);
 
-    const [{ data: profiles }, { data: unreadRows }] = await Promise.all([
+    const [{ data: profiles }, { data: unreadRows }, { data: blocks }] = await Promise.all([
       supabase
         .from("profiles")
         .select("id, name, avatar_url, average_rating, total_ratings")
@@ -277,7 +277,15 @@ export default function Messages() {
         .in("conversation_id", conversationIds)
         .is("read_at", null)
         .neq("sender_id", uid),
+      (supabase as any)
+        .from("user_blocks")
+        .select("blocked_id")
+        .eq("blocker_id", uid),
     ]);
+
+    const blockedSet = new Set<string>(
+      (blocks || []).map((b: any) => b.blocked_id),
+    );
 
     const profileMap = new Map<string, any>();
     (profiles || []).forEach((p: any) => profileMap.set(p.id, p));
@@ -286,15 +294,20 @@ export default function Messages() {
       unreadMap.set(row.conversation_id, (unreadMap.get(row.conversation_id) || 0) + 1);
     });
 
-    const enriched = data.map((conv) => {
-      const otherId = conv.participant_1 === uid ? conv.participant_2 : conv.participant_1;
-      const p = profileMap.get(otherId);
-      return {
-        ...conv,
-        other_user: p || { name: "用户", avatar_url: null, average_rating: null, total_ratings: null },
-        unread_count: unreadMap.get(conv.id) || 0,
-      };
-    });
+    const enriched = data
+      .filter((conv) => {
+        const otherId = conv.participant_1 === uid ? conv.participant_2 : conv.participant_1;
+        return !blockedSet.has(otherId);
+      })
+      .map((conv) => {
+        const otherId = conv.participant_1 === uid ? conv.participant_2 : conv.participant_1;
+        const p = profileMap.get(otherId);
+        return {
+          ...conv,
+          other_user: p || { name: "用户", avatar_url: null, average_rating: null, total_ratings: null },
+          unread_count: unreadMap.get(conv.id) || 0,
+        };
+      });
 
     setConversations(enriched);
   };
