@@ -151,13 +151,20 @@ export default function MapHomeContent() {
     const bounds = map.getBounds();
     if (!bounds) return;
 
+    // Buffer the viewport bounds by ~0.005° (~550m) so mobile merchants whose
+    // real coordinates sit just outside the viewport — but whose fuzzified
+    // icon (110–330m offset) falls *inside* it — are still fetched. Without
+    // this padding, zooming in caused mobile pins near edges to disappear:
+    // the DB query filters on real lat/lng, so the row was excluded even
+    // though the rendered (fuzzy) icon was visible.
+    const PAD = 0.005;
     const { data } = await supabase
       .from("posts")
       .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, is_mobile, mobile_location_precise, operating_hours, live_latitude, live_longitude, live_updated_at, user_id")
-      .gte("latitude", bounds.getSouth())
-      .lte("latitude", bounds.getNorth())
-      .gte("longitude", bounds.getWest())
-      .lte("longitude", bounds.getEast())
+      .gte("latitude", bounds.getSouth() - PAD)
+      .lte("latitude", bounds.getNorth() + PAD)
+      .gte("longitude", bounds.getWest() - PAD)
+      .lte("longitude", bounds.getEast() + PAD)
       .eq("is_visible", true)
       .limit(200);
 
