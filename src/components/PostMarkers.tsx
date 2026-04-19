@@ -462,8 +462,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       return { lat, lng };
     }
     return { lat: selectedPost.latitude, lng: selectedPost.longitude };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPost, fuzzyTick]);
+  }, [selectedPost]);
   const selectedLat = selectedCoords.lat;
   const selectedLng = selectedCoords.lng;
 
