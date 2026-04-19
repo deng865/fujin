@@ -223,11 +223,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
   // at least one fuzzy mobile post). Precise posts don't need the tick, so
   // excluding it prevents the source from being replaced every minute, which
   // was causing icons to flicker / momentarily vanish on zoom.
-  const hasFuzzyMobile = useMemo(
-    () => mobilePosts.some((p) => !p.mobile_location_precise),
-    [mobilePosts],
-  );
-  const effectiveTick = hasFuzzyMobile ? fuzzyTick : 0;
+  // (No periodic tick — see note at top of component.)
 
   const mobileGeojson = useMemo(() => {
     return {
