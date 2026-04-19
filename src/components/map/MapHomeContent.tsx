@@ -153,7 +153,7 @@ export default function MapHomeContent() {
 
     const { data } = await supabase
       .from("posts")
-      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, is_mobile, operating_hours, live_latitude, live_longitude, live_updated_at, user_id")
+      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, is_mobile, mobile_location_precise, operating_hours, live_latitude, live_longitude, live_updated_at, user_id")
       .gte("latitude", bounds.getSouth())
       .lte("latitude", bounds.getNorth())
       .gte("longitude", bounds.getWest())
