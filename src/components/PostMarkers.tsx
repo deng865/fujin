@@ -130,14 +130,13 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
   const { current: mapRef } = useMap();
   const [catMap, setCatMap] = useState<Record<string, string>>({});
   const registeredIcons = useRef<Set<string>>(new Set());
-  // Bumped every minute so the 10-minute fuzzy-rotation window switches
-  // automatically without forcing a parent re-render.
-  const [fuzzyTick, setFuzzyTick] = useState(0);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setFuzzyTick((t) => t + 1), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
+  // Note: we intentionally DO NOT run a 60s tick that re-bumps the fuzzy
+  // offset. Recomputing mobileGeojson on a timer caused Mapbox to swap the
+  // entire source — which made symbol icons momentarily disappear during
+  // pinch-zoom. Fuzzy positions are now recomputed only when the merchant's
+  // real coordinates change (via realtime UPDATE on live_latitude/longitude),
+  // which is sufficient for privacy: a stationary merchant's icon staying put
+  // reveals nothing more than the original 110–330m offset already does.
 
   useEffect(() => {
     supabase
