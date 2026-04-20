@@ -300,6 +300,13 @@ export type Database = {
             referencedRelation: "posts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "favorites_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       housing_posts: {
@@ -821,6 +828,13 @@ export type Database = {
             referencedRelation: "posts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reports_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       review_prompts: {
@@ -925,6 +939,13 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1153,6 +1174,69 @@ export type Database = {
           f_table_schema?: unknown
           srid?: number | null
           type?: string | null
+        }
+        Relationships: []
+      }
+      posts_public: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string | null
+          image_urls: string[] | null
+          is_mobile: boolean | null
+          is_visible: boolean | null
+          latitude: number | null
+          live_latitude: number | null
+          live_longitude: number | null
+          live_updated_at: string | null
+          longitude: number | null
+          mobile_location_precise: boolean | null
+          operating_hours: Json | null
+          price: number | null
+          title: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          image_urls?: string[] | null
+          is_mobile?: boolean | null
+          is_visible?: boolean | null
+          latitude?: number | null
+          live_latitude?: number | null
+          live_longitude?: number | null
+          live_updated_at?: string | null
+          longitude?: number | null
+          mobile_location_precise?: boolean | null
+          operating_hours?: Json | null
+          price?: number | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          image_urls?: string[] | null
+          is_mobile?: boolean | null
+          is_visible?: boolean | null
+          latitude?: number | null
+          live_latitude?: number | null
+          live_longitude?: number | null
+          live_updated_at?: string | null
+          longitude?: number | null
+          mobile_location_precise?: boolean | null
+          operating_hours?: Json | null
+          price?: number | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
