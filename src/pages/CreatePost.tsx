@@ -185,8 +185,16 @@ export default function CreatePost() {
 
     // Posting quota: new posts require an available credit or an active membership
     if (!editId) {
-      await credits.refresh();
-      if (!credits.hasUnlimited && credits.postCredits <= 0) {
+      const { data: { user: quotaUser } } = await supabase.auth.getUser();
+      const { data: creditRow } = await supabase
+        .from("user_credits")
+        .select("post_credits, unlimited_until")
+        .eq("user_id", quotaUser?.id ?? "")
+        .maybeSingle();
+      const unlimited =
+        !!creditRow?.unlimited_until &&
+        new Date(creditRow.unlimited_until).getTime() > Date.now();
+      if (!unlimited && (creditRow?.post_credits ?? 0) <= 0) {
         toast.error("发布额度不足，请先购买发布套餐");
         navigate("/pricing");
         return;
