@@ -332,6 +332,9 @@ export default function CreatePost() {
           }
           throw error;
         }
+        // Deduct one posting credit (memberships are exempt inside the function)
+        await supabase.rpc("consume_post_credit", { _user_id: user.id });
+        credits.refresh();
         toast.success("发布成功！ / Posted successfully!");
 
         // Sync vehicle info to profile for driver category
