@@ -27,8 +27,9 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger,
 } from "@/components/ui/sidebar";
 import ReviewsPanel from "@/components/admin/ReviewsPanel";
+import PricingPanel from "@/components/admin/PricingPanel";
 
-type AdminTab = "dashboard" | "moderation" | "users" | "categories" | "reports" | "reviews";
+type AdminTab = "dashboard" | "moderation" | "users" | "categories" | "reports" | "reviews" | "pricing";
 
 // ─── Dashboard Stats ───
 function DashboardPanel() {
@@ -848,6 +849,7 @@ const menuItems = [
   { id: "reviews" as AdminTab, label: "评价申诉", icon: Star },
   { id: "users" as AdminTab, label: "用户管理", icon: Users },
   { id: "categories" as AdminTab, label: "分类配置", icon: Settings },
+  { id: "pricing" as AdminTab, label: "价格管理", icon: Wallet },
 ];
 
 export default function AdminPortal() {
@@ -928,6 +930,7 @@ export default function AdminPortal() {
             {activeTab === "categories" && <CategoriesPanel />}
             {activeTab === "reports" && <ReportsPanel />}
             {activeTab === "reviews" && <ReviewsPanel />}
+            {activeTab === "pricing" && <PricingPanel />}
           </main>
         </div>
       </div>

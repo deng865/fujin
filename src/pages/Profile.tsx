@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { checkActiveTripLock } from "@/lib/tripLock";
 import { toast } from "sonner";
-import { LogOut, Package, Shield, Headphones, ChevronRight, Edit, Car, Star } from "lucide-react";
+import { LogOut, Package, Shield, Headphones, ChevronRight, Edit, Car, Star, Wallet, Receipt } from "lucide-react";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAuth } from "@/hooks/useAuth";
+import { useCredits } from "@/hooks/useCredits";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,7 @@ type SubPage = "main" | "posts" | "privacy" | "editProfile" | "reviews";
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
+  const credits = useCredits();
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<UserPost[]>([]);
@@ -422,6 +424,27 @@ export default function ProfilePage() {
           >
             <Star className="h-5 w-5 text-primary" />
             <span className="flex-1 text-sm font-medium">我的评价</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <button
+            onClick={() => navigate("/pricing")}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/50 transition-colors"
+          >
+            <Wallet className="h-5 w-5 text-primary" />
+            <span className="flex-1 text-sm font-medium">发布额度 / 购买套餐</span>
+            <span className="text-xs text-muted-foreground mr-1">
+              {credits.hasUnlimited ? "会员" : `${credits.postCredits} 次`}
+            </span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <button
+            onClick={() => navigate("/orders")}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/50 transition-colors"
+          >
+            <Receipt className="h-5 w-5 text-primary" />
+            <span className="flex-1 text-sm font-medium">我的订单</span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
 

@@ -12,12 +12,15 @@ import {
   loadAdminPortal,
   loadAuth,
   loadChatRoom,
+  loadCheckoutReturn,
   loadCreatePost,
   loadDiscovery,
   loadFavorites,
   loadMessages,
+  loadMyOrders,
   loadNotFound,
   loadPostDetail,
+  loadPricing,
   loadPrivacyPolicy,
   loadProfile,
   loadResetPassword,
@@ -37,6 +40,9 @@ const Discovery = lazy(loadDiscovery);
 const NotFound = lazy(loadNotFound);
 const PrivacyPolicy = lazy(loadPrivacyPolicy);
 const TermsOfService = lazy(loadTermsOfService);
+const Pricing = lazy(loadPricing);
+const CheckoutReturn = lazy(loadCheckoutReturn);
+const MyOrders = lazy(loadMyOrders);
 
 const queryClient = new QueryClient();
 
@@ -74,6 +80,9 @@ const App = () => (
                 <Route path="/admin-portal" element={<AdminPortal />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="/terms-of-service" element={<TermsOfService />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/checkout/return" element={<CheckoutReturn />} />
+                <Route path="/orders" element={<MyOrders />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>

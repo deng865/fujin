@@ -8,6 +8,7 @@ import CategoryGrid from "@/components/create-post/CategoryGrid";
 import DynamicForm from "@/components/create-post/DynamicForm";
 import LocationPicker from "@/components/create-post/LocationPicker";
 import { getDeviceId } from "@/lib/deviceId";
+import { useCredits } from "@/hooks/useCredits";
 import type { DaySchedule } from "@/components/create-post/WeeklySchedule";
 
 function defaultSchedule(): DaySchedule[] {
@@ -43,6 +44,7 @@ export default function CreatePost() {
   const [isMobile, setIsMobile] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const credits = useCredits();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -181,6 +183,24 @@ export default function CreatePost() {
       }
     }
 
+    // Posting quota: new posts require an available credit or an active membership
+    if (!editId) {
+      const { data: { user: quotaUser } } = await supabase.auth.getUser();
+      const { data: creditRow } = await supabase
+        .from("user_credits")
+        .select("post_credits, unlimited_until")
+        .eq("user_id", quotaUser?.id ?? "")
+        .maybeSingle();
+      const unlimited =
+        !!creditRow?.unlimited_until &&
+        new Date(creditRow.unlimited_until).getTime() > Date.now();
+      if (!unlimited && (creditRow?.post_credits ?? 0) <= 0) {
+        toast.error("发布额度不足，请先购买发布套餐");
+        navigate("/pricing");
+        return;
+      }
+    }
+
     // Check for existing active post in same category (new posts only)
     if (!editId) {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -312,6 +332,9 @@ export default function CreatePost() {
           }
           throw error;
         }
+        // Deduct one posting credit (memberships are exempt inside the function)
+        await supabase.rpc("consume_post_credit", { _user_id: user.id });
+        credits.refresh();
         toast.success("发布成功！ / Posted successfully!");
 
         // Sync vehicle info to profile for driver category
