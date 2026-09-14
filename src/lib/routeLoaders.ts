@@ -14,6 +14,9 @@ export const loadDiscovery = () => lazyWithRetry(() => import("../pages/Discover
 export const loadNotFound = () => lazyWithRetry(() => import("../pages/NotFound"));
 export const loadPrivacyPolicy = () => lazyWithRetry(() => import("../pages/PrivacyPolicy"));
 export const loadTermsOfService = () => lazyWithRetry(() => import("../pages/TermsOfService"));
+export const loadPricing = () => lazyWithRetry(() => import("../pages/Pricing"));
+export const loadCheckoutReturn = () => lazyWithRetry(() => import("../pages/CheckoutReturn"));
+export const loadMyOrders = () => lazyWithRetry(() => import("../pages/MyOrders"));
 
 export function preloadRoute(pathname: string) {
   const normalized = pathname.split("?")[0];
@@ -45,6 +48,12 @@ export function preloadRoute(pathname: string) {
       return loadPrivacyPolicy();
     case "/terms-of-service":
       return loadTermsOfService();
+    case "/pricing":
+      return loadPricing();
+    case "/checkout/return":
+      return loadCheckoutReturn();
+    case "/orders":
+      return loadMyOrders();
     default:
       return Promise.resolve();
   }
