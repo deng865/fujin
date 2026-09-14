@@ -8,6 +8,7 @@ import CategoryGrid from "@/components/create-post/CategoryGrid";
 import DynamicForm from "@/components/create-post/DynamicForm";
 import LocationPicker from "@/components/create-post/LocationPicker";
 import { getDeviceId } from "@/lib/deviceId";
+import { useCredits } from "@/hooks/useCredits";
 import type { DaySchedule } from "@/components/create-post/WeeklySchedule";
 
 function defaultSchedule(): DaySchedule[] {
@@ -43,6 +44,7 @@ export default function CreatePost() {
   const [isMobile, setIsMobile] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const credits = useCredits();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
