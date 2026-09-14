@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789365842490,
+      "tag": "0000_payments_pricing_plans_and_credits",
+      "breakpoints": true
+    }
+  ]
+}

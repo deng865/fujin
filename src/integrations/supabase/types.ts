@@ -535,34 +535,61 @@ export type Database = {
         Row: {
           amount: number
           created_at: string | null
+          currency: string | null
+          duration_days: number | null
+          environment: string
+          expires_at: string | null
           id: string
+          metadata: Json
           payment_method: string
           payment_status: string | null
-          post_id: string
+          plan_key: string | null
+          plan_name: string | null
+          post_id: string | null
           post_type: string
           stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
           amount: number
           created_at?: string | null
+          currency?: string | null
+          duration_days?: number | null
+          environment?: string
+          expires_at?: string | null
           id?: string
+          metadata?: Json
           payment_method: string
           payment_status?: string | null
-          post_id: string
-          post_type: string
+          plan_key?: string | null
+          plan_name?: string | null
+          post_id?: string | null
+          post_type?: string
           stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
           amount?: number
           created_at?: string | null
+          currency?: string | null
+          duration_days?: number | null
+          environment?: string
+          expires_at?: string | null
           id?: string
+          metadata?: Json
           payment_method?: string
           payment_status?: string | null
-          post_id?: string
+          plan_key?: string | null
+          plan_name?: string | null
+          post_id?: string | null
           post_type?: string
           stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -584,6 +611,8 @@ export type Database = {
       }
       posts: {
         Row: {
+          boost_expires_at: string | null
+          bumped_at: string | null
           category: string
           contact_phone: string | null
           contact_wechat: string | null
@@ -592,6 +621,7 @@ export type Database = {
           device_id: string | null
           id: string
           image_urls: string[] | null
+          is_boosted: boolean
           is_mobile: boolean
           is_visible: boolean | null
           latitude: number
@@ -601,12 +631,15 @@ export type Database = {
           longitude: number
           mobile_location_precise: boolean
           operating_hours: Json | null
+          paid_until: string | null
           price: number | null
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          boost_expires_at?: string | null
+          bumped_at?: string | null
           category?: string
           contact_phone?: string | null
           contact_wechat?: string | null
@@ -615,6 +648,7 @@ export type Database = {
           device_id?: string | null
           id?: string
           image_urls?: string[] | null
+          is_boosted?: boolean
           is_mobile?: boolean
           is_visible?: boolean | null
           latitude: number
@@ -624,12 +658,15 @@ export type Database = {
           longitude: number
           mobile_location_precise?: boolean
           operating_hours?: Json | null
+          paid_until?: string | null
           price?: number | null
           title: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          boost_expires_at?: string | null
+          bumped_at?: string | null
           category?: string
           contact_phone?: string | null
           contact_wechat?: string | null
@@ -638,6 +675,7 @@ export type Database = {
           device_id?: string | null
           id?: string
           image_urls?: string[] | null
+          is_boosted?: boolean
           is_mobile?: boolean
           is_visible?: boolean | null
           latitude?: number
@@ -647,10 +685,68 @@ export type Database = {
           longitude?: number
           mobile_location_precise?: boolean
           operating_hours?: Json | null
+          paid_until?: string | null
           price?: number | null
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      pricing_plans: {
+        Row: {
+          amount_cents: number
+          category: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          duration_days: number
+          id: string
+          is_active: boolean
+          is_boost: boolean
+          name: string
+          plan_key: string
+          plan_type: string
+          post_credits: number
+          sort_order: number
+          unlimited_posts: boolean
+          updated_at: string
+        }
+        Insert: {
+          amount_cents?: number
+          category?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          duration_days?: number
+          id?: string
+          is_active?: boolean
+          is_boost?: boolean
+          name: string
+          plan_key: string
+          plan_type?: string
+          post_credits?: number
+          sort_order?: number
+          unlimited_posts?: boolean
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          category?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          duration_days?: number
+          id?: string
+          is_active?: boolean
+          is_boost?: boolean
+          name?: string
+          plan_key?: string
+          plan_type?: string
+          post_credits?: number
+          sort_order?: number
+          unlimited_posts?: boolean
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1073,6 +1169,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_credits: {
+        Row: {
+          created_at: string
+          post_credits: number
+          unlimited_until: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_credits?: number
+          unlimited_until?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_credits?: number
+          unlimited_until?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -1410,6 +1530,7 @@ export type Database = {
         Args: { _device_id?: string; _post_id: string; _user_id: string }
         Returns: Json
       }
+      consume_post_credit: { Args: { _user_id: string }; Returns: Json }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {
