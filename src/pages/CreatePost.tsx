@@ -183,6 +183,16 @@ export default function CreatePost() {
       }
     }
 
+    // Posting quota: new posts require an available credit or an active membership
+    if (!editId) {
+      await credits.refresh();
+      if (!credits.hasUnlimited && credits.postCredits <= 0) {
+        toast.error("发布额度不足，请先购买发布套餐");
+        navigate("/pricing");
+        return;
+      }
+    }
+
     // Check for existing active post in same category (new posts only)
     if (!editId) {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
