@@ -107,6 +107,7 @@ type SubPage = "main" | "posts" | "privacy" | "editProfile" | "reviews";
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { isAdmin } = useAdmin();
+  const credits = useCredits();
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<UserPost[]>([]);
