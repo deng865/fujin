@@ -426,6 +426,27 @@ export default function ProfilePage() {
           </button>
 
           <button
+            onClick={() => navigate("/pricing")}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/50 transition-colors"
+          >
+            <Wallet className="h-5 w-5 text-primary" />
+            <span className="flex-1 text-sm font-medium">发布额度 / 购买套餐</span>
+            <span className="text-xs text-muted-foreground mr-1">
+              {credits.hasUnlimited ? "会员" : `${credits.postCredits} 次`}
+            </span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <button
+            onClick={() => navigate("/orders")}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/50 transition-colors"
+          >
+            <Receipt className="h-5 w-5 text-primary" />
+            <span className="flex-1 text-sm font-medium">我的订单</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <button
             onClick={() => setSubPage("privacy")}
             className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/50 transition-colors"
           >
