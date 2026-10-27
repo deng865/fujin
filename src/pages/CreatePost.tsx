@@ -186,16 +186,24 @@ export default function CreatePost() {
     // Posting quota: new posts require an available credit or an active membership
     if (!editId) {
       const { data: { user: quotaUser } } = await supabase.auth.getUser();
-      const { data: creditRow } = await supabase
-        .from("user_credits")
-        .select("post_credits, unlimited_until")
-        .eq("user_id", quotaUser?.id ?? "")
-        .maybeSingle();
+      const [{ data: creditRow }, { data: bonusData }] = await Promise.all([
+        supabase
+          .from("user_credits")
+          .select("post_credits, unlimited_until")
+          .eq("user_id", quotaUser?.id ?? "")
+          .maybeSingle(),
+        supabase.rpc("get_welcome_bonus", { _user_id: quotaUser?.id ?? "" }),
+      ]);
+      const bonus = (bonusData ?? {}) as { remaining?: number; expired?: boolean; total?: number };
       const unlimited =
         !!creditRow?.unlimited_until &&
         new Date(creditRow.unlimited_until).getTime() > Date.now();
-      if (!unlimited && (creditRow?.post_credits ?? 0) <= 0) {
-        toast.error("发布额度不足，请先购买发布套餐");
+      if (!unlimited && (bonus.remaining ?? 0) <= 0 && (creditRow?.post_credits ?? 0) <= 0) {
+        toast.error(
+          bonus.expired && (bonus.total ?? 0) > 0
+            ? "您获赠的新手体验额度已过有效期，请购买套餐继续发帖"
+            : "发布额度不足，请先购买发布套餐",
+        );
         navigate("/pricing");
         return;
       }
