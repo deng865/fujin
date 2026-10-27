@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
-import Map, { Marker, Source, Layer } from "react-map-gl/mapbox";
+import Map, { Marker, Source, Layer, type MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
@@ -104,19 +104,51 @@ export default function DriverTracking({
     ? (isDriver ? "正在前往乘客位置" : "司机正在前来接您")
     : (isDriver ? "正在前往目的地" : "正在前往目的地");
 
-  // Auto-switch from pickup to destination when driver within 50m of passenger
-  useEffect(() => {
-    if (phase !== "pickup" || !driverLocation || !destinationLocation) return;
-    const dist = haversineMeters(driverLocation, passengerLocation);
-    if (dist <= 50) {
-      setPhase("destination");
+  const mapRef = useRef<MapRef | null>(null);
+  const fittedKey = useRef<string>("");
+
+  const switchToDestination = useCallback((broadcast: boolean) => {
+    setPhase((p) => {
+      if (p === "destination") return p;
       setRouteGeoJson(null);
       setEta(null);
-      // Reset route tracking refs for new phase
       lastRouteFetchLoc.current = null;
       lastRouteFetchTime.current = 0;
-    }
-  }, [driverLocation, passengerLocation, destinationLocation, phase]);
+      if (broadcast) {
+        channelRef.current?.send({ type: "broadcast", event: "trip-phase", payload: { phase: "destination" } });
+      }
+      return "destination";
+    });
+  }, []);
+
+  // Auto-switch when driver within 80m of pickup (tolerates GPS drift)
+  useEffect(() => {
+    if (phase !== "pickup" || !driverLocation || !destinationLocation) return;
+    if (haversineMeters(driverLocation, passengerLocation) <= 80) switchToDestination(isDriver);
+  }, [driverLocation, passengerLocation, destinationLocation, phase, isDriver, switchToDestination]);
+
+  /** Fit camera to driver + current target (and pickup during destination phase) */
+  const fitView = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !driverLocation) return;
+    const pts = [driverLocation, currentTarget];
+    const lngs = pts.map((p) => p.lng);
+    const lats = pts.map((p) => p.lat);
+    map.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: 40, duration: 1500, maxZoom: 16 }
+    );
+  }, [driverLocation, currentTarget]);
+
+  // Re-fit when phase changes or the first driver location arrives
+  useEffect(() => {
+    if (!driverLocation) return;
+    const key = `${phase}`;
+    if (fittedKey.current === key) return;
+    fittedKey.current = key;
+    const t = setTimeout(fitView, 300);
+    return () => clearTimeout(t);
+  }, [phase, driverLocation, fitView]);
 
   // ── Shared handler: only update state if moved > threshold ──
   const handleNewLocation = useCallback((loc: { lat: number; lng: number }) => {
@@ -176,12 +208,15 @@ export default function DriverTracking({
           handleNewLocation(payload);
         }
       })
+      .on("broadcast", { event: "trip-phase" }, ({ payload }) => {
+        if (payload?.phase === "destination") switchToDestination(false);
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isDriver, conversationId, handleNewLocation]);
+  }, [isDriver, conversationId, handleNewLocation, switchToDestination]);
 
   // ── Debounced route fetch ──
   const doFetchRoute = useCallback(async (
@@ -304,13 +339,29 @@ export default function DriverTracking({
             </span>
           )}
         </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isDriver && phase === "pickup" && destinationLocation && (
+            <button
+              onClick={() => switchToDestination(true)}
+              className="px-2 py-1 rounded-lg text-[11px] font-semibold bg-primary text-primary-foreground"
+            >
+              已接上乘客
+            </button>
+          )}
+          {driverLocation && (
+            <button onClick={fitView} className="px-2 py-1 rounded-lg text-[11px] font-medium bg-background/80 text-primary border border-primary/20">
+              全览
+            </button>
+          )}
         <button onClick={() => setExpanded(false)} className="p-1 hover:bg-accent rounded">
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
         </button>
+        </div>
       </div>
       <div className="h-[200px] w-full">
         {driverLocation ? (
           <Map
+            ref={mapRef}
             mapboxAccessToken={MAPBOX_TOKEN}
             initialViewState={{
               bounds: bounds
