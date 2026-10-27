@@ -32,7 +32,7 @@ const typeLabel: Record<string, string> = {
 export default function Pricing() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { postCredits, hasUnlimited, unlimitedUntil } = useCredits();
+  const { postCredits, hasUnlimited, unlimitedUntil, bonusRemaining, bonusExpiresAt } = useCredits();
   const [searchParams] = useSearchParams();
   const postId = searchParams.get("postId");
 
@@ -81,6 +81,11 @@ export default function Pricing() {
           ) : (
             <p className="mt-1 text-sm font-semibold">
               剩余发帖次数：{postCredits} 次
+            </p>
+          )}
+          {bonusRemaining > 0 && bonusExpiresAt && (
+            <p className="mt-1 text-sm text-primary">
+              新手礼包：剩余 {bonusRemaining} 条，有效期至 {new Date(bonusExpiresAt).toLocaleDateString("zh-CN")}（还剩 {Math.max(0, Math.ceil((new Date(bonusExpiresAt).getTime() - Date.now()) / 86400000))} 天）
             </p>
           )}
         </div>

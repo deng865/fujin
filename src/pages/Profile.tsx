@@ -434,7 +434,7 @@ export default function ProfilePage() {
             <Wallet className="h-5 w-5 text-primary" />
             <span className="flex-1 text-sm font-medium">发布额度 / 购买套餐</span>
             <span className="text-xs text-muted-foreground mr-1">
-              {credits.hasUnlimited ? "会员" : `${credits.postCredits} 次`}
+              {credits.hasUnlimited ? "会员" : `${credits.postCredits + credits.bonusRemaining} 次${credits.bonusRemaining > 0 ? `（含赠送 ${credits.bonusRemaining}）` : ""}`}
             </span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
