@@ -1,7 +1,9 @@
 project_id = "pmfyeqjgkmkvrlubzikr"
 
-[functions.create-checkout]
-verify_jwt = false
-
-[functions.payments-webhook]
-verify_jwt = false
+[functions]
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.create-checkout]
+    verify_jwt = false
+  [functions.payments-webhook]
+    verify_jwt = false
