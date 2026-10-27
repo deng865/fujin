@@ -238,15 +238,38 @@ export default function MapHomeContent() {
     mapRef.current?.flyTo({ center: [center.lng, center.lat], zoom, duration: 500 });
   }, [center]);
 
+  const userPosRef = useRef(userPos);
+  userPosRef.current = userPos;
+
   const handleLocateMe = useCallback(() => {
+    const known = userPosRef.current;
+    if (known) {
+      setCenter(known);
+      mapRef.current?.flyTo({ center: [known.lng, known.lat], zoom: 14, duration: 800 });
+    }
+    if (!navigator.geolocation) {
+      if (!known) toast({ title: "当前设备不支持定位", variant: "destructive" });
+      return;
+    }
+    if (!known) toast({ title: "正在获取你的位置…" });
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserPos(loc);
         setCenter(loc);
-        mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: 12, duration: 800 });
+        mapRef.current?.flyTo({ center: [loc.lng, loc.lat], zoom: 14, duration: 800 });
       },
-      () => undefined,
-      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 5_000 },
+      (err) => {
+        if (known) return;
+        toast({
+          title: err.code === 1 ? "未获得定位权限" : "暂时无法获取位置",
+          description: err.code === 1
+            ? "请在浏览器或手机设置中允许本应用访问位置"
+            : "请确认已开启定位服务后重试",
+          variant: "destructive",
+        });
+      },
+      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 10_000 },
     );
   }, []);
 
@@ -399,7 +422,15 @@ export default function MapHomeContent() {
         />
 
         {userPos && (
-          <Marker longitude={userPos.lng} latitude={userPos.lat} anchor="center">
+          <Marker
+            longitude={userPos.lng}
+            latitude={userPos.lat}
+            anchor="center"
+            onClick={(e: any) => {
+              e?.originalEvent?.stopPropagation?.();
+              mapRef.current?.flyTo({ center: [userPos.lng, userPos.lat], zoom: 14, duration: 800 });
+            }}
+          >
             <AvatarMarker avatarUrl={avatarUrl} name={user?.user_metadata?.name} size={40} />
           </Marker>
         )}
