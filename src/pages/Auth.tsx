@@ -78,7 +78,7 @@ const Auth = () => {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
-      toast.success("重置链接已发送，请查看邮箱");
+      toast.success("重置请求已提交；如果邮箱已注册，请查看收件箱及垃圾邮件，邮件可能需要几分钟", { duration: 8000 });
     } catch (error: any) {
       toast.error(friendlyError(error.message || "发送失败"));
     } finally {
@@ -176,7 +176,7 @@ const Auth = () => {
   // Show success message after signup if email confirmation is needed
   if (signUpSuccess) {
     return (
-      <div className="flex min-h-[100dvh] items-start justify-center bg-background px-4 py-10 overflow-y-auto">
+      <div className="flex h-[100dvh] items-start justify-center overflow-y-auto overscroll-contain bg-background px-4 pt-10 pb-[calc(3.5rem+env(safe-area-inset-bottom))]">
         <div className="w-full max-w-sm space-y-6 text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
             <Mail className="w-8 h-8 text-primary" />
@@ -197,7 +197,7 @@ const Auth = () => {
   }
 
   return (
-    <div className="flex min-h-[100dvh] items-start justify-center bg-background px-4 pt-6 pb-20 overflow-y-auto">
+    <div className="flex h-[100dvh] items-start justify-center overflow-y-auto overscroll-contain bg-background px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <LocationPermissionDialog open={showLocationDialog} onSelect={handleLocationPermission} />
 
       <div className="w-full max-w-sm space-y-8">
@@ -256,7 +256,7 @@ const Auth = () => {
                 <Label className="text-sm">邮箱</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="signin-email" name="email" type="email" placeholder="your@email.com" required className="pl-10 h-11 rounded-xl" />
+                  <Input id="signin-email" name="email" type="email" placeholder="your@email.com" required className="pl-10 h-11 rounded-xl text-[16px]" />
                 </div>
               </div>
               <div className="space-y-2">
@@ -267,7 +267,7 @@ const Auth = () => {
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     required
-                    className="pr-10 h-11 rounded-xl"
+                    className="pr-10 h-11 rounded-xl text-[16px]"
                   />
                   <button
                     type="button"
@@ -282,13 +282,15 @@ const Auth = () => {
                 {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />登录中...</> : "登录"}
               </Button>
               <div className="text-right">
-                <button
+                <Button
                   type="button"
+                  variant="link"
+                  disabled={loading}
                   onClick={handleForgotPassword}
-                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                  className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground underline"
                 >
                   忘记密码？
-                </button>
+                </Button>
               </div>
             </form>
           </TabsContent>
@@ -297,13 +299,13 @@ const Auth = () => {
             <form onSubmit={handleSignUp} className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-sm">姓名 *</Label>
-                <Input name="name" placeholder="您的姓名" required className="h-11 rounded-xl" />
+                <Input name="name" placeholder="您的姓名" required className="h-11 rounded-xl text-[16px]" />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm">邮箱 *</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input name="email" type="email" placeholder="your@email.com" required className="pl-10 h-11 rounded-xl" />
+                  <Input name="email" type="email" placeholder="your@email.com" required className="pl-10 h-11 rounded-xl text-[16px]" />
                 </div>
               </div>
               <div className="space-y-2">
@@ -315,7 +317,7 @@ const Auth = () => {
                     placeholder="至少6位字符"
                     required
                     minLength={6}
-                    className="pr-10 h-11 rounded-xl"
+                    className="pr-10 h-11 rounded-xl text-[16px]"
                   />
                   <button
                     type="button"
