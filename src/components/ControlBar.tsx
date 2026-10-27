@@ -82,6 +82,7 @@ export default function ControlBar({
 
   return (
     <div
+      ref={barRef}
       className="absolute left-4 right-4 z-20 pointer-events-none flex justify-center"
       style={{ top: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
     >
