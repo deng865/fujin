@@ -28,10 +28,13 @@ export default function ControlBar({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const distanceRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showDistance) return;
     const handler = (e: MouseEvent | TouchEvent) => {
+      if (barRef.current && !barRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
       if (distanceRef.current && !distanceRef.current.contains(e.target as Node)) {
         setShowDistance(false);
       }
@@ -42,7 +45,7 @@ export default function ControlBar({
       document.removeEventListener("mousedown", handler);
       document.removeEventListener("touchstart", handler);
     };
-  }, [showDistance]);
+  }, []);
 
   const fetchSuggestions = useCallback(async (text: string) => {
     if (text.length < 3) { setSuggestions([]); return; }
