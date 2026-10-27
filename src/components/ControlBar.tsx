@@ -65,6 +65,13 @@ export default function ControlBar({
     debounceRef.current = setTimeout(() => fetchSuggestions(val), 500);
   };
 
+  const handleCitySelect = (city: { name: string; lat: number; lng: number }) => {
+    setQuery(city.name);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    onPlaceSelect({ lat: city.lat, lng: city.lng, name: city.name });
+  };
+
   const handleSelect = (feature: any) => {
     const [lng, lat] = feature.center;
     setQuery(feature.place_name);
