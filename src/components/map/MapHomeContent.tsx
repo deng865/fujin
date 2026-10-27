@@ -321,6 +321,29 @@ export default function MapHomeContent() {
     <div
       className="relative h-[100dvh] w-screen overflow-hidden bg-background"
     >
+      <div
+        className="absolute left-3 z-20 flex gap-2"
+        style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
+      >
+        {[
+          { name: "纽约", lat: 40.7282, lng: -73.9342 },
+          { name: "达拉斯", lat: 32.7767, lng: -96.797 },
+        ].map((c) => (
+          <button
+            key={c.name}
+            onClick={() =>
+              mapRef.current?.flyTo({
+                center: [c.lng, c.lat],
+                zoom: radiusToZoom(10, c.lat, mapRef.current?.getMap().getContainer()),
+                duration: 1200,
+              })
+            }
+            className="rounded-full bg-background/90 px-3 py-1.5 text-sm font-medium text-foreground shadow-md backdrop-blur"
+          >
+            {c.name}
+          </button>
+        ))}
+      </div>
       <MapGL
         ref={mapRef}
         initialViewState={{
