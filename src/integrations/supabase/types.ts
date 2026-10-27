@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          id: boolean
+          updated_at: string
+          welcome_bonus_credits: number
+          welcome_bonus_days: number
+          welcome_bonus_enabled: boolean
+        }
+        Insert: {
+          id?: boolean
+          updated_at?: string
+          welcome_bonus_credits?: number
+          welcome_bonus_days?: number
+          welcome_bonus_enabled?: boolean
+        }
+        Update: {
+          id?: boolean
+          updated_at?: string
+          welcome_bonus_credits?: number
+          welcome_bonus_days?: number
+          welcome_bonus_enabled?: boolean
+        }
+        Relationships: []
+      }
       call_sessions: {
         Row: {
           caller_id: string
@@ -1174,6 +1198,7 @@ export type Database = {
       }
       user_credits: {
         Row: {
+          bonus_used: number
           created_at: string
           post_credits: number
           unlimited_until: string | null
@@ -1181,6 +1206,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bonus_used?: number
           created_at?: string
           post_credits?: number
           unlimited_until?: string | null
@@ -1188,6 +1214,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bonus_used?: number
           created_at?: string
           post_credits?: number
           unlimited_until?: string | null
@@ -1665,6 +1692,7 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_welcome_bonus: { Args: { _user_id: string }; Returns: Json }
       gettransactionid: { Args: never; Returns: unknown }
       has_role: {
         Args: {

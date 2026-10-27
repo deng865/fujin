@@ -4,6 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Save, Loader2, DollarSign } from "lucide-react";
+import WelcomeBonusSettings from "./WelcomeBonusSettings";
 
 interface Plan {
   id: string;
@@ -269,6 +270,7 @@ export default function PricingPanel() {
 
   return (
     <div className="space-y-5">
+      <WelcomeBonusSettings />
       <div className="flex items-start justify-between gap-3">
         <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
           在这里设置每个套餐的分类、有效天数和价格，保存后前台购买页与结账金额立即按新参数生效，无需改动代码。
