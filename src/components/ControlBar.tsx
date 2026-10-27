@@ -3,6 +3,14 @@ import { Search, ChevronDown } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 
+const CITIES = [
+  { name: "纽约", lat: 40.7282, lng: -73.9342 },
+  { name: "洛杉矶", lat: 34.0485, lng: -118.1447 },
+  { name: "旧金山", lat: 37.7946, lng: -122.4074 },
+  { name: "芝加哥", lat: 41.8479, lng: -87.632 },
+  { name: "达拉斯", lat: 32.7767, lng: -96.797 },
+];
+
 interface ControlBarProps {
   searchRadius: number;
   onSearchRadiusChange: (radius: number) => void;
