@@ -124,6 +124,24 @@ export default function ControlBar({
           </div>
         </div>
 
+        {/* City quick-switch */}
+        {showSuggestions && suggestions.length === 0 && (
+          <div className="border-t border-border/30 px-3 py-2.5">
+            <p className="text-xs text-muted-foreground mb-1.5">热门城市</p>
+            <div className="flex flex-wrap gap-2">
+              {CITIES.map((c) => (
+                <button
+                  key={c.name}
+                  onClick={() => handleCitySelect(c)}
+                  className="rounded-full bg-muted/60 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Suggestions dropdown */}
         {showSuggestions && suggestions.length > 0 && (
           <div className="border-t border-border/30 max-h-48 overflow-y-auto">
