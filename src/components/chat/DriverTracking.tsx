@@ -208,12 +208,15 @@ export default function DriverTracking({
           handleNewLocation(payload);
         }
       })
+      .on("broadcast", { event: "trip-phase" }, ({ payload }) => {
+        if (payload?.phase === "destination") switchToDestination(false);
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isDriver, conversationId, handleNewLocation]);
+  }, [isDriver, conversationId, handleNewLocation, switchToDestination]);
 
   // ── Debounced route fetch ──
   const doFetchRoute = useCallback(async (
@@ -336,13 +339,29 @@ export default function DriverTracking({
             </span>
           )}
         </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isDriver && phase === "pickup" && destinationLocation && (
+            <button
+              onClick={() => switchToDestination(true)}
+              className="px-2 py-1 rounded-lg text-[11px] font-semibold bg-primary text-primary-foreground"
+            >
+              已接上乘客
+            </button>
+          )}
+          {driverLocation && (
+            <button onClick={fitView} className="px-2 py-1 rounded-lg text-[11px] font-medium bg-background/80 text-primary border border-primary/20">
+              全览
+            </button>
+          )}
         <button onClick={() => setExpanded(false)} className="p-1 hover:bg-accent rounded">
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
         </button>
+        </div>
       </div>
       <div className="h-[200px] w-full">
         {driverLocation ? (
           <Map
+            ref={mapRef}
             mapboxAccessToken={MAPBOX_TOKEN}
             initialViewState={{
               bounds: bounds
