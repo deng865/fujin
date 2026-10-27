@@ -623,6 +623,7 @@ export type Database = {
           image_urls: string[] | null
           is_boosted: boolean
           is_mobile: boolean
+          is_seed: boolean
           is_visible: boolean | null
           latitude: number
           live_latitude: number | null
@@ -650,6 +651,7 @@ export type Database = {
           image_urls?: string[] | null
           is_boosted?: boolean
           is_mobile?: boolean
+          is_seed?: boolean
           is_visible?: boolean | null
           latitude: number
           live_latitude?: number | null
@@ -677,6 +679,7 @@ export type Database = {
           image_urls?: string[] | null
           is_boosted?: boolean
           is_mobile?: boolean
+          is_seed?: boolean
           is_visible?: boolean | null
           latitude?: number
           live_latitude?: number | null

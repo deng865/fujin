@@ -8,6 +8,13 @@
       "when": 1789365842490,
       "tag": "0000_payments_pricing_plans_and_credits",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793104575075,
+      "tag": "0001_posts_seed_flag",
+      "breakpoints": true
     }
   ]
 }
