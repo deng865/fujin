@@ -3,6 +3,14 @@ import { Search, ChevronDown } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 
+const CITIES = [
+  { name: "纽约", lat: 40.7282, lng: -73.9342 },
+  { name: "洛杉矶", lat: 34.0485, lng: -118.1447 },
+  { name: "旧金山", lat: 37.7946, lng: -122.4074 },
+  { name: "芝加哥", lat: 41.8479, lng: -87.632 },
+  { name: "达拉斯", lat: 32.7767, lng: -96.797 },
+];
+
 interface ControlBarProps {
   searchRadius: number;
   onSearchRadiusChange: (radius: number) => void;
@@ -20,10 +28,13 @@ export default function ControlBar({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const distanceRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showDistance) return;
     const handler = (e: MouseEvent | TouchEvent) => {
+      if (barRef.current && !barRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
       if (distanceRef.current && !distanceRef.current.contains(e.target as Node)) {
         setShowDistance(false);
       }
@@ -34,7 +45,7 @@ export default function ControlBar({
       document.removeEventListener("mousedown", handler);
       document.removeEventListener("touchstart", handler);
     };
-  }, [showDistance]);
+  }, []);
 
   const fetchSuggestions = useCallback(async (text: string) => {
     if (text.length < 3) { setSuggestions([]); return; }
@@ -54,6 +65,13 @@ export default function ControlBar({
     debounceRef.current = setTimeout(() => fetchSuggestions(val), 500);
   };
 
+  const handleCitySelect = (city: { name: string; lat: number; lng: number }) => {
+    setQuery(city.name);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    onPlaceSelect({ lat: city.lat, lng: city.lng, name: city.name });
+  };
+
   const handleSelect = (feature: any) => {
     const [lng, lat] = feature.center;
     setQuery(feature.place_name);
@@ -64,6 +82,7 @@ export default function ControlBar({
 
   return (
     <div
+      ref={barRef}
       className="absolute left-4 right-4 z-20 pointer-events-none flex justify-center"
       style={{ top: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
     >
@@ -74,7 +93,7 @@ export default function ControlBar({
             type="text"
             value={query}
             onChange={(e) => handleInput(e.target.value)}
-            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onFocus={() => setShowSuggestions(true)}
             placeholder="搜索城市 / Search city..."
             className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground min-w-0"
           />
@@ -104,6 +123,24 @@ export default function ControlBar({
             )}
           </div>
         </div>
+
+        {/* City quick-switch */}
+        {showSuggestions && suggestions.length === 0 && (
+          <div className="border-t border-border/30 px-3 py-2.5">
+            <p className="text-xs text-muted-foreground mb-1.5">热门城市</p>
+            <div className="flex flex-wrap gap-2">
+              {CITIES.map((c) => (
+                <button
+                  key={c.name}
+                  onClick={() => handleCitySelect(c)}
+                  className="rounded-full bg-muted/60 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Suggestions dropdown */}
         {showSuggestions && suggestions.length > 0 && (
