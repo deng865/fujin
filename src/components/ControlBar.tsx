@@ -93,7 +93,7 @@ export default function ControlBar({
             type="text"
             value={query}
             onChange={(e) => handleInput(e.target.value)}
-            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onFocus={() => setShowSuggestions(true)}
             placeholder="搜索城市 / Search city..."
             className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground min-w-0"
           />
