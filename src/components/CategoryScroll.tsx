@@ -30,11 +30,12 @@ const fallbackCategories = [
 const MAX_VISIBLE = 7;
 
 interface CategoryScrollProps {
+  inline?: boolean;
   selectedCategory: string | null;
   onSelectCategory: (category: string | null) => void;
 }
 
-export default function CategoryScroll({ selectedCategory, onSelectCategory }: CategoryScrollProps) {
+export default function CategoryScroll({ selectedCategory, onSelectCategory, inline }: CategoryScrollProps) {
   const [categories, setCategories] = useState<typeof fallbackCategories>([]);
   const [showAll, setShowAll] = useState(false);
 
@@ -74,8 +75,8 @@ export default function CategoryScroll({ selectedCategory, onSelectCategory }: C
     <>
       {/* Horizontal scroll bar */}
       <div
-        className="absolute left-0 right-0 z-10 pointer-events-none"
-        style={{ top: "calc(env(safe-area-inset-top, 0px) + 72px)" }}
+        className={inline ? "relative" : "absolute left-0 right-0 z-10 pointer-events-none"}
+        style={inline ? undefined : { top: "calc(env(safe-area-inset-top, 0px) + 72px)" }}
       >
         <div className="pointer-events-auto px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-hide">
           <button onClick={() => handleSelect(null)} className={pillClass(!selectedCategory)}>

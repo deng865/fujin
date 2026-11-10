@@ -156,34 +156,6 @@ export default function LocationPicker({
         </MapGL>
       </div>
 
-      {/* Location type toggle */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => onLocationTypeChange("precise")}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium border-2 transition-all",
-            locationType === "precise"
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border/50 text-muted-foreground"
-          )}
-        >
-          <MapPin className="h-3.5 w-3.5" />
-          精确位置
-        </button>
-        <button
-          onClick={() => onLocationTypeChange("approximate")}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium border-2 transition-all",
-            locationType === "approximate"
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border/50 text-muted-foreground"
-          )}
-        >
-          <Shield className="h-3.5 w-3.5" />
-          模糊位置
-        </button>
-      </div>
-
       {location && (
         <p className="text-[11px] text-muted-foreground">
           📍 {locationType === "precise"

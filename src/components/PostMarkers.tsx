@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { fuzzifyLocation } from "@/lib/fuzzyLocation";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Home, Briefcase, Car, UtensilsCrossed, GraduationCap, Plane, UserCheck, Scale,
@@ -231,9 +230,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
       features: mobilePosts.map((post) => {
         const realLat = post.live_latitude != null ? post.live_latitude : post.latitude;
         const realLng = post.live_longitude != null ? post.live_longitude : post.longitude;
-        const { lat, lng } = post.mobile_location_precise
-          ? { lat: realLat, lng: realLng }
-          : fuzzifyLocation(realLat, realLng, post.id);
+        const lat = realLat, lng = realLng;
         const iconName = catMap[post.category] || "MapPin";
         return {
           type: "Feature" as const,
@@ -455,11 +452,7 @@ export default function PostMarkers({ posts, onSelectPost, favoriteIds, selected
     if (selectedPost.is_mobile) {
       const realLat = selectedPost.live_latitude != null ? selectedPost.live_latitude : selectedPost.latitude;
       const realLng = selectedPost.live_longitude != null ? selectedPost.live_longitude : selectedPost.longitude;
-      if (selectedPost.mobile_location_precise) {
-        return { lat: realLat, lng: realLng };
-      }
-      const { lat, lng } = fuzzifyLocation(realLat, realLng, selectedPost.id);
-      return { lat, lng };
+      return { lat: realLat, lng: realLng };
     }
     return { lat: selectedPost.latitude, lng: selectedPost.longitude };
   }, [selectedPost]);

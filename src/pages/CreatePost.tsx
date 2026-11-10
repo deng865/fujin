@@ -231,7 +231,7 @@ export default function CreatePost() {
     // merchant's real current position (not a stale picker / edit-mode value).
     // Fuzzy mode: only fetch when no location has been set yet.
     let submitLocation = location;
-    const needsFreshGps = isMobile && (formData.mobileLocationPrecise || !submitLocation);
+    const needsFreshGps = isMobile;
     if (needsFreshGps) {
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -256,7 +256,7 @@ export default function CreatePost() {
 
       let finalLat = submitLocation.lat;
       let finalLng = submitLocation.lng;
-      if (locationType === "approximate") {
+      if (false) {
         finalLat += (Math.random() - 0.5) * 0.01;
         finalLng += (Math.random() - 0.5) * 0.01;
       }
@@ -296,7 +296,7 @@ export default function CreatePost() {
         }
       }
 
-      const usePrecise = isMobile && formData.mobileLocationPrecise;
+      const usePrecise = isMobile;
       const postPayload: any = {
         title: formData.title.trim(),
         description: desc?.trim() || null,
@@ -309,7 +309,7 @@ export default function CreatePost() {
         contact_wechat: formData.wechatId.trim() || null,
         is_mobile: isMobile,
         operating_hours: operatingHours,
-        mobile_location_precise: isMobile ? formData.mobileLocationPrecise : false,
+        mobile_location_precise: isMobile,
       };
       // For precise mobile merchants, seed live_* immediately so the map icon
       // is in the right place before the tracker streams its first update.
@@ -442,44 +442,6 @@ export default function CreatePost() {
                 <p className="text-xs text-muted-foreground">发布后将自动追踪您的实时位置</p>
               </div>
 
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">地图位置显示方式</p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => updateForm({ mobileLocationPrecise: false })}
-                    className={`flex-1 py-3 px-3 rounded-xl text-sm font-medium border-2 transition-all ${
-                      !formData.mobileLocationPrecise
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/50 text-muted-foreground"
-                    }`}
-                  >
-                    模糊位置
-                    <span className="block text-[10px] mt-0.5 opacity-80">推荐 · 安全</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateForm({ mobileLocationPrecise: true })}
-                    className={`flex-1 py-3 px-3 rounded-xl text-sm font-medium border-2 transition-all ${
-                      formData.mobileLocationPrecise
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/50 text-muted-foreground"
-                    }`}
-                  >
-                    精确位置
-                    <span className="block text-[10px] mt-0.5 opacity-80">实时跟随</span>
-                  </button>
-                </div>
-                {formData.mobileLocationPrecise ? (
-                  <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-2.5">
-                    ⚠️ 您的实时精确位置将公开显示在地图上，并跟随您的移动而移动。请确认人身安全后再开启。
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-2.5">
-                    地图上将以模糊偏移（约 110–330 米）显示您的位置，保护您的精确坐标。
-                  </p>
-                )}
-              </div>
             </div>
           )}
 

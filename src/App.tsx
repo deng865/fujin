@@ -7,6 +7,7 @@ import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import AppLayout from "./components/AppLayout";
 import AppErrorBoundary from "./components/AppErrorBoundary";
+import NearbyHome from "./pages/NearbyHome";
 import MapHome from "./pages/MapHome";
 import {
   loadAdminPortal,
@@ -66,7 +67,8 @@ const App = () => (
           <Router>
             <Routes>
               <Route element={<AppLayout />}>
-                <Route path="/" element={<MapHome />} />
+                <Route path="/" element={<NearbyHome />} />
+                <Route path="/map" element={<MapHome />} />
                 <Route path="/discovery" element={<Discovery />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/reset-password" element={<ResetPassword />} />

@@ -86,7 +86,7 @@ export default function MapHomeContent() {
   const visiblePostIdsRef = useRef<Set<string>>(new Set());
   const [center, setCenter] = useState(DEFAULT_CENTER);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(() => new URLSearchParams(window.location.search).get("category") || "driver");
   const [searchRadius, setSearchRadius] = useState(10);
   const [mapType, setMapType] = useState("roadmap");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -344,6 +344,12 @@ export default function MapHomeContent() {
     <div
       className="relative h-[100dvh] w-screen overflow-hidden bg-background"
     >
+      <button
+        onClick={() => navigate("/")}
+        className="absolute left-4 bottom-[calc(env(safe-area-inset-bottom)+96px)] z-40 rounded-full bg-background/95 border border-border shadow-lg px-4 py-2 text-sm font-medium text-foreground"
+      >
+        ← 返回列表
+      </button>
       <MapGL
         ref={mapRef}
         initialViewState={{
