@@ -1,409 +1,214 @@
-import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Map, { Marker, Source, Layer, type MapRef } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/mapbox";
 import { supabase } from "@/integrations/supabase/client";
-import { Navigation, MapPin, Loader2, ChevronDown, ChevronUp } from "lucide-react";
-
-/** Haversine distance in meters */
-function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const sin2 = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(sin2), Math.sqrt(1 - sin2));
-}
-
-/** Minimum displacement (meters) before we update state / broadcast */
-const MIN_MOVE_THRESHOLD = 50;
-
-/** Minimum interval (ms) between route API calls */
-const ROUTE_DEBOUNCE_MS = 10000;
-
-/** Minimum displacement (meters) before triggering a new route fetch */
-const ROUTE_MOVE_THRESHOLD = 150;
-
-type Phase = "pickup" | "destination";
+import { Navigation, MapPin, Loader2, ChevronDown, ChevronUp, Phone, Car, LocateFixed, Route } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useMapChoiceWithQuery } from "@/components/MapChoiceSheet";
+import { validRideCoords, type RideCoords, type RidePhase } from "@/lib/rideJourney";
+import type { TripAcceptNotifyData } from "./TripMessage";
 
 interface DriverTrackingProps {
   conversationId: string;
-  userId: string;
+  tripId: string;
   isDriver: boolean;
-  passengerLocation: { lat: number; lng: number };
-  destinationLocation?: { lat: number; lng: number };
-  onClose?: () => void;
+  phase: RidePhase;
+  passengerLocation?: RideCoords;
+  destinationLocation?: RideCoords;
+  pickupAddress: string;
+  destinationAddress: string;
+  driverInfo?: TripAcceptNotifyData | null;
+  onProgress: (phase: RidePhase) => Promise<void>;
+  onQuickMessage: (text: string) => Promise<void>;
+  onCall: () => void;
+  onComplete: () => void;
+  onCancel: () => void;
+  busy: boolean;
 }
 
-/* ── Memoised sub-components to prevent full re-renders ── */
+function meters(a: RideCoords, b: RideCoords) {
+  const rad = Math.PI / 180;
+  const h = Math.sin((b.lat - a.lat) * rad / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin((b.lng - a.lng) * rad / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
 
-const DriverMarker = memo(({ lng, lat }: { lng: number; lat: number }) => (
-  <Marker longitude={lng} latitude={lat} anchor="center">
-    <div className="relative">
-      <div className="w-8 h-8 rounded-full bg-blue-500 border-3 border-white shadow-lg flex items-center justify-center">
-        <span className="text-white text-xs">🚗</span>
-      </div>
-      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full animate-ping" />
-    </div>
-  </Marker>
-));
-DriverMarker.displayName = "DriverMarker";
-
-const TargetMarker = memo(({ lng, lat, phase }: { lng: number; lat: number; phase: Phase }) => (
-  <Marker longitude={lng} latitude={lat} anchor="center">
-    <div
-      className="w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center"
-      style={{ backgroundColor: phase === "pickup" ? "#22c55e" : "#ef4444" }}
-    >
-      <MapPin className="h-3 w-3 text-white" />
-    </div>
-  </Marker>
-));
-TargetMarker.displayName = "TargetMarker";
-
-const PickupGhostMarker = memo(({ lng, lat }: { lng: number; lat: number }) => (
-  <Marker longitude={lng} latitude={lat} anchor="center">
-    <div className="w-4 h-4 rounded-full bg-green-400/50 border border-white/50" />
-  </Marker>
-));
-PickupGhostMarker.displayName = "PickupGhostMarker";
-
-/* ── Route line paint objects (stable references) ── */
-const PICKUP_PAINT = { "line-color": "#3b82f6", "line-width": 4, "line-opacity": 0.8 } as const;
-const DEST_PAINT = { "line-color": "#10b981", "line-width": 4, "line-opacity": 0.8 } as const;
-const LINE_LAYOUT = { "line-cap": "round" as const, "line-join": "round" as const };
-
-export default function DriverTracking({
-  conversationId,
-  userId,
-  isDriver,
-  passengerLocation,
-  destinationLocation,
-}: DriverTrackingProps) {
-  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [expanded, setExpanded] = useState(true);
-  const [routeGeoJson, setRouteGeoJson] = useState<any>(null);
-  const [eta, setEta] = useState<{ distanceMi: number; durationMin: number } | null>(null);
-  const [phase, setPhase] = useState<Phase>("pickup");
-
-  const watchIdRef = useRef<number | null>(null);
-  const lastBroadcast = useRef(0);
-  const channelRef = useRef<any>(null);
-  /** Last location that was committed to state (for threshold gating) */
-  const lastCommittedLoc = useRef<{ lat: number; lng: number } | null>(null);
-  /** Last location used for route fetch (for debounce) */
-  const lastRouteFetchLoc = useRef<{ lat: number; lng: number } | null>(null);
-  const lastRouteFetchTime = useRef(0);
-  const routeFetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Determine current target based on phase
-  const currentTarget = phase === "pickup" ? passengerLocation : (destinationLocation ?? passengerLocation);
-
-  // Phase label
-  const phaseLabel = phase === "pickup"
-    ? (isDriver ? "正在前往乘客位置" : "司机正在前来接您")
-    : (isDriver ? "正在前往目的地" : "正在前往目的地");
-
+export default function DriverTracking(props: DriverTrackingProps) {
+  const { conversationId, tripId, isDriver, phase, passengerLocation, destinationLocation, pickupAddress, destinationAddress, driverInfo, busy } = props;
+  const [driverLocation, setDriverLocation] = useState<RideCoords | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [route, setRoute] = useState<any>(null);
+  const [eta, setEta] = useState<{ mi: number; min: number } | null>(null);
+  const [locationError, setLocationError] = useState("");
+  const [lastSeen, setLastSeen] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  const [routeError, setRouteError] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
   const mapRef = useRef<MapRef | null>(null);
-  const fittedKey = useRef<string>("");
+  const latestLocation = useRef<RideCoords | null>(null);
+  const lastRoute = useRef<{ loc: RideCoords; time: number; phase: RidePhase } | null>(null);
+  const callbacks = useRef(props);
+  callbacks.current = props;
+  const { openMapChoiceWithQuery, MapChoice } = useMapChoiceWithQuery();
+  const target = phase === "destination" ? destinationLocation : passengerLocation;
+  const targetAddress = phase === "destination" ? destinationAddress : pickupAddress;
+  const stale = lastSeen > 0 && now - lastSeen > 20000;
+  const nearPickup = driverLocation && passengerLocation && meters(driverLocation, passengerLocation) <= 80;
+  const nearDestination = phase === "destination" && driverLocation && destinationLocation && meters(driverLocation, destinationLocation) <= 80;
+  const label = phase === "destination" ? (nearDestination ? "即将到达目的地" : "正在前往目的地")
+    : phase === "arrived" ? (isDriver ? "等待乘客上车" : "司机已到达上车点")
+    : nearPickup ? "已接近上车点" : isDriver ? "前往上车点" : "司机正在赶来";
 
-  const switchToDestination = useCallback((broadcast: boolean) => {
-    setPhase((p) => {
-      if (p === "destination") return p;
-      setRouteGeoJson(null);
-      setEta(null);
-      lastRouteFetchLoc.current = null;
-      lastRouteFetchTime.current = 0;
-      if (broadcast) {
-        channelRef.current?.send({ type: "broadcast", event: "trip-phase", payload: { phase: "destination" } });
-      }
-      return "destination";
-    });
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(timer);
   }, []);
 
-  // Auto-switch when driver within 80m of pickup (tolerates GPS drift)
+  // Location is transient; journey progress is persisted by ChatRoom, never inferred from GPS overlap.
   useEffect(() => {
-    if (phase !== "pickup" || !driverLocation || !destinationLocation) return;
-    if (haversineMeters(driverLocation, passengerLocation) <= 80) switchToDestination(isDriver);
-  }, [driverLocation, passengerLocation, destinationLocation, phase, isDriver, switchToDestination]);
-
-  /** Fit camera to driver + current target (and pickup during destination phase) */
-  const fitView = useCallback(() => {
-    const map = mapRef.current;
-    if (!map || !driverLocation) return;
-    const pts = [driverLocation, currentTarget];
-    const lngs = pts.map((p) => p.lng);
-    const lats = pts.map((p) => p.lat);
-    map.fitBounds(
-      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-      { padding: 40, duration: 1500, maxZoom: 16 }
-    );
-  }, [driverLocation, currentTarget]);
-
-  // Re-fit when phase changes or the first driver location arrives
-  useEffect(() => {
-    if (!driverLocation) return;
-    const key = `${phase}`;
-    if (fittedKey.current === key) return;
-    fittedKey.current = key;
-    const t = setTimeout(fitView, 300);
-    return () => clearTimeout(t);
-  }, [phase, driverLocation, fitView]);
-
-  // ── Shared handler: only update state if moved > threshold ──
-  const handleNewLocation = useCallback((loc: { lat: number; lng: number }) => {
-    const prev = lastCommittedLoc.current;
-    if (prev && haversineMeters(prev, loc) < MIN_MOVE_THRESHOLD) return; // skip tiny movements
-    lastCommittedLoc.current = loc;
-    setDriverLocation(loc);
-  }, []);
-
-  // Driver: watch position and broadcast
-  useEffect(() => {
-    if (!isDriver) return;
-    const channel = supabase.channel(`trip-track-${conversationId}`);
-    channelRef.current = channel;
-
-    channel.subscribe((status: string) => {
-      if (status === "SUBSCRIBED") {
-        const id = navigator.geolocation.watchPosition(
-          (pos) => {
-            const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-
-            // Gate state update on movement threshold
-            handleNewLocation(loc);
-
-            // Broadcast at most every 3 seconds
-            const now = Date.now();
-            if (now - lastBroadcast.current > 3000) {
-              lastBroadcast.current = now;
-              channelRef.current?.send({
-                type: "broadcast",
-                event: "driver-location",
-                payload: loc,
-              });
-            }
-          },
-          () => {},
-          { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
-        );
-        watchIdRef.current = id;
-      }
-    });
-
-    return () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-      supabase.removeChannel(channel);
-      channelRef.current = null;
+    let watch: number | null = null;
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+    let subscribed = false;
+    let lastBroadcast = 0;
+    let disposed = false;
+    const channel = supabase.channel(`trip-track-${conversationId}-${tripId}`);
+    const publish = () => {
+      if (subscribed && latestLocation.current) void channel.send({ type: "broadcast", event: "driver-location", payload: latestLocation.current });
     };
-  }, [isDriver, conversationId, handleNewLocation]);
-
-  // Passenger: listen for driver location broadcasts (with threshold gating)
-  useEffect(() => {
-    if (isDriver) return;
-    const channel = supabase
-      .channel(`trip-track-${conversationId}`)
-      .on("broadcast", { event: "driver-location" }, ({ payload }) => {
-        if (payload?.lat && payload?.lng) {
-          handleNewLocation(payload);
-        }
-      })
-      .on("broadcast", { event: "trip-phase" }, ({ payload }) => {
-        if (payload?.phase === "destination") switchToDestination(false);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isDriver, conversationId, handleNewLocation, switchToDestination]);
-
-  // ── Debounced route fetch ──
-  const doFetchRoute = useCallback(async (
-    driverLoc: { lat: number; lng: number },
-    target: { lat: number; lng: number },
-    currentPhase: Phase,
-  ) => {
-    try {
-      const res = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/driving/${driverLoc.lng},${driverLoc.lat};${target.lng},${target.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`
-      );
-      const data = await res.json();
-      if (data.routes?.[0]) {
-        const route = data.routes[0];
-        setRouteGeoJson({
-          type: "Feature",
-          properties: {},
-          geometry: route.geometry,
-        });
-        const miles = (route.distance / 1000) * 0.621371;
-        const minutes = Math.round(route.duration / 60);
-        setEta({ distanceMi: miles, durationMin: minutes });
-      }
-    } catch {
-      // silent
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!driverLocation) return;
-
-    const now = Date.now();
-    const elapsed = now - lastRouteFetchTime.current;
-
-    // If we recently fetched AND driver hasn't moved much, skip
-    const prevRouteLoc = lastRouteFetchLoc.current;
-    if (prevRouteLoc && elapsed < ROUTE_DEBOUNCE_MS) {
-      const moved = haversineMeters(prevRouteLoc, driverLocation);
-      if (moved < ROUTE_MOVE_THRESHOLD) {
-        // Schedule a deferred fetch if not already scheduled
-        if (!routeFetchTimer.current) {
-          routeFetchTimer.current = setTimeout(() => {
-            routeFetchTimer.current = null;
-            lastRouteFetchLoc.current = driverLocation;
-            lastRouteFetchTime.current = Date.now();
-            doFetchRoute(driverLocation, currentTarget, phase);
-          }, ROUTE_DEBOUNCE_MS - elapsed);
-        }
+    channel.on("broadcast", { event: "request-location" }, () => { if (isDriver) publish(); });
+    channel.on("broadcast", { event: "driver-location" }, ({ payload }) => {
+      if (isDriver || !validRideCoords(payload)) return;
+      setDriverLocation(payload);
+      setLastSeen(Date.now());
+      setLocationError("");
+    });
+    channel.subscribe(status => {
+      if (disposed) return;
+      subscribed = status === "SUBSCRIBED";
+      if (!subscribed) return;
+      if (!isDriver) {
+        void channel.send({ type: "broadcast", event: "request-location", payload: {} });
         return;
       }
-    }
-
-    // Clear any pending timer
-    if (routeFetchTimer.current) {
-      clearTimeout(routeFetchTimer.current);
-      routeFetchTimer.current = null;
-    }
-
-    lastRouteFetchLoc.current = driverLocation;
-    lastRouteFetchTime.current = now;
-    doFetchRoute(driverLocation, currentTarget, phase);
-
+      if (watch !== null) { publish(); return; }
+      if (!navigator.geolocation) { setLocationError("此设备不支持定位，请使用外部地图导航"); return; }
+      watch = navigator.geolocation.watchPosition(position => {
+        const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
+        latestLocation.current = loc;
+        setDriverLocation(loc);
+        setLastSeen(Date.now());
+        setLocationError("");
+        if (Date.now() - lastBroadcast >= 3000) { lastBroadcast = Date.now(); publish(); }
+      }, error => setLocationError(error.code === 1 ? "定位权限未开启，请在手机设置中允许定位" : "暂时无法获取位置，仍可使用外部导航"),
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 });
+      heartbeat = setInterval(publish, 5000);
+    });
     return () => {
-      if (routeFetchTimer.current) {
-        clearTimeout(routeFetchTimer.current);
-        routeFetchTimer.current = null;
-      }
+      disposed = true;
+      if (watch !== null) navigator.geolocation.clearWatch(watch);
+      if (heartbeat) clearInterval(heartbeat);
+      void supabase.removeChannel(channel);
+      latestLocation.current = null;
     };
-  }, [driverLocation, currentTarget.lat, currentTarget.lng, phase, doFetchRoute]);
+  }, [conversationId, tripId, isDriver]);
 
-  // ── Stable paint reference based on phase ──
-  const linePaint = phase === "pickup" ? PICKUP_PAINT : DEST_PAINT;
+  useEffect(() => { setRoute(null); setEta(null); setRouteError(false); lastRoute.current = null; }, [phase, target?.lat, target?.lng]);
 
-  const bounds = useMemo(() => {
-    if (!driverLocation) return null;
-    return {
-      minLng: Math.min(driverLocation.lng, currentTarget.lng),
-      maxLng: Math.max(driverLocation.lng, currentTarget.lng),
-      minLat: Math.min(driverLocation.lat, currentTarget.lat),
-      maxLat: Math.max(driverLocation.lat, currentTarget.lat),
+  // Throttle routing separately from the fast-moving marker. Abort obsolete responses on phase changes.
+  const routeInputs = useRef({ driverLocation, target, phase });
+  routeInputs.current = { driverLocation, target, phase };
+  useEffect(() => {
+    let controller: AbortController | null = null;
+    let disposed = false;
+    const update = async () => {
+      const { driverLocation: loc, target: goal, phase: routePhase } = routeInputs.current;
+      if (!loc || !validRideCoords(goal)) return;
+      const previous = lastRoute.current;
+      if (previous && previous.phase === routePhase && (Date.now() - previous.time < 15000 || (!routeError && meters(previous.loc, loc) < 150))) return;
+      lastRoute.current = { loc, time: Date.now(), phase: routePhase };
+      controller?.abort();
+      controller = new AbortController();
+      const timeout = setTimeout(() => controller?.abort(), 10000);
+      try {
+        const response = await fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${loc.lng},${loc.lat};${goal.lng},${goal.lat}?access_token=${MAPBOX_TOKEN}&geometries=geojson&overview=full`, { signal: controller.signal });
+        const data = await response.json();
+        if (!response.ok || !data.routes?.[0]) throw new Error("route unavailable");
+        if (disposed) return;
+        const result = data.routes[0];
+        setRoute({ type: "Feature", properties: {}, geometry: result.geometry });
+        setEta({ mi: result.distance / 1609.344, min: Math.max(1, Math.round(result.duration / 60)) });
+        setRouteError(false);
+      } catch {
+        if (!disposed) setRouteError(true);
+      } finally { clearTimeout(timeout); }
     };
-  }, [driverLocation?.lng, driverLocation?.lat, currentTarget.lng, currentTarget.lat]);
+    void update();
+    const timer = setInterval(() => void update(), 3000);
+    return () => { disposed = true; clearInterval(timer); controller?.abort(); };
+  }, [phase, target?.lat, target?.lng]);
 
-  if (!expanded) {
-    return (
-      <button
-        onClick={() => setExpanded(true)}
-        className="shrink-0 bg-primary/10 border-b border-primary/20 px-4 py-2 w-full flex items-center justify-between"
-      >
-        <div className="flex items-center gap-2 text-xs">
-          <Navigation className="h-4 w-4 text-primary" />
-          <span className="font-medium text-primary">
-            {driverLocation ? phaseLabel : "等待司机位置..."}
-          </span>
-          {eta && (
-            <span className="text-muted-foreground">
-              · {eta.distanceMi.toFixed(1)} mi · 约{eta.durationMin}分钟
-            </span>
-          )}
-        </div>
-        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-      </button>
-    );
-  }
+  const fitView = useCallback(() => {
+    const points: RideCoords[] = [];
+    if (driverLocation) points.push(driverLocation);
+    if (validRideCoords(target)) points.push(target);
+    if (!points.length) return;
+    const lngs = points.map(point => point.lng), lats = points.map(point => point.lat);
+    mapRef.current?.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: 48, maxZoom: 16, duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 900 });
+  }, [driverLocation, target?.lat, target?.lng]);
+  const fitted = useRef("");
+  useEffect(() => {
+    if (!expanded) { fitted.current = ""; return; }
+    const key = `${phase}-${!!driverLocation}`;
+    if (fitted.current !== key) { fitted.current = key; fitView(); }
+  }, [expanded, phase, driverLocation, fitView]);
 
+  const act = async (action: () => Promise<void>) => {
+    if (actionBusy || busy) return;
+    setActionBusy(true);
+    try { await action(); } finally { setActionBusy(false); }
+  };
+  const mapColor = getComputedStyle(document.documentElement).getPropertyValue(phase === "destination" ? "--ride-destination" : "--ride-pickup").trim();
   return (
-    <div className="shrink-0 border-b border-primary/20">
-      <div className="flex items-center justify-between px-4 py-2 bg-primary/10">
-        <div className="flex items-center gap-2 text-xs">
-          <Navigation className="h-4 w-4 text-primary animate-pulse" />
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/20 text-primary">
-            {phase === "pickup" ? "接驾中" : "送驾中"}
-          </span>
-          <span className="font-medium text-primary">
-            {driverLocation ? phaseLabel : "等待司机位置..."}
-          </span>
-          {eta && (
-            <span className="text-muted-foreground">
-              · {eta.distanceMi.toFixed(1)} mi · 约{eta.durationMin}分钟
-            </span>
-          )}
+    <section aria-label="当前行程" className="shrink-0 w-full max-w-lg mx-auto border-b border-border bg-background">
+      <div className="h-14 flex items-center gap-2 px-3">
+        <Car className="h-5 w-5 text-primary shrink-0" />
+        <div className="min-w-0 flex-1" aria-live="polite">
+          <div className="text-sm font-semibold truncate">{label}</div>
+          <div className="text-xs text-muted-foreground truncate">{stale ? "司机位置更新中" : eta ? `${eta.mi.toFixed(1)} mi · 约 ${eta.min} 分钟` : "等待实时位置"}</div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {isDriver && phase === "pickup" && destinationLocation && (
-            <button
-              onClick={() => switchToDestination(true)}
-              className="px-2 py-1 rounded-lg text-[11px] font-semibold bg-primary text-primary-foreground"
-            >
-              已接上乘客
-            </button>
-          )}
-          {driverLocation && (
-            <button onClick={fitView} className="px-2 py-1 rounded-lg text-[11px] font-medium bg-background/80 text-primary border border-primary/20">
-              全览
-            </button>
-          )}
-        <button onClick={() => setExpanded(false)} className="p-1 hover:bg-accent rounded">
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        </button>
-        </div>
+        {isDriver ? <Button size="sm" onClick={() => openMapChoiceWithQuery(targetAddress, target)}><Navigation />导航</Button>
+          : <Button variant="ghost" size="icon" title="联系司机" aria-label="联系司机" onClick={() => callbacks.current.onCall()} disabled={busy}><Phone /></Button>}
+        <Button variant="ghost" size="icon" onClick={() => setExpanded(value => !value)} title={expanded ? "收起地图" : "展开地图"} aria-label={expanded ? "收起地图" : "展开地图"} aria-expanded={expanded}>{expanded ? <ChevronUp /> : <ChevronDown />}</Button>
       </div>
-      <div className="h-[200px] w-full">
-        {driverLocation ? (
-          <Map
-            ref={mapRef}
-            mapboxAccessToken={MAPBOX_TOKEN}
-            initialViewState={{
-              bounds: bounds
-                ? [
-                    [bounds.minLng - 0.02, bounds.minLat - 0.02],
-                    [bounds.maxLng + 0.02, bounds.maxLat + 0.02],
-                  ]
-                : undefined,
-              latitude: currentTarget.lat,
-              longitude: currentTarget.lng,
-              zoom: 13,
-            }}
-            style={{ width: "100%", height: "100%" }}
-            mapStyle="mapbox://styles/mapbox/streets-v12"
-            interactive={true}
-            attributionControl={false}
-          >
-            {routeGeoJson && (
-              <Source id="tracking-route" type="geojson" data={routeGeoJson}>
-                <Layer
-                  id="tracking-route-layer"
-                  type="line"
-                  paint={linePaint as any}
-                  layout={LINE_LAYOUT}
-                />
-              </Source>
-            )}
-            <DriverMarker lng={driverLocation.lng} lat={driverLocation.lat} />
-            <TargetMarker lng={currentTarget.lng} lat={currentTarget.lat} phase={phase} />
-            {phase === "destination" && (
-              <PickupGhostMarker lng={passengerLocation.lng} lat={passengerLocation.lat} />
-            )}
+      {phase === "arrived" && !isDriver && <div role="status" className="px-3 py-2 bg-primary/10 text-primary text-sm font-semibold">司机已到达，请核对车牌后上车</div>}
+      {locationError && <div role="status" className="px-3 pb-2 text-xs text-destructive">{locationError}</div>}
+      {!isDriver && <div className="px-3 pb-2 text-xs text-muted-foreground truncate">{driverInfo ? [driverInfo.driverName, driverInfo.vehicleColor, driverInfo.vehicleModel, driverInfo.licensePlate ? `车牌 ${driverInfo.licensePlate}` : "车牌未填写"].filter(Boolean).join(" · ") : "等待司机车辆信息"}</div>}
+      {expanded && <>
+        <div className="px-3 pb-2 flex items-start gap-2 text-sm"><MapPin className="h-4 w-4 shrink-0 mt-0.5" /><span className="break-words min-w-0">{targetAddress}</span></div>
+        <div className="relative h-[30dvh] min-h-[180px] max-h-[340px] w-full bg-muted">
+          <Map ref={mapRef} mapboxAccessToken={MAPBOX_TOKEN} initialViewState={{ latitude: target?.lat ?? 32.9, longitude: target?.lng ?? -96.8, zoom: 13 }} onLoad={fitView} mapStyle="mapbox://styles/mapbox/streets-v12" attributionControl={false}>
+            {route && <Source id="ride-route" type="geojson" data={route}><Layer id="ride-route-line" type="line" paint={{ "line-color": `hsl(${mapColor})`, "line-width": 5 }} layout={{ "line-cap": "round", "line-join": "round" }} /></Source>}
+            {driverLocation && <Marker longitude={driverLocation.lng} latitude={driverLocation.lat}><div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background"><Car className="h-4 w-4" /></div></Marker>}
+            {validRideCoords(target) && <Marker longitude={target.lng} latitude={target.lat}><MapPin className="h-8 w-8 text-destructive" /></Marker>}
           </Map>
-        ) : (
-          <div className="h-full flex items-center justify-center bg-muted/30">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              等待司机共享位置...
-            </div>
-          </div>
-        )}
+          <div className="absolute right-2 top-2 flex gap-1"><Button variant="secondary" size="icon" title="全览路线" aria-label="全览路线" onClick={fitView}><Route /></Button><Button variant="secondary" size="icon" title="司机当前位置" aria-label="司机当前位置" disabled={!driverLocation} onClick={() => { if (driverLocation) mapRef.current?.flyTo({ center: [driverLocation.lng, driverLocation.lat], zoom: 16 }); }}><LocateFixed /></Button></div>
+        </div>
+        {routeError && <p className="px-3 py-1 text-xs text-muted-foreground">路线暂不可用，可继续使用外部导航</p>}
+        {!isDriver && phase !== "destination" && <div className="flex gap-2 px-3 py-2 flex-wrap">{["我在上车点等您", "在正门右侧等您", "我穿黑色外套"].map(text => <Button key={text} variant="outline" size="sm" disabled={actionBusy || busy} onClick={() => void act(() => callbacks.current.onQuickMessage(text))} className="text-xs">{text}</Button>)}</div>}
+      </>}
+      {expanded && !isDriver && driverInfo && <div className="flex items-center gap-3 px-3 py-2 border-t border-border">
+        {driverInfo.driverAvatar ? <img src={driverInfo.driverAvatar} alt="司机头像" className="h-10 w-10 rounded-full object-cover shrink-0" /> : <Car className="h-8 w-8 text-muted-foreground shrink-0" />}
+        <div className="min-w-0 flex-1 text-sm"><div className="font-semibold break-words">{driverInfo.driverName}{driverInfo.driverRating != null ? ` · ★ ${Number(driverInfo.driverRating).toFixed(1)}` : ""}</div><div className="text-xs text-muted-foreground break-words">{[driverInfo.vehicleColor, driverInfo.vehicleModel, driverInfo.licensePlate].filter(Boolean).join(" · ") || "车辆信息未填写"}</div></div>
+        <Button variant="outline" size="icon" title="联系司机" aria-label="联系司机" onClick={() => callbacks.current.onCall()} disabled={busy}><Phone /></Button>
+      </div>}
+      <div className="flex gap-2 px-3 pb-2">
+        {isDriver && phase === "pickup" && <Button className="flex-1" size="sm" disabled={busy || actionBusy} onClick={() => void act(() => callbacks.current.onProgress("arrived"))}>{actionBusy ? <Loader2 className="animate-spin" /> : <MapPin />}我已到达上车点</Button>}
+        {isDriver && phase !== "destination" && <Button className="flex-1" size="sm" variant={phase === "arrived" ? "default" : "outline"} disabled={busy || actionBusy || !validRideCoords(destinationLocation)} onClick={() => void act(() => callbacks.current.onProgress("destination"))}>已接上乘客</Button>}
+        {phase === "destination" && <Button className="flex-1" size="sm" disabled={busy} onClick={() => callbacks.current.onComplete()}>确认送达</Button>}
+        <Button variant="ghost" size="sm" disabled={busy || actionBusy} onClick={() => callbacks.current.onCancel()} className="text-destructive">结束预约</Button>
       </div>
-    </div>
+      {MapChoice}
+    </section>
   );
 }

@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "types": ["google.maps"],
+    "types": ["google.maps", "bun"],
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "react-jsx",

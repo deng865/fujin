@@ -124,8 +124,10 @@ export interface TripAcceptNotifyData {
   vehicleModel: string | null;
   vehicleColor: string | null;
   licensePlate: string | null;
-  distanceMi: number;
-  etaMin: number;
+  tripId?: string;
+  driverId?: string;
+  distanceMi: number | null;
+  etaMin: number | null;
 }
 
 export function parseTripAcceptNotify(content: string): TripAcceptNotifyData | null {
@@ -174,7 +176,7 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
   const [routeFailed, setRouteFailed] = useState(false);
   const { openMapChoiceWithQuery, MapChoice } = useMapChoiceWithQuery();
   const tripEnded = isCancelled || isCompleted;
-  const showRouteSection = !tripEnded && !!acceptData.fromCoords && !!acceptData.toCoords;
+  const showRouteSection = false; // Active route lives in the collapsible dashboard, not every message.
   const buttonsDisabled = completingTrip || cancellingTrip;
 
   const handleNav = (target: "from" | "to") => {
@@ -227,14 +229,14 @@ function AcceptTripCard({ acceptData, isMe, isCancelled, isCompleted, onCancel, 
             </div>
           </div>
           {showRouteSection && (
-            <TripMiniMap fromCoords={acceptData.fromCoords!} toCoords={acceptData.toCoords!} onRouteLoaded={setRouteInfo} onRouteError={() => setRouteFailed(true)} />
+            <TripMiniMap fromCoords={acceptData.fromCoords ?? { lat: 0, lng: 0 }} toCoords={acceptData.toCoords ?? { lat: 0, lng: 0 }} onRouteLoaded={setRouteInfo} onRouteError={() => setRouteFailed(true)} />
           )}
           {showRouteSection && (
             <div className={`flex items-center gap-1.5 text-xs mt-2 pt-2 border-t ${isMe ? "border-primary-foreground/20" : "border-border/50"}`}>
               <Route className="h-3.5 w-3.5 shrink-0" />
               {routeInfo ? (
                 <span className="font-medium">
-                  {routeInfo.distanceKm.toFixed(1)} km ({routeInfo.distanceMi.toFixed(1)} mi) · 约 {routeInfo.durationMin} 分钟
+                  {routeInfo.distanceMi.toFixed(1)} mi · 约 {routeInfo.durationMin} 分钟
                 </span>
               ) : routeFailed ? (
                 <span className="text-muted-foreground">无法获取路线信息</span>
@@ -362,11 +364,11 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
           )}
           <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2">
             <div className="text-xs text-muted-foreground">距离你</div>
-            <div className="text-sm font-semibold text-foreground">{notifyData.distanceMi.toFixed(1)} miles</div>
+            <div className="text-sm font-semibold text-foreground">{notifyData.distanceMi != null ? `${notifyData.distanceMi.toFixed(1)} mi` : "等待实时位置"}</div>
           </div>
           <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg px-3 py-2 mt-1">
             <div className="text-xs text-muted-foreground">预计到达</div>
-            <div className="text-sm font-semibold text-foreground">约 {notifyData.etaMin} 分钟</div>
+            <div className="text-sm font-semibold text-foreground">{notifyData.etaMin != null ? `约 ${notifyData.etaMin} 分钟` : "等待实时路线"}</div>
           </div>
         </div>
       </div>
@@ -583,7 +585,7 @@ export default function TripMessage({ content, isMe, isActive, onAccept, onCount
               <Route className="h-3.5 w-3.5 shrink-0" />
               {routeInfo ? (
                 <span className="font-medium">
-                  驾车 {routeInfo.distanceKm.toFixed(1)} km ({routeInfo.distanceMi.toFixed(1)} mi) · 约 {routeInfo.durationMin} 分钟
+                  驾车 {routeInfo.distanceMi.toFixed(1)} mi · 约 {routeInfo.durationMin} 分钟
                 </span>
               ) : mainRouteFailed ? (
                 <span className="text-muted-foreground">无法获取路线信息</span>

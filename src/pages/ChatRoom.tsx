@@ -36,6 +36,7 @@ import TripSharePanel from "@/components/chat/TripSharePanel";
 import TripMessage, { parseTripMessage, parseTripAcceptMessage, parseTripCounterMessage, parseTripCancelMessage, parseTripAcceptNotify, parseTripCompleteMessage } from "@/components/chat/TripMessage";
 import TripRatingDisplay, { parseTripRatingMessage } from "@/components/chat/TripRating";
 import DriverTracking from "@/components/chat/DriverTracking";
+import { canAdvanceRide, getRideDriver, getRidePhase, rideKey, validRideCoords, type RidePhase } from "@/lib/rideJourney";
 import { playMessageNotificationTone, primeAudioNotifications } from "@/lib/audioNotifications";
 import { useAuth } from "@/hooks/useAuth";
 // In-memory reverse geocoding cache
@@ -110,7 +111,7 @@ export default function ChatRoom() {
   const [otherCachedPos, setOtherCachedPos] = useState<{ lat: number; lng: number } | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const liveChannelRef = useRef<any>(null);
-  const [isDriver, setIsDriver] = useState(false);
+
   const [acceptingTrip, setAcceptingTrip] = useState(false);
   const [completingTrip, setCompletingTrip] = useState(false);
   const [cancellingTrip, setCancellingTrip] = useState(false);
@@ -207,9 +208,7 @@ export default function ChatRoom() {
       if (driverPostCount && driverPostCount > 0) {
         setIsRideChat(true);
       }
-      if (myDriverPostCount && myDriverPostCount > 0) {
-        setIsDriver(true);
-      }
+      if (myDriverPostCount && myDriverPostCount > 0) setIsRideChat(true);
 
       const { data: msgs } = await supabase
         .from("messages")
@@ -495,7 +494,7 @@ export default function ChatRoom() {
     // Trip-related messages cannot be recalled
     try {
       const parsed = JSON.parse(msg.content);
-      if (parsed?.type && ["trip", "trip_accept", "trip_counter", "trip_cancel", "trip_rating", "trip_accept_notify"].includes(parsed.type)) return false;
+      if (parsed?.type && ["trip", "trip_accept", "trip_counter", "trip_cancel", "trip_rating", "trip_accept_notify", "trip_progress", "trip_complete"].includes(parsed.type)) return false;
     } catch {}
     const elapsed = Date.now() - new Date(msg.created_at).getTime();
     return elapsed < 2 * 60 * 1000; // 2 minutes
@@ -790,7 +789,9 @@ export default function ChatRoom() {
   };
 
   const handleSendTrip = async (from: string, to: string, fromCoords?: { lat: number; lng: number }, toCoords?: { lat: number; lng: number }, price?: string) => {
-    if (!userId || !conversationId) return;
+    if (!userId || !conversationId || sendingTrip) return;
+    if (tripState.hasActive) { toast({ title: "请先结束当前行程" }); return; }
+    if (!validRideCoords(fromCoords) || !validRideCoords(toCoords) || !price || !Number.isFinite(Number(price)) || Number(price) <= 0) { toast({ title: "请选择准确的起终点并填写有效出价" }); return; }
     setSendingTrip(true);
     try {
       const tripId = crypto.randomUUID();
@@ -807,7 +808,7 @@ export default function ChatRoom() {
         }).eq("id", conversationId);
         setShowTripPanel(false);
       }
-    } catch {} finally {
+    } catch { toast({ title: "行程发送失败，请重试", variant: "destructive" }); } finally {
       setSendingTrip(false);
     }
   };
@@ -836,6 +837,14 @@ export default function ChatRoom() {
         }
       }
     }
+    if (tripState.hasActive) { toast({ title: "当前对话已有进行中的行程" }); return; }
+    if (!validRideCoords(fromCoords) || !validRideCoords(toCoords)) {
+      toast({ title: "行程缺少准确地址", description: "请乘客重新选择起终点后发送行程", variant: "destructive" });
+      return;
+    }
+    const driverId = getRideDriver(messages, { ...trip, tripId }, userId);
+    const otherLock = otherUserId ? await checkActiveTripLock(otherUserId) : null;
+    if (otherLock && otherLock !== conversationId) { toast({ title: "对方已有进行中的行程" }); return; }
     const acceptContent = JSON.stringify({ type: "trip_accept", from: trip.from, to: trip.to, price: trip.price, fromCoords, toCoords, tripId });
     const { error } = await supabase.from("messages").insert({
       conversation_id: conversationId,
@@ -853,13 +862,13 @@ export default function ChatRoom() {
         const { data: driverProfile } = await supabase
           .from("profiles")
           .select("name, avatar_url, average_rating, vehicle_model, vehicle_color, license_plate")
-          .eq("id", userId)
+          .eq("id", driverId)
           .single();
 
         // Get driver's current location and calculate distance/ETA to pickup
-        let distanceMi = 0;
-        let etaMin = 0;
-        if (trip.fromCoords) {
+        let distanceMi: number | null = null;
+        let etaMin: number | null = null;
+        if (fromCoords && driverId === userId) {
           try {
             const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
               navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
@@ -867,7 +876,7 @@ export default function ChatRoom() {
             const driverLat = pos.coords.latitude;
             const driverLng = pos.coords.longitude;
             const res = await fetch(
-              `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${driverLng},${driverLat};${trip.fromCoords.lng},${trip.fromCoords.lat}?access_token=${MAPBOX_TOKEN}&overview=false`
+              `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${driverLng},${driverLat};${fromCoords.lng},${fromCoords.lat}?access_token=${MAPBOX_TOKEN}&overview=false`
             );
             const data = await res.json();
             if (data.routes?.[0]) {
@@ -875,14 +884,14 @@ export default function ChatRoom() {
               etaMin = Math.round(data.routes[0].duration / 60);
             }
           } catch {
-            // Fallback: estimate based on straight-line
-            distanceMi = 5;
-            etaMin = 10;
+            // Unknown is preferable to inventing a distance or arrival time.
           }
         }
 
         const notifyContent = JSON.stringify({
           type: "trip_accept_notify",
+          tripId,
+          driverId,
           driverName: driverProfile?.name || "司机",
           driverAvatar: driverProfile?.avatar_url || null,
           driverRating: driverProfile?.average_rating || null,
@@ -965,6 +974,10 @@ export default function ChatRoom() {
     const trip = pendingCompleteTrip;
     setPendingCompleteTrip(null);
     if (!trip || !userId || !conversationId) return;
+    if (tripState.phase !== "destination" || !tripState.activeTrip || rideKey(tripState.activeTrip) !== rideKey(trip)) {
+      toast({ title: "请先确认乘客已上车，再确认送达" });
+      return;
+    }
     setCompletingTrip(true);
     try {
       const completeContent = JSON.stringify({ type: "trip_complete", from: trip.from, to: trip.to, price: trip.price, completedBy: userId, tripId: (trip as any).tripId });
@@ -1016,18 +1029,59 @@ export default function ChatRoom() {
     const isTerminal = (key: string) => cancelledSet.has(key) || completedSet.has(key);
 
     let activeAcceptData: ReturnType<typeof parseTripAcceptMessage> = null;
+    let activeDriverId: string | null = null;
     let activeTrip: { from: string; to: string; price?: string; tripId?: string } | null = null;
     for (const entry of acceptEntries) {
       const key = tripKey(entry.data);
-      if (!isTerminal(key)) {
-        activeAcceptData = entry.data;
-        activeTrip = { from: entry.data!.from, to: entry.data!.to, price: entry.data!.price, tripId: (entry.data as any)?.tripId };
+      if (entry.data && !isTerminal(key)) {
+        activeAcceptData = { ...entry.data };
+        for (const message of messages) {
+          const original = parseTripMessage(message.content);
+          if (original && rideKey(original) === key) {
+            activeAcceptData.fromCoords ??= original.fromCoords;
+            activeAcceptData.toCoords ??= original.toCoords;
+          }
+        }
+        activeDriverId = getRideDriver(messages, entry.data, entry.msg.sender_id);
+        activeTrip = { from: entry.data.from, to: entry.data.to, price: entry.data.price, tripId: entry.data.tripId };
         break;
       }
     }
 
-    return { cancelledSet, completedSet, ratedByMe, activeAcceptData, activeTrip, hasActive: !!activeTrip, tripKey };
+    const phase = activeTrip && activeDriverId ? getRidePhase(messages, activeTrip, activeDriverId) : "pickup" as RidePhase;
+    const driverInfo = activeTrip ? [...messages].reverse().map(message => {
+      try { const data = JSON.parse(message.content); return data.type === "trip_accept_notify" && data.tripId === activeTrip?.tripId ? data : null; } catch { return null; }
+    }).find(Boolean) : null;
+    // Legacy notifications had no tripId; restrict fallback to messages after the current acceptance.
+    const activeIndex = activeTrip ? messages.findIndex(message => {
+      const data = parseTripAcceptMessage(message.content);
+      return data && rideKey(data) === rideKey(activeTrip);
+    }) : -1;
+    const legacyDriverInfo = activeIndex >= 0 ? messages.slice(activeIndex + 1).map(message => {
+      try { const data = JSON.parse(message.content); return data.type === "trip_accept_notify" && !data.tripId && message.sender_id === activeDriverId ? data : null; } catch { return null; }
+    }).find(Boolean) : null;
+    return { cancelledSet, completedSet, ratedByMe, activeAcceptData, activeTrip, activeDriverId, phase, driverInfo: driverInfo || legacyDriverInfo, hasActive: !!activeTrip, tripKey };
   }, [messages, userId]);
+
+  const rideActionRef = useRef(false);
+  const handleRideProgress = async (next: RidePhase) => {
+    const trip = tripState.activeTrip;
+    if (!trip || !userId || !conversationId || userId !== tripState.activeDriverId || rideActionRef.current || !canAdvanceRide(tripState.phase, next)) return;
+    rideActionRef.current = true;
+    try {
+      const { error } = await supabase.from("messages").insert({ conversation_id: conversationId, sender_id: userId,
+        content: JSON.stringify({ type: "trip_progress", ...trip, phase: next }) });
+      if (error) throw error;
+      await supabase.from("conversations").update({ last_message: next === "arrived" ? "司机已到达上车点" : "已接上乘客，前往目的地", updated_at: new Date().toISOString() }).eq("id", conversationId);
+    } catch { toast({ title: "状态发送失败，请重试", variant: "destructive" }); }
+    finally { rideActionRef.current = false; }
+  };
+  const handleRideQuickMessage = async (text: string) => {
+    if (!userId || !conversationId || !tripState.hasActive) return;
+    const { error } = await supabase.from("messages").insert({ conversation_id: conversationId, sender_id: userId, content: text });
+    if (error) { toast({ title: "发送失败，请重试", variant: "destructive" }); return; }
+    await supabase.from("conversations").update({ last_message: text, updated_at: new Date().toISOString() }).eq("id", conversationId);
+  };
 
   const isCancelledForAccept = useCallback((content: string) => {
     try { const a = JSON.parse(content); return tripState.cancelledSet.has(tripState.tripKey(a)); } catch { return false; }
@@ -1263,84 +1317,34 @@ export default function ChatRoom() {
         />
       )}
 
-      {/* Active trip banner */}
-      {(() => {
-        const trip = activeTripInfo();
-        if (!trip) return null;
-        return (
-          <div className="shrink-0 bg-primary/10 border-b border-primary/20 px-4 py-2 max-w-lg mx-auto w-full">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <Route className="h-4 w-4 text-primary shrink-0" />
-                <div className="text-xs truncate">
-                  <span className="font-medium text-primary">行程进行中</span>
-                  <span className="text-muted-foreground ml-1.5">{trip.from} → {trip.to}</span>
-                  {trip.price && <span className="text-muted-foreground ml-1">${trip.price}</span>}
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  onClick={() => handleCompleteTrip(trip)}
-                  disabled={completingTrip || cancellingTrip}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
-                >
-                  {completingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                  订单已完成
-                </button>
-                <button
-                  onClick={() => handleCancelTrip(trip)}
-                  disabled={completingTrip || cancellingTrip}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors disabled:opacity-50"
-                >
-                  {cancellingTrip ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
-                  结束预约
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Driver real-time tracking map */}
-      {(() => {
-        if (!hasActiveTrip() || !userId || !conversationId) return null;
-        // Find the active accepted trip's coordinates
-        const accepts = messages.filter((m) => parseTripAcceptMessage(m.content));
-        let activeAccept: ReturnType<typeof parseTripAcceptMessage> = null;
-        for (const acceptMsg of accepts) {
-          if (!isCancelledForAccept(acceptMsg.content) && !isCompletedForAccept(acceptMsg.content)) {
-            activeAccept = parseTripAcceptMessage(acceptMsg.content);
-            break;
-          }
-        }
-        // Backfill missing coords from original trip message
-        if (activeAccept && !activeAccept.fromCoords) {
-          for (const m of messages) {
-            const t = parseTripMessage(m.content);
-            if (t && t.fromCoords && t.toCoords && (t.from === activeAccept.from && t.to === activeAccept.to)) {
-              activeAccept = { ...activeAccept, fromCoords: t.fromCoords, toCoords: t.toCoords };
-              break;
-            }
-          }
-        }
-        if (!activeAccept?.fromCoords) return null;
-        return (
-          <DriverTracking
-            conversationId={conversationId}
-            userId={userId}
-            isDriver={isDriver}
-            passengerLocation={activeAccept.fromCoords}
-            destinationLocation={activeAccept.toCoords}
-          />
-        );
-      })()}
+      {/* One trip-scoped dashboard, kept visible while chat scrolls. */}
+      {tripState.activeAcceptData && tripState.activeTrip && userId && conversationId && (
+        <DriverTracking
+          key={tripState.tripKey(tripState.activeTrip)}
+          conversationId={conversationId}
+          tripId={tripState.tripKey(tripState.activeTrip)}
+          isDriver={tripState.activeDriverId === userId}
+          phase={tripState.phase}
+          passengerLocation={tripState.activeAcceptData.fromCoords}
+          destinationLocation={tripState.activeAcceptData.toCoords}
+          pickupAddress={tripState.activeTrip.from}
+          destinationAddress={tripState.activeTrip.to}
+          driverInfo={tripState.driverInfo}
+          onProgress={handleRideProgress}
+          onQuickMessage={handleRideQuickMessage}
+          onCall={() => void handleStartCall()}
+          onComplete={() => { if (tripState.activeTrip) handleCompleteTrip(tripState.activeTrip); }}
+          onCancel={() => { if (tripState.activeTrip) handleCancelTrip(tripState.activeTrip); }}
+          busy={completingTrip || cancellingTrip || startingCall}
+        />
+      )}
 
       {longPressMsg && (
         <div className="fixed inset-0 z-30" onClick={() => setLongPressMsg(null)} />
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 max-w-lg mx-auto w-full">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 max-w-lg mx-auto w-full">
         {parsedMessages.length === 0 && (
           <div className="text-center text-muted-foreground text-xs py-8">开始聊天吧 👋</div>
         )}
@@ -1351,6 +1355,10 @@ export default function ChatRoom() {
 
           // Skip trip_complete and render system messages inline
           if (parsedJson?.type === "trip_complete") return null;
+          if (parsedJson?.type === "trip_progress") {
+            if (tripState.cancelledSet.has(tripState.tripKey(parsedJson)) || tripState.completedSet.has(tripState.tripKey(parsedJson))) return null;
+            return <div key={msg.id} className="text-center text-xs text-muted-foreground py-1">{parsedJson.phase === "arrived" ? "司机已到达上车点" : "已接上乘客，前往目的地"}</div>;
+          }
           if (parsedJson?.type === "review_prompt") {
             return (
               <div key={msg.id}>
@@ -1481,7 +1489,7 @@ export default function ChatRoom() {
                     ) : tripNotifyData ? (
                         <TripMessage content={msg.content} isMe={isMe} isCancelled={false} isCompleted={false} />
                     ) : (tripData || tripAcceptData || tripCounterData || tripCancelData) ? (
-                        <TripMessage content={msg.content} isMe={isMe} isActive={isActiveForTrip(msg.content)} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onCounterOpen={scrollToBottom} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={handleCompleteTrip} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} acceptingTrip={acceptingTrip} completingTrip={completingTrip} cancellingTrip={cancellingTrip} />
+                        <TripMessage content={msg.content} isMe={isMe} isActive={isActiveForTrip(msg.content)} onAccept={hasActiveTrip() || acceptingTrip ? undefined : handleAcceptTrip} onCounter={hasActiveTrip() ? undefined : handleCounterTrip} onCounterOpen={scrollToBottom} onRate={handleRateTrip} onCancel={handleCancelTrip} onComplete={tripState.phase === "destination" ? handleCompleteTrip : undefined} hasRated={hasRatedForAccept(msg.content)} isCancelled={isCancelledForAccept(msg.content)} isCompleted={isCompletedForAccept(msg.content)} acceptingTrip={acceptingTrip} completingTrip={completingTrip} cancellingTrip={cancellingTrip} />
                     ) : parsedJson?.type === "contact" ? (
                       <div className={`px-3 py-2 rounded-2xl text-sm ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted text-foreground rounded-bl-md"}`}>
                         <div className="flex items-center gap-1.5">
@@ -1518,6 +1526,7 @@ export default function ChatRoom() {
         <div className="flex items-center gap-1.5 px-3 py-2 max-w-lg mx-auto">
           {isRideChat && (
             <button
+              disabled={tripState.hasActive}
               onClick={() => { setShowTripPanel(!showTripPanel); setShowContactMenu(false); setShowEmojiPicker(false); }}
               className={`p-2 rounded-full transition-colors shrink-0 ${showTripPanel ? "text-primary" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}
               title="行程"
