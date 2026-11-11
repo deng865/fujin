@@ -1,25 +1,11 @@
 import { useEffect, useState } from "react";
 import { Share, PlusSquare, MoreVertical, X, Download, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { promptInstallation, useInstallPrompt } from "@/hooks/useInstallPrompt";
 
-const DISMISS_KEY = "install_guide_dismissed_at";
-const DISMISS_DAYS = 14;
 const OPEN_EVENT = "open-install-guide";
 
 type Platform = "wechat" | "ios" | "android" | "desktop";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-let deferredPrompt: BeforeInstallPromptEvent | null = null;
-if (typeof window !== "undefined") {
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredPrompt = e as BeforeInstallPromptEvent;
-  });
-}
 
 export function openInstallGuide() {
   window.dispatchEvent(new Event(OPEN_EVENT));
@@ -32,18 +18,6 @@ function detectPlatform(): Platform {
   if (ios) return "ios";
   if (/Android/i.test(ua)) return "android";
   return "desktop";
-}
-
-function isInstalled() {
-  return (
-    window.matchMedia?.("(display-mode: standalone)").matches ||
-    (navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
-
-function recentlyDismissed() {
-  const t = Number(localStorage.getItem(DISMISS_KEY) || 0);
-  return Date.now() - t < DISMISS_DAYS * 864e5;
 }
 
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
@@ -60,52 +34,26 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
 export default function InstallGuide() {
   const [open, setOpen] = useState(false);
   const [platform, setPlatform] = useState<Platform>("desktop");
-  const [canPrompt, setCanPrompt] = useState(false);
+  const { canPrompt, installed } = useInstallPrompt();
 
   useEffect(() => {
     setPlatform(detectPlatform());
-    const manual = () => {
-      setCanPrompt(!!deferredPrompt);
-      setOpen(true);
-    };
+    const manual = () => setOpen(true);
     window.addEventListener(OPEN_EVENT, manual);
-    const onPrompt = () => setCanPrompt(true);
-    window.addEventListener("beforeinstallprompt", onPrompt);
-
-    // Auto-show once on phones, after the user has looked around a bit.
-    const p = detectPlatform();
-    let timer: number | undefined;
-    if (p !== "desktop" && !isInstalled() && !recentlyDismissed() && window.self === window.top) {
-      timer = window.setTimeout(() => {
-        if (!/^\/(chat|admin|checkout|auth)/.test(location.pathname)) {
-          setCanPrompt(!!deferredPrompt);
-          setOpen(true);
-        }
-      }, 10000);
-    }
     return () => {
       window.removeEventListener(OPEN_EVENT, manual);
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      if (timer) clearTimeout(timer);
     };
   }, []);
 
   const close = () => {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
     setOpen(false);
   };
 
   const install = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    setCanPrompt(false);
-    close();
+    if (await promptInstallation()) close();
   };
 
   if (!open) return null;
-  const installed = isInstalled();
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-end justify-center bg-foreground/40" onClick={close}>
@@ -118,11 +66,11 @@ export default function InstallGuide() {
           <img src="/icon-192.png" alt="华人街坊" className="h-12 w-12 rounded-xl" />
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-foreground">把「华人街坊」装到手机桌面</h2>
-            <p className="text-sm text-muted-foreground">免下载、不占空间，点图标就像 App 一样打开</p>
+            <p className="text-sm text-muted-foreground">不用去应用商店，点桌面图标即可打开</p>
           </div>
-          <button aria-label="关闭" onClick={close} className="rounded-full p-1.5 text-muted-foreground hover:bg-accent">
+          <Button variant="ghost" size="icon" aria-label="关闭" onClick={close} className="shrink-0 text-muted-foreground">
             <X className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         {installed ? (
@@ -167,9 +115,9 @@ export default function InstallGuide() {
           </p>
         )}
 
-        <button onClick={close} className="mt-4 w-full py-2 text-sm text-muted-foreground">
+        <Button variant="ghost" onClick={close} className="mt-4 w-full text-sm text-muted-foreground">
           以后再说
-        </button>
+        </Button>
       </div>
     </div>
   );

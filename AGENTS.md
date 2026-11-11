@@ -6,3 +6,4 @@
 
 - Keep browsing GPS local and separate from mobile-service tracking; persist offline state in posts and enforce off-duty reads/uploads in the database so schedules cannot override manual privacy choices. Ride sharing remains independently controlled.
 - Ship installability as manifest-only home-screen support (no app-shell service worker) — avoids stale caches in preview and after deploys.
+- Share install-prompt state between the homepage banner and manual guide; use standalone/installation signals and same-day dismissal, without timed popups, to avoid duplicate installation prompts.

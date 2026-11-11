@@ -12,6 +12,7 @@ import { useLocationPrivacy } from "@/hooks/useLocationPrivacy";
 import { PRIVACY_EVENT } from "@/lib/locationPrivacy";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import InstallBanner from "@/components/InstallBanner";
 
 type SortKey = "distance" | "rating" | "newest";
 interface Prof { average_rating: number | null; total_rides: number | null; verified: boolean | null }
@@ -105,6 +106,7 @@ export default function NearbyHome() {
 
   return (
     <div className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-28">
+      <InstallBanner />
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border/40 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-2 space-y-2">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-h-10">
           <h1 className="shrink-0 text-[20px] font-bold text-foreground">华人街坊</h1>
