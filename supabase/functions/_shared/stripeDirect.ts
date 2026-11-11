@@ -21,7 +21,7 @@ export async function stripeRequest(method: "GET" | "POST", path: string, params
   const url = `https://api.stripe.com/v1/${path}${method === "GET" && body ? `?${body}` : ""}`;
   const res = await fetch(url, {
     method,
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded", "Stripe-Version": "2026-03-25.dahlia" },
     body: method === "POST" ? body : undefined,
   });
   const json = await res.json();
