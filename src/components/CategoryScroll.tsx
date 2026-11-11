@@ -7,6 +7,7 @@ import {
   MoreHorizontal, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -110,8 +111,8 @@ export default function CategoryScroll({ selectedCategory, onSelectCategory, inl
       </div>
 
       {/* Full-screen category panel (Google Maps style) */}
-      {showAll && (
-        <div className="fixed inset-0 z-[1000] flex flex-col bg-background/95 backdrop-blur-md animate-in slide-in-from-bottom duration-200">
+      {showAll && createPortal(
+        <div className="fixed inset-0 z-[1000] flex flex-col h-[100dvh] bg-background/95 backdrop-blur-md animate-in slide-in-from-bottom duration-200">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
             <h2 className="text-base font-bold text-foreground">选择分类</h2>
@@ -124,7 +125,7 @@ export default function CategoryScroll({ selectedCategory, onSelectCategory, inl
           </div>
 
           {/* Category list */}
-          <div className="flex-1 overflow-y-auto pb-32">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-32" style={{ WebkitOverflowScrolling: "touch" }}>
             {/* "All" option */}
             <button
               onClick={() => handleSelect(null)}
@@ -175,7 +176,8 @@ export default function CategoryScroll({ selectedCategory, onSelectCategory, inl
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
