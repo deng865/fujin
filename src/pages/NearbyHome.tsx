@@ -65,7 +65,8 @@ export default function NearbyHome() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    // Only the initial load shows placeholders. Background refreshes keep the
+    // current list in place so they cannot push it down every 15 seconds.
     supabase
       .from("posts")
       .select("id, user_id, title, description, category, price, latitude, longitude, image_urls, created_at, is_mobile, operating_hours, live_latitude, live_longitude")
@@ -73,7 +74,11 @@ export default function NearbyHome() {
       .gte("latitude", origin.lat - SPAN).lte("latitude", origin.lat + SPAN)
       .gte("longitude", origin.lng - SPAN * 1.3).lte("longitude", origin.lng + SPAN * 1.3)
       .limit(500)
-      .then(({ data }) => { if (!cancelled) { setPosts((data as Post[]) || []); setLoading(false); } });
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (!error) setPosts((data as Post[]) || []);
+        setLoading(false);
+      });
     return () => { cancelled = true; };
   }, [origin, refresh]);
 
