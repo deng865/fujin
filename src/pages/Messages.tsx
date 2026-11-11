@@ -268,7 +268,7 @@ export default function Messages() {
 
     const [{ data: profiles }, { data: unreadRows }, { data: blocks }] = await Promise.all([
       supabase
-        .from("profiles")
+        .from("public_profiles")
         .select("id, name, avatar_url, average_rating, total_ratings")
         .in("id", otherIds),
       supabase

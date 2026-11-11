@@ -36,6 +36,13 @@
       "when": 1794400930198,
       "tag": "0004_mobile_public_view_privacy",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794410712814,
+      "tag": "0005_restrict_selected_application_read_and_upload_policies",
+      "breakpoints": true
     }
   ]
 }

@@ -183,7 +183,7 @@ export default function ChatRoom() {
           .limit(1)
           .maybeSingle(),
         supabase
-          .from("profiles")
+          .from("public_profiles")
           .select("average_rating, total_ratings")
           .eq("id", otherId)
           .single(),
@@ -1124,7 +1124,7 @@ export default function ChatRoom() {
   const onReviewDialogSubmitted = async (payload?: { rating: number; comment: string; imageUrls: string[]; tags: string[] }) => {
     // Refresh other user credit
     if (otherUserId) {
-      supabase.from("profiles").select("average_rating, total_ratings").eq("id", otherUserId).single().then(({ data }) => {
+      supabase.from("public_profiles").select("average_rating, total_ratings").eq("id", otherUserId).single().then(({ data }) => {
         if (data) setOtherUserCredit(data as any);
       });
     }

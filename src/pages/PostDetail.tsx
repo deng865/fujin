@@ -93,7 +93,7 @@ export default function PostDetail() {
 
       if (data) {
         const { data: profile } = await supabase
-          .from("profiles")
+          .from("public_profiles")
           .select("name, avatar_url, average_rating, total_ratings")
           .eq("id", data.user_id)
           .single();

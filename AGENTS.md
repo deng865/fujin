@@ -9,3 +9,4 @@
 - Share install-prompt state between the homepage banner and manual guide; use standalone/installation signals and same-day dismissal, without timed popups, to avoid duplicate installation prompts.
 - Detect Apple devices independently of install-prompt support and use browser-specific bottom guidance above navigation; iOS Chrome also needs manual home-screen instructions.
 - Keep existing discovery results visible during background refreshes and read failures; loading placeholders are initial-load-only to prevent periodic layout jumps.
+- Read other users' display names and rating summaries through the security-invoker public_profiles view backed by an authenticated, fixed-search-path safe-field function; direct profiles reads stay owner/admin-only to protect contact details.

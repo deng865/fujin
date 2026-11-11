@@ -152,13 +152,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "chat_messages_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       chats: {
@@ -390,13 +383,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "housing_posts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       job_posts: {
@@ -453,13 +439,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "job_posts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       matches: {
@@ -506,13 +485,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "matches_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -622,13 +594,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -880,24 +845,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ratings_rated_id_fkey"
-            columns: ["rated_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "ratings_rater_id_fkey"
             columns: ["rater_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ratings_rater_id_fkey"
-            columns: ["rater_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1140,13 +1091,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rides_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1395,31 +1339,13 @@ export type Database = {
           avatar_url: string | null
           average_rating: number | null
           created_at: string | null
+          credit_score: number | null
           id: string | null
           name: string | null
+          total_ratings: number | null
           total_rides: number | null
           user_type: Database["public"]["Enums"]["user_type"] | null
           verified: boolean | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          average_rating?: number | null
-          created_at?: string | null
-          id?: string | null
-          name?: string | null
-          total_rides?: number | null
-          user_type?: Database["public"]["Enums"]["user_type"] | null
-          verified?: boolean | null
-        }
-        Update: {
-          avatar_url?: string | null
-          average_rating?: number | null
-          created_at?: string | null
-          id?: string | null
-          name?: string | null
-          total_rides?: number | null
-          user_type?: Database["public"]["Enums"]["user_type"] | null
-          verified?: boolean | null
         }
         Relationships: []
       }
@@ -1692,6 +1618,21 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_public_profile_cards: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          average_rating: number
+          created_at: string
+          credit_score: number
+          id: string
+          name: string
+          total_ratings: number
+          total_rides: number
+          user_type: Database["public"]["Enums"]["user_type"]
+          verified: boolean
+        }[]
+      }
       get_welcome_bonus: { Args: { _user_id: string }; Returns: Json }
       gettransactionid: { Args: never; Returns: unknown }
       has_role: {

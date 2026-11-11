@@ -88,7 +88,7 @@ export default function ReviewList({ userId, type = "received", canDispute, targ
       // Received reviews: fetch sender credit_score and sort high-credit first
       const senderIds = [...new Set((data as any[]).map((r: any) => r.sender_id as string))];
       const { data: senderProfiles } = senderIds.length > 0
-        ? await supabase.from("profiles").select("id, credit_score").in("id", senderIds)
+        ? await supabase.from("public_profiles").select("id, credit_score").in("id", senderIds)
         : { data: [] };
       const creditMap = new Map((senderProfiles || []).map((p: any) => [p.id, (p as any).credit_score ?? 100]));
 
