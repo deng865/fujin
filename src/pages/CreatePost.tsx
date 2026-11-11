@@ -10,6 +10,7 @@ import LocationPicker from "@/components/create-post/LocationPicker";
 import { getDeviceId } from "@/lib/deviceId";
 import { useCredits } from "@/hooks/useCredits";
 import type { DaySchedule } from "@/components/create-post/WeeklySchedule";
+import { readPreference, SERVICE_KEY } from "@/lib/locationPrivacy";
 
 function defaultSchedule(): DaySchedule[] {
   return Array.from({ length: 7 }, (_, i) => ({
@@ -45,6 +46,7 @@ export default function CreatePost() {
   const formRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const credits = useCredits();
+  const savedMobileHours = useRef<unknown>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -76,6 +78,7 @@ export default function CreatePost() {
       let is24Hours = false;
       let weeklySchedule = defaultSchedule();
       const oh = data.operating_hours as any;
+      savedMobileHours.current = oh;
       if (oh) {
         if (oh.is24h) {
           is24Hours = true;
@@ -232,6 +235,9 @@ export default function CreatePost() {
     // Fuzzy mode: only fetch when no location has been set yet.
     let submitLocation = location;
     const needsFreshGps = isMobile;
+    if (isMobile && !readPreference(SERVICE_KEY)) {
+      return toast.error("请先在隐私设置中允许移动服务接单定位，再发布或更新移动服务");
+    }
     if (needsFreshGps) {
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -283,7 +289,7 @@ export default function CreatePost() {
 
       // Build operating hours
       const detectedTz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "America/Chicago"; } })();
-      let operatingHours: any = null;
+      let operatingHours: any = isMobile ? savedMobileHours.current : null;
       if (!isMobile) {
         if (formData.is24Hours) {
           operatingHours = { is24h: true, timezone: detectedTz, schedule: [] };

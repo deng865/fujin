@@ -8,6 +8,9 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
 import CategoryScroll from "@/components/CategoryScroll";
 import { CITIES, MAP_CATEGORIES, formatMi, sortByDistance, sortByRating, type Coords } from "@/lib/nearby";
+import { useLocationPrivacy } from "@/hooks/useLocationPrivacy";
+import { PRIVACY_EVENT } from "@/lib/locationPrivacy";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 type SortKey = "distance" | "rating" | "newest";
@@ -23,30 +26,41 @@ const SPAN = 1.2; // ~80 mi box around the origin
 
 export default function NearbyHome() {
   const navigate = useNavigate();
+  const { browseEnabled } = useLocationPrivacy();
+  const [manualArea, setManualArea] = useState(() => localStorage.getItem("browse_area") || "达拉斯");
+  const [clock, setClock] = useState(Date.now());
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    const update = () => { setClock(Date.now()); setRefresh(n => n + 1); };
+    const timer = window.setInterval(update, 15000);
+    window.addEventListener(PRIVACY_EVENT, update);
+    return () => { window.clearInterval(timer); window.removeEventListener(PRIVACY_EVENT, update); };
+  }, []);
   const { favoriteIds, toggleFavorite } = useFavorites();
-  const [origin, setOrigin] = useState<Coords>(CITIES[0]);
+  const [origin, setOrigin] = useState<Coords>(CITIES.find(c => c.name === manualArea) || CITIES[0]);
     const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("distance");
-  const [locationStatus, setLocationStatus] = useState<"locating" | "located" | "denied" | "error">("locating");
+  const [locationStatus, setLocationStatus] = useState<"locating" | "located" | "denied" | "error" | "manual">("locating");
   const [profiles, setProfiles] = useState<Record<string, Prof>>({});
 
   const locateMe = () => {
+    if (!browseEnabled) { setLocationStatus("manual"); return; }
     if (!navigator.geolocation) { setLocationStatus("error"); return; }
     setLocationStatus("locating");
     navigator.geolocation.getCurrentPosition(
-      (p) => { setOrigin({ lat: p.coords.latitude, lng: p.coords.longitude }); setLocationStatus("located"); },
+      (p) => { if (localStorage.getItem("browse_location_enabled") === "false") return; setOrigin({ lat: p.coords.latitude, lng: p.coords.longitude }); setLocationStatus("located"); },
       (error) => setLocationStatus(error.code === 1 ? "denied" : "error"),
       { enableHighAccuracy: false, maximumAge: 60_000, timeout: 8_000 },
     );
   };
 
   useEffect(() => {
-    if (localStorage.getItem("locationPermission") !== "never") locateMe();
-    else setLocationStatus("denied");
-  }, []);
+    if (browseEnabled && localStorage.getItem("locationPermission") !== "never") locateMe();
+    else { setLocationStatus(browseEnabled ? "denied" : "manual"); setOrigin(CITIES.find(c => c.name === manualArea) || CITIES[0]); }
+  }, [browseEnabled]);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,7 +74,7 @@ export default function NearbyHome() {
       .limit(500)
       .then(({ data }) => { if (!cancelled) { setPosts((data as Post[]) || []); setLoading(false); } });
     return () => { cancelled = true; };
-  }, [origin]);
+  }, [origin, refresh]);
 
   useEffect(() => {
     const ids = [...new Set(posts.map((p) => p.user_id))];
@@ -87,7 +101,7 @@ export default function NearbyHome() {
     if (sort === "rating") items = sortByRating(items);
     if (sort === "newest") items = [...items].sort((a, b) => b.created_at.localeCompare(a.created_at));
     return items;
-  }, [posts, origin, category, query, sort, profiles]);
+  }, [posts, origin, category, query, sort, profiles, clock]);
 
   return (
     <div className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-28">
@@ -98,9 +112,16 @@ export default function NearbyHome() {
             title={locationStatus === "denied" ? "请在浏览器或手机设置中允许位置访问，再点击重试" : "重新获取我的位置"}
             aria-label="重新获取我的位置" className="h-9 min-w-0 max-w-full px-2 text-xs text-muted-foreground">
             {locationStatus === "locating" ? <Loader2 className="motion-safe:animate-spin" /> : locationStatus === "located" ? <LocateFixed className="text-primary" /> : <MapPin />}
-            <span role="status" aria-live="polite">{locationStatus === "locating" ? "定位中…" : locationStatus === "located" ? "已定位" : locationStatus === "denied" ? "请打开位置设置" : "定位失败，请重试"}</span>
+            <span role="status" aria-live="polite">{locationStatus === "locating" ? "定位中…" : locationStatus === "located" ? "已定位" : locationStatus === "manual" ? "浏览定位已关闭" : locationStatus === "denied" ? "请打开位置设置" : "定位失败，请重试"}</span>
           </Button>
         </div>
+        {(locationStatus === "manual" || locationStatus === "denied" || locationStatus === "error") && <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>参考区域</span>
+          <Select value={manualArea} onValueChange={name => { setManualArea(name); localStorage.setItem("browse_area", name); setOrigin(CITIES.find(c => c.name === name) || CITIES[0]); }}>
+            <SelectTrigger aria-label="选择参考区域" className="h-9 w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>{CITIES.map(c => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+          </Select><span>非实时位置</span>
+        </div>}
         <div className="relative flex items-center h-11 rounded-lg bg-muted">
           <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input type="search" aria-label="搜索附近服务" value={query} onChange={(e) => setQuery(e.target.value)}
@@ -148,7 +169,7 @@ export default function NearbyHome() {
               {p.description && <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">{p.description}</p>}
               {p.description?.includes("认领") && <span className="mt-0.5 text-xs text-primary">店主？点此免费认领</span>}
               <div className="mt-auto flex items-center gap-2 pt-1 text-sm">
-                <span className="font-semibold text-primary">{formatMi(p.distance)}</span>
+                <span className="font-semibold text-primary">{locationStatus !== "located" ? "约 " : ""}{formatMi(p.distance)}</span>
                 {p.open === true && <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5">营业中</span>}
                 {p.open === false && <span className="text-xs rounded-full bg-muted text-muted-foreground px-2 py-0.5">已打烊</span>}
                 {p.is_mobile && <span className="text-xs rounded-full bg-muted text-muted-foreground px-2 py-0.5">上门服务</span>}

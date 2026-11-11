@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { readPreference, SERVICE_KEY } from "@/lib/locationPrivacy";
 import { haversineMeters } from "@/lib/liveLocation";
 
 interface TrackedPost {
@@ -29,8 +30,11 @@ export function useMobileTracking(posts: TrackedPost[]) {
     const hasPrecise = posts.some((p) => p.precise);
     const moveThreshold = hasPrecise ? 30 : 500;
 
+    lastSynced.current = null;
+    let stopped = false;
     watchId.current = navigator.geolocation.watchPosition(
       async (pos) => {
+        if (stopped || !readPreference(SERVICE_KEY)) return;
         const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
 
         if (
@@ -61,9 +65,12 @@ export function useMobileTracking(posts: TrackedPost[]) {
     );
 
     return () => {
+      stopped = true;
       if (watchId.current != null) {
         navigator.geolocation.clearWatch(watchId.current);
-        watchId.current = null;
+        lastSynced.current = null;
+    let stopped = false;
+    watchId.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

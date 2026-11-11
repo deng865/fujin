@@ -22,6 +22,20 @@
       "when": 1793111465776,
       "tag": "0002_welcome_bonus",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794400804176,
+      "tag": "0003_mobile_off_duty_privacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794400930198,
+      "tag": "0004_mobile_public_view_privacy",
+      "breakpoints": true
     }
   ]
 }

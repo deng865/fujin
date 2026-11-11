@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
-import { MapPin, Trash2, ArrowLeft, FileText, Shield } from "lucide-react";
+import { Trash2, FileText, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -19,13 +19,15 @@ import {
 interface Props {
   locationSharing: boolean;
   onLocationSharingChange: (val: boolean) => void;
-  onBack: () => void;
+  browseEnabled: boolean;
+  onBrowseChange: (val: boolean) => void;
+  saving: boolean;
   hasMobilePosts: boolean;
   hasActiveTrip: boolean;
   userId?: string;
 }
 
-export default function PrivacySettings({ locationSharing, onLocationSharingChange, onBack, hasMobilePosts, hasActiveTrip, userId }: Props) {
+export default function PrivacySettings({ locationSharing, onLocationSharingChange, browseEnabled, onBrowseChange, saving, hasMobilePosts, hasActiveTrip, userId }: Props) {
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showMobileWarning, setShowMobileWarning] = useState(false);
@@ -46,13 +48,8 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
     }
   };
 
-  const confirmMobileOffline = async () => {
-    if (userId) {
-      await supabase.from("posts").update({ is_visible: false })
-        .eq("user_id", userId).eq("is_mobile", true);
-    }
+  const confirmMobileOffline = () => {
     onLocationSharingChange(false);
-    toast.success("位置共享已关闭，移动服务已下架");
     setShowMobileWarning(false);
   };
 
@@ -81,26 +78,27 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
 
   return (
     <div className="space-y-4">
-      <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-        <ArrowLeft className="h-4 w-4" />
-        返回
-      </button>
-
-      <div className="bg-card border border-border rounded-2xl">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <MapPin className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium">位置共享</p>
-              <p className="text-xs text-muted-foreground">关闭后他人无法看到你的位置</p>
-            </div>
+      <section className="border-b border-border py-4 space-y-2">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-sm font-medium">浏览定位</h2>
+            <p className="text-xs text-muted-foreground mt-1">用于计算附近服务距离，不向公众或商家展示您的浏览位置。</p>
           </div>
-          <Switch
-            checked={locationSharing}
-            onCheckedChange={handleToggle}
-          />
+          <Switch aria-label="浏览定位" checked={browseEnabled} onCheckedChange={onBrowseChange} />
         </div>
-      </div>
+        {!browseEnabled && <p className="text-xs text-muted-foreground">已停止浏览定位，可在首页手动选择区域；距离为区域参考距离。</p>}
+      </section>
+      {hasMobilePosts && <section className="border-b border-border py-4 space-y-2">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-sm font-medium">移动服务接单定位</h2>
+            <p className="text-xs text-muted-foreground mt-1">仅在线且在接单时段内更新服务位置。关闭会下线全部移动服务并停止服务位置上传。</p>
+          </div>
+          <Switch aria-label="移动服务接单定位" checked={locationSharing} onCheckedChange={handleToggle} disabled={saving} />
+        </div>
+        <p className="text-xs text-muted-foreground">开启不自动上线，请到「我的发布」选择服务。定时时段不会覆盖手动收工。</p>
+      </section>}
+      {hasActiveTrip && <p className="text-xs text-muted-foreground">行程位置共享独立控制，请在聊天中结束共享；浏览定位和收工开关不会中断当前行程。</p>}
 
       <div className="bg-card border border-border rounded-2xl divide-y divide-border">
         <Link
@@ -156,18 +154,18 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
 
       {/* Mobile merchant warning - yellow */}
       <AlertDialog open={showMobileWarning} onOpenChange={setShowMobileWarning}>
-        <AlertDialogContent className="border-2 border-amber-400">
+        <AlertDialogContent >
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-amber-600">⚠️ 移动服务将下架</AlertDialogTitle>
+            <AlertDialogTitle >⚠️ 移动服务将下架</AlertDialogTitle>
             <AlertDialogDescription>
-              关闭位置共享后，您的移动服务帖子将从地图上消失（设为离线状态）。如需重新上线，请前往"我的发布"手动操作。
+              关闭后全部移动服务立即下线，停止服务位置上传。再次开启不会自动上线；请在「我的发布」手动上线。进行中行程的位置共享不受影响。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmMobileOffline}
-              className="bg-amber-500 text-white hover:bg-amber-600"
+              disabled={saving}
             >
               确认关闭
             </AlertDialogAction>
@@ -177,9 +175,9 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
 
       {/* Active trip warning - orange */}
       <AlertDialog open={showTripWarning} onOpenChange={setShowTripWarning}>
-        <AlertDialogContent className="border-2 border-orange-400">
+        <AlertDialogContent >
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-orange-600">🚗 行程进行中</AlertDialogTitle>
+            <AlertDialogTitle >🚗 行程进行中</AlertDialogTitle>
             <AlertDialogDescription>
               您有进行中的行程，关闭位置共享将增加司机寻找您的难度，建议行程结束后再关闭。
             </AlertDialogDescription>
@@ -188,7 +186,7 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmTripClose}
-              className="bg-orange-500 text-white hover:bg-orange-600"
+
             >
               仍然关闭
             </AlertDialogAction>

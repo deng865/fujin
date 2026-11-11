@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocationPrivacy } from "@/hooks/useLocationPrivacy";
+import { mobileOnline } from "@/lib/locationPrivacy";
 import { useMobileTracking } from "@/hooks/useMobileTracking";
 
 /**
@@ -9,10 +11,11 @@ import { useMobileTracking } from "@/hooks/useMobileTracking";
  */
 export default function MobileTrackingProvider() {
   const { user } = useAuth();
+  const { serviceEnabled } = useLocationPrivacy();
   const [posts, setPosts] = useState<{ id: string; precise: boolean }[]>([]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !serviceEnabled) {
       setPosts([]);
       return;
     }
@@ -21,13 +24,13 @@ export default function MobileTrackingProvider() {
     const load = async () => {
       const { data } = await supabase
         .from("posts")
-        .select("id, mobile_location_precise, is_visible, is_mobile")
+        .select("id, mobile_location_precise, is_visible, is_mobile, operating_hours")
         .eq("user_id", user.id)
         .eq("is_mobile", true)
         .eq("is_visible", true);
       if (cancelled) return;
       setPosts(
-        (data || []).map((p: any) => ({
+        (data || []).filter((p) => mobileOnline({ ...p, operating_hours: p.operating_hours as unknown as Parameters<typeof mobileOnline>[0]["operating_hours"] })).map((p: any) => ({
           id: p.id,
           precise: !!p.mobile_location_precise,
         })),
@@ -35,6 +38,8 @@ export default function MobileTrackingProvider() {
     };
 
     load();
+    const timer = window.setInterval(load, 15000);
+    window.addEventListener("location-privacy-changed", load);
 
     // Refresh when the user's posts change (publish, edit, hide, delete).
     const channel = supabase
@@ -53,10 +58,12 @@ export default function MobileTrackingProvider() {
 
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("location-privacy-changed", load);
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, serviceEnabled]);
 
-  useMobileTracking(posts);
+  useMobileTracking(serviceEnabled ? posts : []);
   return null;
 }

@@ -6,9 +6,12 @@ import { toast } from "sonner";
 import { LogOut, Package, Shield, Headphones, ChevronRight, Edit, Car, Star, Wallet, Receipt } from "lucide-react";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocationPrivacy } from "@/hooks/useLocationPrivacy";
+import { mobileOnline, PRIVACY_EVENT } from "@/lib/locationPrivacy";
 import { useCredits } from "@/hooks/useCredits";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import LiveSharingBanner from "@/components/profile/LiveSharingBanner";
@@ -113,7 +116,10 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState<UserPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [subPage, setSubPage] = useState<SubPage>("main");
-  const [locationSharing, setLocationSharing] = useState(true);
+  const { browseEnabled, serviceEnabled: locationSharing, setBrowseEnabled, setServiceEnabled } = useLocationPrivacy();
+  const [privacySaving, setPrivacySaving] = useState(false);
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => { const t = window.setInterval(() => setClock(Date.now()), 15000); return () => window.clearInterval(t); }, []);
   const [hasActiveTrip, setHasActiveTrip] = useState(false);
   const reviewStats = useReviewStats(user?.id || "");
 
@@ -159,9 +165,7 @@ export default function ProfilePage() {
         operating_hours: p.operating_hours as UserPost["operating_hours"],
       })));
 
-      // Load location sharing preference
-      const saved = localStorage.getItem("location_sharing_enabled");
-      if (saved !== null) setLocationSharing(saved === "true");
+
 
       // Check active trip
       checkActiveTripLock(user.id).then(convId => {
@@ -215,10 +219,19 @@ export default function ProfilePage() {
     }
   };
 
-  const handleLocationSharingChange = (val: boolean) => {
-    setLocationSharing(val);
-    localStorage.setItem("location_sharing_enabled", val.toString());
-    toast.success(val ? "位置共享已开启" : "位置共享已关闭");
+  const handleLocationSharingChange = async (val: boolean) => {
+    if (!user || privacySaving) return;
+    setPrivacySaving(true);
+    // Turning on permits tracking, but never publishes an unapproved/offline post.
+    if (!val) {
+      const { error } = await supabase.from("posts").update({ is_visible: false, live_latitude: null, live_longitude: null, live_updated_at: null }).eq("user_id", user.id).eq("is_mobile", true);
+      if (error) { toast.error("收工失败，请重试；当前设置未改变"); setPrivacySaving(false); return; }
+      setPosts(prev => prev.map(p => p.is_mobile ? { ...p, is_visible: false } : p));
+    }
+    setServiceEnabled(val);
+    window.dispatchEvent(new Event(PRIVACY_EVENT));
+    setPrivacySaving(false);
+    toast.success(val ? "接单定位已允许，请在我的发布中选择上线" : "已收工，移动服务已下线");
   };
 
   if (loading) {
@@ -270,7 +283,9 @@ export default function ProfilePage() {
           <PrivacySettings
             locationSharing={locationSharing}
             onLocationSharingChange={handleLocationSharingChange}
-            onBack={() => setSubPage("main")}
+            browseEnabled={browseEnabled}
+            onBrowseChange={setBrowseEnabled}
+            saving={privacySaving}
             hasMobilePosts={posts.some(p => p.is_mobile)}
             hasActiveTrip={hasActiveTrip}
             userId={user?.id}
@@ -405,6 +420,20 @@ export default function ProfilePage() {
 
         {/* Block 2: Live sharing banner */}
         <LiveSharingBanner />
+
+        {posts.some(p => p.is_mobile) && (
+          <section className="border-y border-border py-4 space-y-3" data-clock={clock}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold">移动服务接单定位</h2>
+                <p className="text-xs text-muted-foreground mt-1">{posts.some(p => p.is_mobile && mobileOnline(p, locationSharing)) ? "接单中 · 距离公开" : "已离线 · 不在附近列表展示"}</p>
+              </div>
+              <Switch aria-label="移动服务接单定位" checked={locationSharing} disabled={privacySaving} onCheckedChange={handleLocationSharingChange} />
+            </div>
+            <Button variant="outline" className="w-full" disabled={privacySaving || (!locationSharing && !posts.some(p => p.is_mobile && p.is_visible))} onClick={() => handleLocationSharingChange(false)}>一键收工</Button>
+            {hasActiveTrip && <p className="text-xs text-muted-foreground">收工不结束当前行程；聊天中的位置共享需单独结束。</p>}
+          </section>
+        )}
 
         {/* Block 3: Menu list */}
         <div className="bg-card border border-border rounded-2xl divide-y divide-border overflow-hidden">

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Trash2, Eye, EyeOff, ChevronRight, Edit, Clock, Settings } from "lucide-react";
 import { toast } from "sonner";
+import { mobileOnline, PRIVACY_EVENT } from "@/lib/locationPrivacy";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
 import {
   AlertDialog,
@@ -59,7 +60,7 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
   const handleToggleOnline = async (post: UserPost) => {
     const newVisible = !post.is_visible;
     if (newVisible && !locationSharing) {
-      toast.warning("请先开启位置共享，移动服务才能在地图上显示");
+      toast.warning("请先在隐私设置中开启移动服务接单定位");
       return;
     }
     // Block manual "上线" if currently in scheduled off-duty period
@@ -76,6 +77,7 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
       .eq("id", post.id);
 
     if (error) { toast.error("操作失败"); return; }
+    window.dispatchEvent(new Event(PRIVACY_EVENT));
     onPostsChange(posts.map(p => p.id === post.id ? { ...p, is_visible: newVisible } : p));
     toast.success(newVisible ? "已上线 🟢" : "已下线 ⚫");
   };
@@ -145,7 +147,7 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
               : null;
             // Effective online status for mobile merchants: scheduler overrides manual
             const effectiveOnline = post.is_mobile
-              ? (scheduledOpen !== null ? scheduledOpen : post.is_visible)
+              ? mobileOnline(post, locationSharing)
               : post.is_visible;
             const scheduleLockedOff = scheduledOpen === false;
 
@@ -197,7 +199,7 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
                   <>
                     <button
                       onClick={() => handleToggleOnline(post)}
-                      disabled={scheduleLockedOff}
+                      disabled={scheduleLockedOff && !effectiveOnline}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-colors ${
                         scheduleLockedOff
                           ? "bg-muted text-muted-foreground opacity-60 cursor-not-allowed"
@@ -288,7 +290,7 @@ export default function MyPostsList({ posts, onPostsChange, locationSharing }: P
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>自动上下线设置</DialogTitle>
-            <DialogDescription>设定每日自动上线和下线的时间，系统将在该时段内自动保持在线状态。</DialogDescription>
+            <DialogDescription>设置接单时段。下班后不展示且停止上传服务位置；手动下线后需要再次手动上线。</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
