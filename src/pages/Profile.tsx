@@ -17,6 +17,8 @@ import ProfileHeader from "@/components/profile/ProfileHeader";
 import LiveSharingBanner from "@/components/profile/LiveSharingBanner";
 import MyPostsList from "@/components/profile/MyPostsList";
 import PrivacySettings from "@/components/profile/PrivacySettings";
+import { openInstallGuide } from "@/components/InstallGuide";
+import { Smartphone } from "lucide-react";
 import ReviewList from "@/components/reviews/ReviewList";
 
 interface ReviewStats {
@@ -474,6 +476,15 @@ export default function ProfilePage() {
           >
             <Receipt className="h-5 w-5 text-primary" />
             <span className="flex-1 text-sm font-medium">我的订单</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <button
+            onClick={() => openInstallGuide()}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/50 transition-colors"
+          >
+            <Smartphone className="h-5 w-5 text-primary" />
+            <span className="flex-1 text-sm font-medium">安装到手机桌面</span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
 

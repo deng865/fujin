@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import InstallGuide from "@/components/InstallGuide";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -60,6 +61,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <InstallGuide />
         <AppErrorBoundary>
           <Router>
             <Routes>
