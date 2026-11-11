@@ -1,5 +1,5 @@
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
-import { getStripe, getStripeEnvironment } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
@@ -17,7 +17,6 @@ export default function StripeEmbeddedCheckoutForm({ planKey, postId, returnUrl 
         returnUrl:
           returnUrl ||
           `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-        environment: getStripeEnvironment(),
       },
     });
     if (error || !data?.clientSecret) {

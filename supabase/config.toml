@@ -7,3 +7,7 @@ project_id = "pmfyeqjgkmkvrlubzikr"
     verify_jwt = false
   [functions.payments-webhook]
     verify_jwt = false
+  [functions.stripe-config]
+    verify_jwt = false
+  [functions.verify-checkout]
+    verify_jwt = false

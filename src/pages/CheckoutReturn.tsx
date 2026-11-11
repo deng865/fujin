@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useCredits } from "@/hooks/useCredits";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function CheckoutReturn() {
   const [searchParams] = useSearchParams();
@@ -10,23 +11,28 @@ export default function CheckoutReturn() {
   const { postCredits, hasUnlimited, unlimitedUntil, refresh } = useCredits();
   const [checking, setChecking] = useState(true);
 
-  useEffect(() => {
-    // The webhook grants the credit moments after payment; poll briefly.
-    let tries = 0;
-    const timer = setInterval(async () => {
-      tries += 1;
-      await refresh();
-      if (tries >= 5) {
-        clearInterval(timer);
-        setChecking(false);
-      }
-    }, 1500);
-    return () => clearInterval(timer);
-  }, [refresh]);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (hasUnlimited || postCredits > 0) setChecking(false);
-  }, [hasUnlimited, postCredits]);
+    // Confirm the payment with Stripe and grant the purchased benefits.
+    // WeChat Pay can take a few seconds to settle, so retry briefly.
+    if (!sessionId) { setChecking(false); return; }
+    let cancelled = false;
+    (async () => {
+      for (let i = 0; i < 8 && !cancelled; i++) {
+        const { data } = await supabase.functions.invoke("verify-checkout", { body: { sessionId } });
+        if (data?.status === "completed") { await refresh(); if (!cancelled) setChecking(false); return; }
+        if (data?.status === "expired") break;
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      if (!cancelled) { setFailed(true); setChecking(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [sessionId, refresh]);
+
+  return () => clearInterval(timer);
+  }, [refresh]);
+
 
   return (
     <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 bg-background px-6 text-center">
@@ -38,7 +44,8 @@ export default function CheckoutReturn() {
       ) : (
         <>
           <CheckCircle2 className="h-12 w-12 text-emerald-500" />
-          <h1 className="text-lg font-semibold">支付完成</h1>
+          <h1 className="text-lg font-semibold">{failed ? "暂未确认到付款" : "支付完成"}</h1>
+          {failed && <p className="text-sm text-muted-foreground">如已付款，请稍后在“我的订单”查看。</p>}
           <p className="text-sm text-muted-foreground">
             {hasUnlimited
               ? `商家会员有效期至 ${new Date(unlimitedUntil!).toLocaleDateString("zh-CN")}`
