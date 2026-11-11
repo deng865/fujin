@@ -30,8 +30,6 @@ export default function CheckoutReturn() {
     return () => { cancelled = true; };
   }, [sessionId, refresh]);
 
-  return () => clearInterval(timer);
-  }, [refresh]);
 
 
   return (
