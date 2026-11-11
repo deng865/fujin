@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, MapPin, Heart, Car, X, Star, MessageCircle, BadgeCheck } from "lucide-react";
+import { Search, MapPin, Heart, Car, X, Star, MessageCircle, BadgeCheck, Loader2, LocateFixed } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
@@ -28,20 +30,22 @@ export default function NearbyHome() {
   const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("distance");
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<"locating" | "located" | "denied" | "error">("locating");
   const [profiles, setProfiles] = useState<Record<string, Prof>>({});
 
   const locateMe = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) { setLocationStatus("error"); return; }
+    setLocationStatus("locating");
     navigator.geolocation.getCurrentPosition(
-      (p) => { setOrigin({ lat: p.coords.latitude, lng: p.coords.longitude }); },
-      () => undefined,
+      (p) => { setOrigin({ lat: p.coords.latitude, lng: p.coords.longitude }); setLocationStatus("located"); },
+      (error) => setLocationStatus(error.code === 1 ? "denied" : "error"),
       { enableHighAccuracy: false, maximumAge: 60_000, timeout: 8_000 },
     );
   };
 
   useEffect(() => {
     if (localStorage.getItem("locationPermission") !== "never") locateMe();
+    else setLocationStatus("denied");
   }, []);
 
   useEffect(() => {
@@ -88,22 +92,22 @@ export default function NearbyHome() {
   return (
     <div className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-28">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border/40 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-2 space-y-2">
-        <div className="flex items-center gap-2 h-10">
-          {searchOpen ? (
-            <div className="flex-1 flex items-center gap-2 rounded-full bg-muted px-3 h-10">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索律师、美甲、餐馆…"
-                className="flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground" />
-              <button onClick={() => { setQuery(""); setSearchOpen(false); }} aria-label="关闭搜索"><X className="h-4 w-4 text-muted-foreground" /></button>
-            </div>
-          ) : (
-            <>
-              <h1 className="flex-1 text-[20px] font-bold text-foreground">附近街坊</h1>
-              <button onClick={() => setSearchOpen(true)} aria-label="搜索" className="h-10 w-10 flex items-center justify-center rounded-full bg-muted">
-                <Search className="h-5 w-5 text-foreground" />
-              </button>
-            </>
-          )}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-h-10">
+          <h1 className="shrink-0 text-[20px] font-bold text-foreground">华人街坊</h1>
+          <Button variant="ghost" onClick={locateMe} disabled={locationStatus === "locating"}
+            title={locationStatus === "denied" ? "请在浏览器或手机设置中允许位置访问，再点击重试" : "重新获取我的位置"}
+            aria-label="重新获取我的位置" className="h-9 min-w-0 max-w-full px-2 text-xs text-muted-foreground">
+            {locationStatus === "locating" ? <Loader2 className="motion-safe:animate-spin" /> : locationStatus === "located" ? <LocateFixed className="text-primary" /> : <MapPin />}
+            <span role="status" aria-live="polite">{locationStatus === "locating" ? "定位中…" : locationStatus === "located" ? "已定位" : locationStatus === "denied" ? "请打开位置设置" : "定位失败，请重试"}</span>
+          </Button>
+        </div>
+        <div className="relative flex items-center h-11 rounded-lg bg-muted">
+          <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input type="search" aria-label="搜索附近服务" value={query} onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索附近的接送、美食、律师、美甲…"
+            className="min-w-0 h-11 border-0 rounded-lg bg-transparent pl-10 pr-11 text-[16px] [&::-webkit-search-cancel-button]:appearance-none" />
+          {query && <Button variant="ghost" size="icon" onClick={() => setQuery("")} aria-label="清空搜索"
+            className="absolute right-1 h-9 w-9 text-muted-foreground"><X /></Button>}
         </div>
         <div className="-mx-4"><CategoryScroll inline selectedCategory={category} onSelectCategory={handleCategory} /></div>
         <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
