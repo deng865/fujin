@@ -104,7 +104,7 @@ export default function NearbyHome() {
             <button key={k} onClick={() => setSort(k)}
               className={cn("rounded-full px-3 py-1 text-sm border", sort === k ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground")}>{l}</button>
           ))}
-          <button onClick={() => navigate("/map?category=driver")} className="ml-auto flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1 text-sm">
+          <button onClick={() => handleCategory("driver")} className="ml-auto flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1 text-sm">
             <Car className="h-4 w-4" />接送
           </button>
         </div>

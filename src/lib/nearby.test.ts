@@ -14,8 +14,8 @@ describe("nearby list", () => {
     expect(formatMi(0.05)).toBe("附近");
     expect(formatMi(2.34)).toBe("2.3 mi");
   });
-  test("only rides use the map", () => {
-    expect(MAP_CATEGORIES.has("driver")).toBe(true);
+  test("no category opens the map, drivers are a list", () => {
+    expect(MAP_CATEGORIES.has("driver")).toBe(false);
     expect(MAP_CATEGORIES.has("food")).toBe(false);
   });
 });

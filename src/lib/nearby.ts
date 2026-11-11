@@ -21,8 +21,8 @@ export function formatMi(mi: number): string {
   return mi < 10 ? `${mi.toFixed(1)} mi` : `${Math.round(mi)} mi`;
 }
 
-/** Map is only used for rides; every other category is a distance list. */
-export const MAP_CATEGORIES = new Set(["driver"]);
+/** No category opens a map; maps appear only inside an active ride chat. */
+export const MAP_CATEGORIES = new Set<string>();
 
 export function postCoords(p: { latitude: number; longitude: number; is_mobile?: boolean | null; live_latitude?: number | null; live_longitude?: number | null }): Coords {
   if (p.is_mobile && p.live_latitude != null && p.live_longitude != null) return { lat: p.live_latitude, lng: p.live_longitude };
