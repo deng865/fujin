@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, MapPin, Heart, Car, ChevronDown, Navigation, Star, MessageCircle, BadgeCheck } from "lucide-react";
+import { Search, MapPin, Heart, Car, X, Star, MessageCircle, BadgeCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
 import CategoryScroll from "@/components/CategoryScroll";
-import { CITIES, MAP_CATEGORIES, HOT_SEARCHES, RADIUS_OPTIONS, formatMi, sortByDistance, sortByRating, withinRadius, type Coords } from "@/lib/nearby";
+import { CITIES, MAP_CATEGORIES, formatMi, sortByDistance, sortByRating, type Coords } from "@/lib/nearby";
 import { cn } from "@/lib/utils";
 
-type SortKey = "distance" | "rating" | "newest" | "open";
+type SortKey = "distance" | "rating" | "newest";
 interface Prof { average_rating: number | null; total_rides: number | null; verified: boolean | null }
 
 interface Post {
@@ -23,21 +23,18 @@ export default function NearbyHome() {
   const navigate = useNavigate();
   const { favoriteIds, toggleFavorite } = useFavorites();
   const [origin, setOrigin] = useState<Coords>(CITIES[0]);
-  const [originLabel, setOriginLabel] = useState(CITIES[0].name);
-  const [posts, setPosts] = useState<Post[]>([]);
+    const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("distance");
-  const [cityOpen, setCityOpen] = useState(false);
-  const [radius, setRadius] = useState<number | null>(null);
-  const [searchFocus, setSearchFocus] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [profiles, setProfiles] = useState<Record<string, Prof>>({});
 
   const locateMe = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
-      (p) => { setOrigin({ lat: p.coords.latitude, lng: p.coords.longitude }); setOriginLabel("我的位置"); },
+      (p) => { setOrigin({ lat: p.coords.latitude, lng: p.coords.longitude }); },
       () => undefined,
       { enableHighAccuracy: false, maximumAge: 60_000, timeout: 8_000 },
     );
@@ -80,55 +77,37 @@ export default function NearbyHome() {
       .filter((p) => !category || p.category === category)
       .filter((p) => !q || p.title.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q))
       .map((p) => ({ ...p, open: p.operating_hours ? isCurrentlyOpen(p.operating_hours) : null, rating: profiles[p.user_id]?.average_rating ?? null, prof: profiles[p.user_id] }));
-    items = withinRadius(items, radius);
+    // Mobile services that are offline (outside their schedule) are hidden; closed fixed shops stay, listed after open ones.
+    items = items.filter((p) => !(p.is_mobile && p.open === false));
+    if (sort === "distance") items = [...items].sort((a, b) => Number(a.open === false) - Number(b.open === false));
     if (sort === "rating") items = sortByRating(items);
     if (sort === "newest") items = [...items].sort((a, b) => b.created_at.localeCompare(a.created_at));
-    if (sort === "open") items = items.filter((p) => p.open !== false);
     return items;
-  }, [posts, origin, category, query, sort, radius, profiles]);
+  }, [posts, origin, category, query, sort, profiles]);
 
   return (
     <div className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-28">
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border/40 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-2 space-y-2">
-        <div className="flex items-center gap-2">
-          <button onClick={() => setCityOpen((v) => !v)} className="flex items-center gap-1 text-[16px] font-semibold text-foreground shrink-0">
-            <MapPin className="h-4 w-4 text-primary" />{originLabel}<ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </button>
-          <div className="flex-1 flex items-center gap-2 rounded-full bg-muted px-3 h-10">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} onFocus={() => setSearchFocus(true)} onBlur={() => setTimeout(() => setSearchFocus(false), 150)} placeholder="搜索律师、美甲、餐馆…"
-              className="flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground" />
-          </div>
+        <div className="flex items-center gap-2 h-10">
+          {searchOpen ? (
+            <div className="flex-1 flex items-center gap-2 rounded-full bg-muted px-3 h-10">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索律师、美甲、餐馆…"
+                className="flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground" />
+              <button onClick={() => { setQuery(""); setSearchOpen(false); }} aria-label="关闭搜索"><X className="h-4 w-4 text-muted-foreground" /></button>
+            </div>
+          ) : (
+            <>
+              <h1 className="flex-1 text-[20px] font-bold text-foreground">附近街坊</h1>
+              <button onClick={() => setSearchOpen(true)} aria-label="搜索" className="h-10 w-10 flex items-center justify-center rounded-full bg-muted">
+                <Search className="h-5 w-5 text-foreground" />
+              </button>
+            </>
+          )}
         </div>
-        {searchFocus && !query && (
-          <div className="flex flex-wrap gap-2 pb-1">
-            <span className="text-xs text-muted-foreground self-center">热门：</span>
-            {HOT_SEARCHES.map((t) => (
-              <button key={t} onMouseDown={(e) => e.preventDefault()} onClick={() => { if (t === "接送") { setCategory("driver"); } else setQuery(t); setSearchFocus(false); }}
-                className="rounded-full bg-muted px-3 py-1 text-sm text-foreground">{t}</button>
-            ))}
-          </div>
-        )}
-        {cityOpen && (
-          <div className="flex flex-wrap gap-2 pb-1">
-            <button onClick={() => { locateMe(); setCityOpen(false); }} className="flex items-center gap-1 rounded-full bg-primary/10 text-primary px-3 py-1.5 text-sm">
-              <Navigation className="h-3.5 w-3.5" />我的位置
-            </button>
-            {CITIES.map((c) => (
-              <button key={c.name} onClick={() => { setOrigin(c); setOriginLabel(c.name); setCityOpen(false); }}
-                className="rounded-full bg-muted px-3 py-1.5 text-sm text-foreground">{c.name}</button>
-            ))}
-          </div>
-        )}
         <div className="-mx-4"><CategoryScroll inline selectedCategory={category} onSelectCategory={handleCategory} /></div>
         <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
-          {RADIUS_OPTIONS.map((o) => (
-            <button key={o.label} onClick={() => setRadius(o.mi)}
-              className={cn("shrink-0 rounded-full px-3 py-1 text-sm", radius === o.mi ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>{o.label}</button>
-          ))}
-        </div>
-        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
-          {([["distance", "离我最近"], ["rating", "好评最高"], ["newest", "最新发布"], ["open", "营业中"]] as const).map(([k, l]) => (
+          {([["distance", "离我最近"], ["rating", "好评最高"], ["newest", "最新发布"]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setSort(k)}
               className={cn("shrink-0 rounded-full px-3 py-1 text-sm border", sort === k ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground")}>{l}</button>
           ))}
@@ -141,7 +120,7 @@ export default function NearbyHome() {
       <main className="px-4 pt-3 space-y-3">
         {loading && Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 rounded-2xl bg-muted/60 animate-pulse" />)}
         {!loading && list.length === 0 && (
-          <div className="py-16 text-center text-muted-foreground text-sm">附近还没有相关信息，换个分类或城市试试</div>
+          <div className="py-16 text-center text-muted-foreground text-sm">附近还没有相关信息，换个分类试试</div>
         )}
         {list.map((p) => (
           <article key={p.id} onClick={() => navigate(`/post/${p.id}`)}
