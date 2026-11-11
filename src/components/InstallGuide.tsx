@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Share, PlusSquare, MoreVertical, X, Download, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { promptInstallation, useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { getIOSInstallBrowser } from "@/lib/iosInstallBrowser";
 
 const OPEN_EVENT = "open-install-guide";
 
@@ -35,6 +36,7 @@ export default function InstallGuide() {
   const [open, setOpen] = useState(false);
   const [platform, setPlatform] = useState<Platform>("desktop");
   const { canPrompt, installed } = useInstallPrompt();
+  const iosBrowser = getIOSInstallBrowser(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
 
   useEffect(() => {
     setPlatform(detectPlatform());
@@ -59,6 +61,9 @@ export default function InstallGuide() {
     <div className="fixed inset-0 z-[2000] flex items-end justify-center bg-foreground/40" onClick={close}>
       <div
         className="w-full max-w-md rounded-t-3xl bg-background p-5 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label="添加到主屏幕步骤"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -85,14 +90,15 @@ export default function InstallGuide() {
           </ol>
         ) : platform === "ios" ? (
           <ol className="space-y-3 rounded-xl bg-muted p-4">
-            <Step n={1}>请用 <b>Safari 浏览器</b> 打开 fujin.life</Step>
+            <Step n={1}>{iosBrowser === "chrome" ? <>在 iPhone 的 <b>Chrome 浏览器</b> 打开 fujin.life</> : <>请用 <b>Safari 浏览器</b> 打开 fujin.life</>}</Step>
             <Step n={2}>
-              点底部的 <b>分享按钮</b> <Share className="mx-0.5 inline h-4 w-4 text-primary" />（方框带向上箭头）
+              点浏览器的 <b>分享按钮</b> <Share className="mx-0.5 inline h-4 w-4 text-primary" />（方框带向上箭头，位置随浏览器版本不同）
             </Step>
             <Step n={3}>
               往下滑，点 <b>「添加到主屏幕」</b> <PlusSquare className="mx-0.5 inline h-4 w-4 text-primary" />
             </Step>
             <Step n={4}>点右上角 <b>「添加」</b>，桌面就出现「华人街坊」图标了</Step>
+            {iosBrowser === "chrome" && <li className="text-sm leading-6 text-muted-foreground">如果没有「添加到主屏幕」，请用 Safari 打开 fujin.life，再按上面的分享步骤添加。</li>}
           </ol>
         ) : platform === "android" ? (
           canPrompt ? (
