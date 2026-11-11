@@ -3,19 +3,17 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route , Navigate} from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
 import AppLayout from "./components/AppLayout";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import NearbyHome from "./pages/NearbyHome";
-import MapHome from "./pages/MapHome";
 import {
   loadAdminPortal,
   loadAuth,
   loadChatRoom,
   loadCheckoutReturn,
   loadCreatePost,
-  loadDiscovery,
   loadFavorites,
   loadMessages,
   loadMyOrders,
@@ -37,7 +35,6 @@ const Profile = lazy(loadProfile);
 const Messages = lazy(loadMessages);
 const ChatRoom = lazy(loadChatRoom);
 const AdminPortal = lazy(loadAdminPortal);
-const Discovery = lazy(loadDiscovery);
 const NotFound = lazy(loadNotFound);
 const PrivacyPolicy = lazy(loadPrivacyPolicy);
 const TermsOfService = lazy(loadTermsOfService);
@@ -68,8 +65,8 @@ const App = () => (
             <Routes>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<NearbyHome />} />
-                <Route path="/map" element={<MapHome />} />
-                <Route path="/discovery" element={<Discovery />} />
+                <Route path="/map" element={<Navigate to="/" replace />} />
+                <Route path="/discovery" element={<Navigate to="/" replace />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/create-post" element={<CreatePost />} />

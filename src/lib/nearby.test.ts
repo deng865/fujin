@@ -19,3 +19,15 @@ describe("nearby list", () => {
     expect(MAP_CATEGORIES.has("food")).toBe(false);
   });
 });
+
+import { withinRadius, sortByRating } from "./nearby";
+describe("filters", () => {
+  test("5 mi radius drops farther items", () => {
+    expect(withinRadius([{ distance: 4.9 }, { distance: 5.1 }], 5).length).toBe(1);
+    expect(withinRadius([{ distance: 40 }], null).length).toBe(1);
+  });
+  test("highest rated first, unrated last", () => {
+    const r = sortByRating([{ id: "n", distance: 1, rating: null }, { id: "a", distance: 3, rating: 4.9 }, { id: "b", distance: 2, rating: 4.2 }]);
+    expect(r.map((x) => x.id)).toEqual(["a", "b", "n"]);
+  });
+});

@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, MapPin, Heart, Car, ChevronDown, Navigation } from "lucide-react";
+import { Search, MapPin, Heart, Car, ChevronDown, Navigation, Star, MessageCircle, BadgeCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
 import CategoryScroll from "@/components/CategoryScroll";
-import { CITIES, MAP_CATEGORIES, formatMi, sortByDistance, type Coords } from "@/lib/nearby";
+import { CITIES, MAP_CATEGORIES, HOT_SEARCHES, RADIUS_OPTIONS, formatMi, sortByDistance, sortByRating, withinRadius, type Coords } from "@/lib/nearby";
 import { cn } from "@/lib/utils";
 
-type SortKey = "distance" | "newest" | "open";
+type SortKey = "distance" | "rating" | "newest" | "open";
+interface Prof { average_rating: number | null; total_rides: number | null; verified: boolean | null }
 
 interface Post {
   id: string; title: string; description: string | null; category: string; price: number | null;
-  latitude: number; longitude: number; image_urls: string[] | null; created_at: string;
+  user_id: string; latitude: number; longitude: number; image_urls: string[] | null; created_at: string;
   is_mobile?: boolean | null; operating_hours?: any; live_latitude?: number | null; live_longitude?: number | null;
 }
 
@@ -29,6 +30,9 @@ export default function NearbyHome() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("distance");
   const [cityOpen, setCityOpen] = useState(false);
+  const [radius, setRadius] = useState<number | null>(null);
+  const [searchFocus, setSearchFocus] = useState(false);
+  const [profiles, setProfiles] = useState<Record<string, Prof>>({});
 
   const locateMe = () => {
     if (!navigator.geolocation) return;
@@ -48,7 +52,7 @@ export default function NearbyHome() {
     setLoading(true);
     supabase
       .from("posts")
-      .select("id, title, description, category, price, latitude, longitude, image_urls, created_at, is_mobile, operating_hours, live_latitude, live_longitude")
+      .select("id, user_id, title, description, category, price, latitude, longitude, image_urls, created_at, is_mobile, operating_hours, live_latitude, live_longitude")
       .eq("is_visible", true)
       .gte("latitude", origin.lat - SPAN).lte("latitude", origin.lat + SPAN)
       .gte("longitude", origin.lng - SPAN * 1.3).lte("longitude", origin.lng + SPAN * 1.3)
@@ -56,6 +60,13 @@ export default function NearbyHome() {
       .then(({ data }) => { if (!cancelled) { setPosts((data as Post[]) || []); setLoading(false); } });
     return () => { cancelled = true; };
   }, [origin]);
+
+  useEffect(() => {
+    const ids = [...new Set(posts.map((p) => p.user_id))];
+    if (!ids.length) return;
+    supabase.from("public_profiles").select("id, average_rating, total_rides, verified").in("id", ids)
+      .then(({ data }) => setProfiles(Object.fromEntries((data || []).map((r: any) => [r.id, r]))));
+  }, [posts]);
 
   const handleCategory = (c: string | null) => {
     if (c && MAP_CATEGORIES.has(c)) { navigate(`/map?category=${c}`); return; }
@@ -68,11 +79,13 @@ export default function NearbyHome() {
       .filter((p) => !MAP_CATEGORIES.has(p.category))
       .filter((p) => !category || p.category === category)
       .filter((p) => !q || p.title.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q))
-      .map((p) => ({ ...p, open: p.operating_hours ? isCurrentlyOpen(p.operating_hours) : null }));
+      .map((p) => ({ ...p, open: p.operating_hours ? isCurrentlyOpen(p.operating_hours) : null, rating: profiles[p.user_id]?.average_rating ?? null, prof: profiles[p.user_id] }));
+    items = withinRadius(items, radius);
+    if (sort === "rating") items = sortByRating(items);
     if (sort === "newest") items = [...items].sort((a, b) => b.created_at.localeCompare(a.created_at));
     if (sort === "open") items = items.filter((p) => p.open !== false);
     return items;
-  }, [posts, origin, category, query, sort]);
+  }, [posts, origin, category, query, sort, radius, profiles]);
 
   return (
     <div className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-28">
@@ -83,10 +96,19 @@ export default function NearbyHome() {
           </button>
           <div className="flex-1 flex items-center gap-2 rounded-full bg-muted px-3 h-10">
             <Search className="h-4 w-4 text-muted-foreground" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索律师、美甲、餐馆…"
+            <input value={query} onChange={(e) => setQuery(e.target.value)} onFocus={() => setSearchFocus(true)} onBlur={() => setTimeout(() => setSearchFocus(false), 150)} placeholder="搜索律师、美甲、餐馆…"
               className="flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground" />
           </div>
         </div>
+        {searchFocus && !query && (
+          <div className="flex flex-wrap gap-2 pb-1">
+            <span className="text-xs text-muted-foreground self-center">热门：</span>
+            {HOT_SEARCHES.map((t) => (
+              <button key={t} onMouseDown={(e) => e.preventDefault()} onClick={() => { if (t === "接送") { setCategory("driver"); } else setQuery(t); setSearchFocus(false); }}
+                className="rounded-full bg-muted px-3 py-1 text-sm text-foreground">{t}</button>
+            ))}
+          </div>
+        )}
         {cityOpen && (
           <div className="flex flex-wrap gap-2 pb-1">
             <button onClick={() => { locateMe(); setCityOpen(false); }} className="flex items-center gap-1 rounded-full bg-primary/10 text-primary px-3 py-1.5 text-sm">
@@ -99,12 +121,18 @@ export default function NearbyHome() {
           </div>
         )}
         <div className="-mx-4"><CategoryScroll inline selectedCategory={category} onSelectCategory={handleCategory} /></div>
-        <div className="flex gap-2">
-          {([["distance", "离我最近"], ["newest", "最新发布"], ["open", "营业中"]] as const).map(([k, l]) => (
-            <button key={k} onClick={() => setSort(k)}
-              className={cn("rounded-full px-3 py-1 text-sm border", sort === k ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground")}>{l}</button>
+        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
+          {RADIUS_OPTIONS.map((o) => (
+            <button key={o.label} onClick={() => setRadius(o.mi)}
+              className={cn("shrink-0 rounded-full px-3 py-1 text-sm", radius === o.mi ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>{o.label}</button>
           ))}
-          <button onClick={() => handleCategory("driver")} className="ml-auto flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1 text-sm">
+        </div>
+        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
+          {([["distance", "离我最近"], ["rating", "好评最高"], ["newest", "最新发布"], ["open", "营业中"]] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setSort(k)}
+              className={cn("shrink-0 rounded-full px-3 py-1 text-sm border", sort === k ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground")}>{l}</button>
+          ))}
+          <button onClick={() => handleCategory("driver")} className="ml-auto shrink-0 flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1 text-sm">
             <Car className="h-4 w-4" />接送
           </button>
         </div>
@@ -129,13 +157,23 @@ export default function NearbyHome() {
                   <Heart className={cn("h-5 w-5", favoriteIds.has(p.id) ? "fill-destructive text-destructive" : "text-muted-foreground")} />
                 </button>
               </div>
-              {p.description && <p className="mt-0.5 text-sm text-muted-foreground line-clamp-2">{p.description}</p>}
+              <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                {p.rating ? <><Star className="h-3.5 w-3.5 fill-primary text-primary" /><span className="text-foreground font-medium">{p.rating.toFixed(1)}</span></> : <span className="rounded bg-accent px-1.5 text-accent-foreground">新入驻</span>}
+                {p.prof?.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary" />}
+                {p.category === "driver" && <span className="flex items-center gap-0.5"><Car className="h-3.5 w-3.5" />接送{p.prof?.total_rides ? ` · ${p.prof.total_rides} 单` : ""}</span>}
+              </div>
+              {p.description && <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">{p.description}</p>}
+              {p.description?.includes("认领") && <span className="mt-0.5 text-xs text-primary">店主？点此免费认领</span>}
               <div className="mt-auto flex items-center gap-2 pt-1 text-sm">
                 <span className="font-semibold text-primary">{formatMi(p.distance)}</span>
                 {p.open === true && <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5">营业中</span>}
                 {p.open === false && <span className="text-xs rounded-full bg-muted text-muted-foreground px-2 py-0.5">已打烊</span>}
                 {p.is_mobile && <span className="text-xs rounded-full bg-muted text-muted-foreground px-2 py-0.5">上门服务</span>}
-                {p.price != null && <span className="ml-auto font-semibold text-foreground">${p.price}</span>}
+                {p.price != null && <span className="font-semibold text-foreground">${p.price}</span>}
+                <button onClick={(e) => { e.stopPropagation(); navigate(`/post/${p.id}`); }}
+                  className="ml-auto flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1 text-xs">
+                  {p.category === "driver" ? <><Car className="h-3.5 w-3.5" />叫车</> : <><MessageCircle className="h-3.5 w-3.5" />联系</>}
+                </button>
               </div>
             </div>
           </article>

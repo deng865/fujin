@@ -34,3 +34,19 @@ export function sortByDistance<T extends { latitude: number; longitude: number }
     .map((p) => ({ ...p, distance: distanceMi(origin, postCoords(p)) }))
     .sort((a, b) => a.distance - b.distance);
 }
+
+/** Radius quick filters in miles; null = no limit. */
+export const RADIUS_OPTIONS: { label: string; mi: number | null }[] = [
+  { label: "5 mi 内", mi: 5 }, { label: "15 mi 内", mi: 15 }, { label: "不限", mi: null },
+];
+
+export function withinRadius<T extends { distance: number }>(items: T[], mi: number | null): T[] {
+  return mi == null ? items : items.filter((p) => p.distance <= mi);
+}
+
+/** Highest rated first; unrated last; ties broken by distance. */
+export function sortByRating<T extends { distance: number; rating: number | null }>(items: T[]): T[] {
+  return [...items].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || a.distance - b.distance);
+}
+
+export const HOT_SEARCHES = ["接送", "美食", "月嫂保姆", "水暖电工", "汽车维修", "移民律师", "美甲", "租房"];
