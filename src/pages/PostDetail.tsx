@@ -13,6 +13,7 @@ import { checkActiveTripLock } from "@/lib/tripLock";
 import ReviewDialog from "@/components/reviews/ReviewDialog";
 import CreditBadge from "@/components/reviews/CreditBadge";
 import MerchantReviewSection from "@/components/reviews/MerchantReviewSection";
+import SeoHead from "@/components/SeoHead";
 
 interface PostDetailData {
   id: string;
@@ -192,6 +193,8 @@ export default function PostDetail() {
       className="h-[100dvh] overflow-y-auto overscroll-contain bg-background pb-[calc(2rem+env(safe-area-inset-bottom))]"
       style={{ WebkitOverflowScrolling: "touch" }}
     >
+      {/* User-authored listings may contain private addresses: keep them noindex. */}
+      <SeoHead title={`${post.title} | 华人街坊`} description="查看本地信息详情，联系发布者核实服务内容与安排。" />
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
@@ -215,7 +218,9 @@ export default function PostDetail() {
               <img
                 key={i}
                 src={url}
-                alt={`${post.title} - ${i + 1}`}
+                alt={`${post.title}，信息图片 ${i + 1}`}
+                loading={i === 0 ? "eager" : "lazy"}
+                decoding="async"
                 className="w-full h-64 object-cover snap-center shrink-0"
               />
             ))}
@@ -242,7 +247,7 @@ export default function PostDetail() {
             </span>
             <span className="flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" />
-              {post.latitude.toFixed(2)}, {post.longitude.toFixed(2)}
+              本地服务 · 位置仅用于导航
             </span>
             <div className="ml-auto">
               <button
@@ -258,6 +263,7 @@ export default function PostDetail() {
           {/* Description */}
           {post.description && (
             <div className="bg-muted/50 rounded-2xl p-4">
+              <h2 className="text-base font-semibold mb-2">信息详情</h2>
               <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                 {post.description}
               </p>

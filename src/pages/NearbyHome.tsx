@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Search, MapPin, Heart, Car, X, Star, MessageCircle, BadgeCheck, Loader2, LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { PRIVACY_EVENT } from "@/lib/locationPrivacy";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import InstallBanner from "@/components/InstallBanner";
+import DirectoryLinks from "@/components/DirectoryLinks";
 
 type SortKey = "distance" | "rating" | "newest";
 interface Prof { average_rating: number | null; total_rides: number | null; verified: boolean | null }
@@ -150,6 +151,7 @@ export default function NearbyHome() {
       </header>
 
       <main className="px-4 pt-3 space-y-3">
+        <h2 className="text-base font-semibold">附近华人服务与分类信息</h2>
         {loading && Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 rounded-2xl bg-muted/60 animate-pulse" />)}
         {!loading && list.length === 0 && (
           <div className="py-16 text-center text-muted-foreground text-sm">附近还没有相关信息，换个分类试试</div>
@@ -163,7 +165,7 @@ export default function NearbyHome() {
             </div>
             <div className="flex-1 min-w-0 flex flex-col">
               <div className="flex items-start gap-2">
-                <h3 className="flex-1 text-[16px] font-semibold text-foreground line-clamp-1">{p.title}</h3>
+                <h3 className="flex-1 text-[16px] font-semibold text-foreground line-clamp-1"><Link to={`/post/${p.id}`} onClick={e => e.stopPropagation()}>{p.title}</Link></h3>
                 <button aria-label="收藏" onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id); }} className="p-1 -m-1">
                   <Heart className={cn("h-5 w-5", favoriteIds.has(p.id) ? "fill-destructive text-destructive" : "text-muted-foreground")} />
                 </button>
@@ -190,6 +192,12 @@ export default function NearbyHome() {
           </article>
         ))}
       </main>
+      <section className="px-4 pt-6 space-y-2 text-sm text-muted-foreground" aria-label="华人街坊本地生活">
+        <h2 className="text-base font-semibold text-foreground">美国华人本地生活 · Chinese Local Life</h2>
+        <p>华人街坊连接美国华人本地生活、同城社交、商家服务与分类信息。查找工作、租房、二手物品和日常服务，联系发布者确认实际安排。</p>
+        <p lang="en">Connect with Chinese local life in US cities: jobs, rentals, secondhand goods, community connections and everyday services. Confirm availability and terms with the advertiser.</p>
+      </section>
+      <DirectoryLinks />
     </div>
   );
 }

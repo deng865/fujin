@@ -1,4 +1,5 @@
 import { lazy } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import InstallGuide from "@/components/InstallGuide";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -42,6 +43,7 @@ const TermsOfService = lazy(loadTermsOfService);
 const Pricing = lazy(loadPricing);
 const CheckoutReturn = lazy(loadCheckoutReturn);
 const MyOrders = lazy(loadMyOrders);
+const PublicDirectory = lazy(() => import("./pages/PublicDirectory"));
 
 const queryClient = new QueryClient();
 
@@ -56,6 +58,7 @@ const isFileProtocol =
 const Router = isFileProtocol ? HashRouter : BrowserRouter;
 
 const App = () => (
+  <HelmetProvider>
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
@@ -67,6 +70,10 @@ const App = () => (
             <Routes>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<NearbyHome />} />
+                <Route path="/cities" element={<PublicDirectory kind="city" />} />
+                <Route path="/cities/:slug" element={<PublicDirectory kind="city" />} />
+                <Route path="/categories" element={<PublicDirectory kind="category" />} />
+                <Route path="/categories/:slug" element={<PublicDirectory kind="category" />} />
                 <Route path="/map" element={<Navigate to="/" replace />} />
                 <Route path="/discovery" element={<Navigate to="/" replace />} />
                 <Route path="/auth" element={<Auth />} />
@@ -92,6 +99,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

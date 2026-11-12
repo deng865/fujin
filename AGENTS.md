@@ -10,3 +10,6 @@
 - Detect Apple devices independently of install-prompt support and use browser-specific bottom guidance above navigation; iOS Chrome also needs manual home-screen instructions.
 - Keep existing discovery results visible during background refreshes and read failures; loading placeholders are initial-load-only to prevent periodic layout jumps.
 - Read other users' display names and rating summaries through the security-invoker public_profiles view backed by an authenticated, fixed-search-path safe-field function; direct profiles reads stay owner/admin-only to protect contact details.
+- Keep public SEO routes and metadata in a shared catalog with Helmet at the router layout; self-referencing canonicals prevent query variants from duplicating pages.
+- Index curated bilingual city/category guides only; account routes and raw user listings stay noindex until an explicit public-content consent model exists, avoiding address and location exposure.
+- Retain the existing static sitemap and hosting crawler prerendering; directory queries select safe listing identifiers/categories only and never export live GPS or profiles to SEO content.

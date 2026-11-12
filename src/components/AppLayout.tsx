@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import BottomNav from "./BottomNav";
 import AppErrorBoundary from "./AppErrorBoundary";
+import SeoHead from "./SeoHead";
 
 const GlobalIncomingCallProvider = lazy(() => import("./GlobalIncomingCallProvider"));
 const MobileTrackingProvider = lazy(() => import("./MobileTrackingProvider"));
@@ -61,6 +62,7 @@ export default function AppLayout() {
 
   return (
     <>
+      <SeoHead />
       {mountGlobals && (
         <Suspense fallback={null}>
           <GlobalIncomingCallProvider />

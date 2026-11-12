@@ -13,4 +13,6 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://fujin.life/sitemap.xml
+# Account and payment pages use per-route noindex. Do not block crawling
+# of those routes here: crawlers must be able to read their noindex tags.
+Sitemap: https://huaren168.online/sitemap.xml
