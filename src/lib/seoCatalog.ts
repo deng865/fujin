@@ -1,3 +1,5 @@
+import { LA_SERVICES, laServicePath } from "./laServiceCatalog";
+
 export const SITE_URL = "https://huaren168.online";
 export const SITE_TITLE = "华人街坊 | Chinese Local Services & Classifieds in the USA";
 export const SITE_DESCRIPTION = "Discover Chinese local services, jobs, rentals, secondhand goods and community connections across US cities. 华人街坊：美国华人本地生活、同城社交、商家服务与分类信息。";
@@ -48,6 +50,8 @@ export function canonicalUrl(path: string) {
 export const PUBLIC_PATHS = ["/", "/cities", "/categories", ...SEO_CITIES.map(c => `/cities/${c.slug}`), ...SEO_CATEGORIES.map(c => `/categories/${c.slug}`), "/privacy-policy", "/terms-of-service"];
 
 export function routeSeo(path: string) {
+  const laService = LA_SERVICES.find(service => path === laServicePath(service));
+  if (laService) return { title: laService.title, description: laService.description, noindex: true };
   const city = SEO_CITIES.find(c => path === `/cities/${c.slug}`);
   if (city) return { title: `${city.en} Chinese Community & Services | ${city.zh}华人生活 · 华人街坊`, description: `Find Chinese local services and community information in ${city.en}, ${city.state}. ${city.zh}华人招聘、租房、二手交易、商家与生活服务指南。`, noindex: false };
   const category = SEO_CATEGORIES.find(c => path === `/categories/${c.slug}`);
@@ -78,5 +82,16 @@ export function directorySchema(path: string, title: string) {
   return { "@context": "https://schema.org", "@graph": [
     { "@type": "CollectionPage", "@id": canonicalUrl(path), url: canonicalUrl(path), name: title, inLanguage: ["en", "zh-CN"], isPartOf: { "@id": `${SITE_URL}/#website` } },
     { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "华人街坊", item: `${SITE_URL}/` }, { "@type": "ListItem", position: 2, name: title, item: canonicalUrl(path) }] },
+  ] };
+}
+
+export function cityServiceSchema(path: string, title: string, serviceName: string) {
+  return { "@context": "https://schema.org", "@graph": [
+    { "@type": "CollectionPage", "@id": canonicalUrl(path), url: canonicalUrl(path), name: title, inLanguage: ["en", "zh-CN"], about: serviceName, isPartOf: { "@id": `${SITE_URL}/#website` } },
+    { "@type": "BreadcrumbList", itemListElement: [
+      { "@type": "ListItem", position: 1, name: "华人街坊", item: `${SITE_URL}/` },
+      { "@type": "ListItem", position: 2, name: "洛杉矶 · Los Angeles", item: canonicalUrl("/cities/los-angeles") },
+      { "@type": "ListItem", position: 3, name: serviceName, item: canonicalUrl(path) },
+    ] },
   ] };
 }

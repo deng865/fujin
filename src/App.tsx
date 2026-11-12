@@ -44,6 +44,7 @@ const Pricing = lazy(loadPricing);
 const CheckoutReturn = lazy(loadCheckoutReturn);
 const MyOrders = lazy(loadMyOrders);
 const PublicDirectory = lazy(() => import("./pages/PublicDirectory"));
+const CityServiceDirectory = lazy(() => import("./pages/CityServiceDirectory"));
 
 const queryClient = new QueryClient();
 
@@ -71,6 +72,7 @@ const App = () => (
               <Route element={<AppLayout />}>
                 <Route path="/" element={<NearbyHome />} />
                 <Route path="/cities" element={<PublicDirectory kind="city" />} />
+                <Route path="/cities/:citySlug/:serviceSlug" element={<CityServiceDirectory />} />
                 <Route path="/cities/:slug" element={<PublicDirectory kind="city" />} />
                 <Route path="/categories" element={<PublicDirectory kind="category" />} />
                 <Route path="/categories/:slug" element={<PublicDirectory kind="category" />} />

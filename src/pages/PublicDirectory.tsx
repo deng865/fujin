@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import SeoHead from "@/components/SeoHead";
 import DirectoryLinks from "@/components/DirectoryLinks";
 import { SEO_CITIES, SEO_CATEGORIES, directorySchema, routeSeo } from "@/lib/seoCatalog";
+import { LA_SERVICES, laServicePath } from "@/lib/laServiceCatalog";
 import { supabase } from "@/integrations/supabase/client";
 
 // Do not select titles/descriptions/media here: user-authored fields can
@@ -60,6 +61,13 @@ export default function PublicDirectory({ kind }: { kind: "city" | "category" })
         <div className="grid sm:grid-cols-2 gap-x-6">
           {(kind === "city" && !city ? SEO_CITIES : SEO_CATEGORIES).map(item => <Link key={item.slug} to={`${kind === "city" && !city ? "/cities" : "/categories"}/${item.slug}`} className="flex items-center gap-2 py-3 border-b border-border text-primary"><MapPin className="h-4 w-4 shrink-0" /><span>{item.zh} · {item.en}</span></Link>)}
         </div>
+      </section>}
+      {city?.slug === "los-angeles" && <section className="space-y-3" aria-labelledby="la-service-pilot-links">
+        <h2 id="la-service-pilot-links" className="text-lg font-semibold">洛杉矶服务分类 · Los Angeles Services</h2>
+        <p className="text-sm text-muted-foreground">查看六个中英文服务指南与真实公开信息；没有真实帖子的页面不会进入搜索索引。</p>
+        <nav className="grid gap-2 sm:grid-cols-2" aria-label="洛杉矶服务分类">
+          {LA_SERVICES.map(service => <Link key={service.slug} to={laServicePath(service)} className="rounded-xl border border-border px-4 py-3 text-primary">{service.zh} · {service.en}</Link>)}
+        </nav>
       </section>}
       {(city || category) && <section className="space-y-3">
         <h2 className="text-lg font-semibold">公开信息入口 · Public Listings</h2>

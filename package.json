@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "bun run seo:sitemap",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "seo:sitemap": "bun scripts/generate-sitemap.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },
