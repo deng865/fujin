@@ -1095,6 +1095,96 @@ export type Database = {
           },
         ]
       }
+      seo_categories: {
+        Row: {
+          created_at: string
+          intro_en: string
+          intro_zh: string
+          is_active: boolean
+          min_listings: number
+          name_en: string
+          name_zh: string
+          post_categories: string[]
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          intro_en?: string
+          intro_zh?: string
+          is_active?: boolean
+          min_listings?: number
+          name_en: string
+          name_zh: string
+          post_categories?: string[]
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          intro_en?: string
+          intro_zh?: string
+          is_active?: boolean
+          min_listings?: number
+          name_en?: string
+          name_zh?: string
+          post_categories?: string[]
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      seo_cities: {
+        Row: {
+          created_at: string
+          intro_en: string
+          intro_zh: string
+          is_active: boolean
+          latitude: number
+          longitude: number
+          name_en: string
+          name_zh: string
+          radius_miles: number
+          slug: string
+          sort_order: number
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          intro_en?: string
+          intro_zh?: string
+          is_active?: boolean
+          latitude: number
+          longitude: number
+          name_en: string
+          name_zh: string
+          radius_miles?: number
+          slug: string
+          sort_order?: number
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          intro_en?: string
+          intro_zh?: string
+          is_active?: boolean
+          latitude?: number
+          longitude?: number
+          name_en?: string
+          name_zh?: string
+          radius_miles?: number
+          slug?: string
+          sort_order?: number
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       spatial_ref_sys: {
         Row: {
           auth_name: string | null

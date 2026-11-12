@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import SeoHead from "@/components/SeoHead";
 import DirectoryLinks from "@/components/DirectoryLinks";
 import { SEO_CITIES, SEO_CATEGORIES, directorySchema, routeSeo } from "@/lib/seoCatalog";
-import { LA_SERVICES, laServicePath } from "@/lib/laServiceCatalog";
+import { useSeoConfig } from "@/hooks/useSeoConfig";
+import { cityCategoryPath } from "@/lib/citySeo";
 import { supabase } from "@/integrations/supabase/client";
 
 // Do not select titles/descriptions/media here: user-authored fields can
@@ -19,6 +20,7 @@ export default function PublicDirectory({ kind }: { kind: "city" | "category" })
   const category = kind === "category" ? SEO_CATEGORIES.find(c => c.slug === slug) : undefined;
   const [listings, setListings] = useState<SafeListing[]>([]);
   const [status, setStatus] = useState("loading");
+  const { categories: seoCategories } = useSeoConfig();
 
   useEffect(() => {
     let active = true;
@@ -62,11 +64,11 @@ export default function PublicDirectory({ kind }: { kind: "city" | "category" })
           {(kind === "city" && !city ? SEO_CITIES : SEO_CATEGORIES).map(item => <Link key={item.slug} to={`${kind === "city" && !city ? "/cities" : "/categories"}/${item.slug}`} className="flex items-center gap-2 py-3 border-b border-border text-primary"><MapPin className="h-4 w-4 shrink-0" /><span>{item.zh} · {item.en}</span></Link>)}
         </div>
       </section>}
-      {city?.slug === "los-angeles" && <section className="space-y-3" aria-labelledby="la-service-pilot-links">
-        <h2 id="la-service-pilot-links" className="text-lg font-semibold">洛杉矶服务分类 · Los Angeles Services</h2>
-        <p className="text-sm text-muted-foreground">查看六个中英文服务指南与真实公开信息；没有真实帖子的页面不会进入搜索索引。</p>
-        <nav className="grid gap-2 sm:grid-cols-2" aria-label="洛杉矶服务分类">
-          {LA_SERVICES.map(service => <Link key={service.slug} to={laServicePath(service)} className="rounded-xl border border-border px-4 py-3 text-primary">{service.zh} · {service.en}</Link>)}
+      {city && seoCategories.length > 0 && <section className="space-y-3" aria-labelledby="city-service-links">
+        <h2 id="city-service-links" className="text-lg font-semibold">{city.zh}服务分类 · {city.en} Services</h2>
+        <p className="text-sm text-muted-foreground">查看中英文服务指南与真实公开信息；没有真实帖子的页面不会进入搜索索引。</p>
+        <nav className="grid gap-2 sm:grid-cols-2" aria-label={`${city.zh}服务分类`}>
+          {seoCategories.map(c => <Link key={c.slug} to={cityCategoryPath(city.slug, c.slug)} className="rounded-xl border border-border px-4 py-3 text-primary">{city.zh}{c.name_zh} · {c.name_en}</Link>)}
         </nav>
       </section>}
       {(city || category) && <section className="space-y-3">

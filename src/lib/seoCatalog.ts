@@ -85,12 +85,12 @@ export function directorySchema(path: string, title: string) {
   ] };
 }
 
-export function cityServiceSchema(path: string, title: string, serviceName: string) {
+export function cityServiceSchema(path: string, title: string, serviceName: string, cityName = "洛杉矶 · Los Angeles", cityPath = "/cities/los-angeles") {
   return { "@context": "https://schema.org", "@graph": [
     { "@type": "CollectionPage", "@id": canonicalUrl(path), url: canonicalUrl(path), name: title, inLanguage: ["en", "zh-CN"], about: serviceName, isPartOf: { "@id": `${SITE_URL}/#website` } },
     { "@type": "BreadcrumbList", itemListElement: [
       { "@type": "ListItem", position: 1, name: "华人街坊", item: `${SITE_URL}/` },
-      { "@type": "ListItem", position: 2, name: "洛杉矶 · Los Angeles", item: canonicalUrl("/cities/los-angeles") },
+      { "@type": "ListItem", position: 2, name: cityName, item: canonicalUrl(cityPath) },
       { "@type": "ListItem", position: 3, name: serviceName, item: canonicalUrl(path) },
     ] },
   ] };

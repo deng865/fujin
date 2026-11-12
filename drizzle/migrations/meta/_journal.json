@@ -43,6 +43,13 @@
       "when": 1794410712814,
       "tag": "0005_restrict_selected_application_read_and_upload_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794475208831,
+      "tag": "0006_seo_city_category_config",
+      "breakpoints": true
     }
   ]
 }
