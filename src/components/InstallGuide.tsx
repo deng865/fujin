@@ -3,6 +3,7 @@ import { Share, PlusSquare, MoreVertical, X, Download, Compass } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { promptInstallation, useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { getIOSInstallBrowser } from "@/lib/iosInstallBrowser";
+import { isNativeApp } from "@/lib/nativePlatform";
 
 const OPEN_EVENT = "open-install-guide";
 
@@ -55,7 +56,7 @@ export default function InstallGuide() {
     if (await promptInstallation()) close();
   };
 
-  if (!open) return null;
+  if (isNativeApp() || !open) return null;
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-end justify-center bg-foreground/40" onClick={close}>

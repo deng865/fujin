@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">华人街坊</string>
+    <string name="title_activity_main">华人街坊</string>
+    <string name="package_name">life.fujin.app</string>
+    <string name="custom_url_scheme">life.fujin.app</string>
+</resources>

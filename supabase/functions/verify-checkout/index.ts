@@ -23,43 +23,11 @@ Deno.serve(async (req) => {
     const session = await stripeRequest("GET", `checkout/sessions/${sessionId}`);
     if (session.payment_status !== "paid") return json({ status: session.status === "expired" ? "expired" : "pending" });
 
-    // Atomic claim: only one caller flips pending -> completed and grants.
-    const { data: claimed } = await supabase.from("payments")
-      .update({ payment_status: "completed", updated_at: new Date().toISOString() })
-      .eq("id", payment.id).eq("payment_status", "pending").select("id");
-    if (!claimed?.length) return json({ status: "completed" });
-
-    const snap = payment.metadata?.snapshot ?? {};
-    const days = Number(snap.duration_days ?? payment.duration_days ?? 30);
-    const durationMs = days * 86400000;
-    const now = Date.now();
-
-    if (snap.is_boost) {
-      if (payment.post_id) {
-        await supabase.from("posts").update({
-          is_boosted: true,
-          boost_expires_at: new Date(now + durationMs).toISOString(),
-          bumped_at: new Date().toISOString(),
-        }).eq("id", payment.post_id).eq("user_id", user.id);
-      }
-    } else {
-      const { data: existing } = await supabase.from("user_credits").select("*").eq("user_id", user.id).maybeSingle();
-      let postCredits = existing?.post_credits ?? 0;
-      let unlimitedUntil: string | null = existing?.unlimited_until ?? null;
-      let expiresAt: string | null = null;
-      if (snap.unlimited_posts) {
-        const base = unlimitedUntil && new Date(unlimitedUntil).getTime() > now ? new Date(unlimitedUntil).getTime() : now;
-        unlimitedUntil = new Date(base + durationMs).toISOString();
-        expiresAt = unlimitedUntil;
-      } else {
-        postCredits += Number(snap.post_credits ?? 0);
-      }
-      await supabase.from("user_credits").upsert(
-        { user_id: user.id, post_credits: postCredits, unlimited_until: unlimitedUntil, updated_at: new Date().toISOString() },
-        { onConflict: "user_id" },
-      );
-      if (expiresAt) await supabase.from("payments").update({ expires_at: expiresAt }).eq("id", payment.id);
-    }
+    const { error: fulfillError } = await supabase.rpc("fulfill_payment", {
+      _payment_id: payment.id,
+      _user_id: user.id,
+    });
+    if (fulfillError) throw fulfillError;
     return json({ status: "completed" });
   } catch (e) {
     console.error("verify-checkout error:", e);

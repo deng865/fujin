@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Check, Loader2, Sparkles, X } from "lucide-react";
+import { NativePurchases, PURCHASE_TYPE, type Product } from "@capgo/native-purchases";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCredits } from "@/hooks/useCredits";
 import PaymentTestModeBanner from "@/components/PaymentTestModeBanner";
 import StripeEmbeddedCheckoutForm from "@/components/payments/StripeEmbeddedCheckout";
+import { isNativeIOS } from "@/lib/nativePlatform";
+import { appleProductIdForPlan } from "@/lib/appleIap";
+import { purchaseApplePlan, recoverApplePurchases } from "@/lib/applePurchases";
 
 interface Plan {
   id: string;
@@ -23,22 +28,22 @@ interface Plan {
   sort_order: number;
 }
 
-const typeLabel: Record<string, string> = {
-  post: "发帖套餐",
-  membership: "商家会员",
-  boost: "推广服务",
-};
+const typeLabel: Record<string, string> = { post: "发帖套餐", membership: "商家会员", boost: "推广服务" };
 
 export default function Pricing() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { postCredits, hasUnlimited, unlimitedUntil, bonusRemaining, bonusExpiresAt } = useCredits();
+  const { postCredits, hasUnlimited, unlimitedUntil, bonusRemaining, bonusExpiresAt, refresh } = useCredits();
   const [searchParams] = useSearchParams();
   const postId = searchParams.get("postId");
-
+  const nativeIOS = isNativeIOS();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
+  const [appleProducts, setAppleProducts] = useState<Record<string, Product>>({});
+  const [appleLoading, setAppleLoading] = useState(nativeIOS);
+  const [appleError, setAppleError] = useState("");
+  const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth?redirect=/pricing", { replace: true });
@@ -46,153 +51,136 @@ export default function Pricing() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("pricing_plans")
-        .select("*")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true });
+      const { data } = await supabase.from("pricing_plans").select("*")
+        .eq("is_active", true).order("sort_order", { ascending: true });
       setPlans((data as Plan[]) ?? []);
       setLoading(false);
     })();
   }, []);
 
-  const groups = ["post", "membership", "boost"].filter((t) =>
-    plans.some((p) => p.plan_type === t),
-  );
+  useEffect(() => {
+    if (!nativeIOS || !user || plans.length === 0) return;
+    let active = true;
+    (async () => {
+      setAppleLoading(true);
+      setAppleError("");
+      try {
+        await NativePurchases.configure({ autoFinishTransactions: false });
+        const { products } = await NativePurchases.getProducts({
+          productIdentifiers: plans.map((plan) => appleProductIdForPlan(plan.plan_key)),
+          productType: PURCHASE_TYPE.INAPP,
+        });
+        if (!active) return;
+        setAppleProducts(Object.fromEntries(products.map((product) => [product.identifier, product])));
+        const recovery = await recoverApplePurchases();
+        if (recovery.recovered > 0) {
+          toast.success(`已恢复 ${recovery.recovered} 笔购买并发放入账权益`);
+          await refresh();
+        }
+      } catch (error) {
+        if (active) setAppleError(error instanceof Error ? error.message : "无法连接 App Store");
+      } finally {
+        if (active) setAppleLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [nativeIOS, user?.id, plans, refresh]);
+
+  const buyWithApple = async (plan: Plan) => {
+    if (!user || purchasingPlan) return;
+    setPurchasingPlan(plan.id);
+    try {
+      await purchaseApplePlan(plan.plan_key, user.id, postId);
+      await refresh();
+      toast.success("购买成功，权益已到账");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "购买未完成";
+      if (!/cancel|取消/i.test(message)) toast.error(message);
+    } finally {
+      setPurchasingPlan(null);
+    }
+  };
+
+  const groups = ["post", "membership", "boost"].filter((type) => plans.some((plan) => plan.plan_type === type));
 
   return (
     <div className="h-[100dvh] overflow-y-auto bg-background pb-24">
-      <PaymentTestModeBanner />
-
+      {!nativeIOS && <PaymentTestModeBanner />}
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
-        <button onClick={() => navigate(-1)} className="rounded-lg p-1.5 hover:bg-accent">
+        <button onClick={() => navigate(-1)} className="rounded-lg p-1.5 hover:bg-accent" aria-label="返回">
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="text-base font-semibold">购买发布额度</h1>
       </header>
 
-      <div className="mx-auto max-w-lg px-4 py-4 space-y-5">
+      <div className="mx-auto max-w-lg space-y-5 px-4 py-4">
         <div className="rounded-2xl border border-border bg-card p-4">
           <p className="text-xs text-muted-foreground">我的额度</p>
           {hasUnlimited ? (
-            <p className="mt-1 text-sm font-semibold text-emerald-600">
-              商家会员有效期至 {new Date(unlimitedUntil!).toLocaleDateString("zh-CN")}
-            </p>
-          ) : (
-            <p className="mt-1 text-sm font-semibold">
-              剩余发帖次数：{postCredits} 次
-            </p>
-          )}
+            <p className="mt-1 text-sm font-semibold text-emerald-600">商家会员有效期至 {new Date(unlimitedUntil!).toLocaleDateString("zh-CN")}</p>
+          ) : <p className="mt-1 text-sm font-semibold">剩余发帖次数：{postCredits} 次</p>}
           {bonusRemaining > 0 && bonusExpiresAt && (
-            <p className="mt-1 text-sm text-primary">
-              新手礼包：剩余 {bonusRemaining} 条，有效期至 {new Date(bonusExpiresAt).toLocaleDateString("zh-CN")}（还剩 {Math.max(0, Math.ceil((new Date(bonusExpiresAt).getTime() - Date.now()) / 86400000))} 天）
-            </p>
+            <p className="mt-1 text-sm text-primary">新手礼包：剩余 {bonusRemaining} 条，有效期至 {new Date(bonusExpiresAt).toLocaleDateString("zh-CN")}（还剩 {Math.max(0, Math.ceil((new Date(bonusExpiresAt).getTime() - Date.now()) / 86400000))} 天）</p>
           )}
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : plans.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            暂无可购买的套餐
-          </p>
-        ) : (
-          groups.map((type) => (
+        {nativeIOS && appleError && <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">苹果商品暂未就绪：{appleError}</p>}
+        {loading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          : plans.length === 0 ? <p className="py-12 text-center text-sm text-muted-foreground">暂无可购买的套餐</p>
+          : groups.map((type) => (
             <section key={type} className="space-y-3">
-              <h2 className="text-sm font-semibold text-muted-foreground">
-                {typeLabel[type] ?? type}
-              </h2>
-              {plans
-                .filter((p) => p.plan_type === type)
-                .map((plan) => (
-                  <div
-                    key={plan.id}
-                    className="rounded-2xl border border-border bg-card p-4"
-                  >
+              <h2 className="text-sm font-semibold text-muted-foreground">{typeLabel[type] ?? type}</h2>
+              {plans.filter((plan) => plan.plan_type === type).map((plan) => {
+                const productId = appleProductIdForPlan(plan.plan_key);
+                const appleProduct = appleProducts[productId];
+                const disabled = nativeIOS && (appleLoading || !appleProduct || purchasingPlan !== null);
+                return (
+                  <div key={plan.id} className="rounded-2xl border border-border bg-card p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <h3 className="text-base font-semibold">{plan.name}</h3>
-                          {plan.unlimited_posts && (
-                            <Sparkles className="h-4 w-4 text-amber-500" />
-                          )}
+                          {plan.unlimited_posts && <Sparkles className="h-4 w-4 text-amber-500" />}
                         </div>
-                        {plan.description && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {plan.description}
-                          </p>
-                        )}
+                        {plan.description && <p className="mt-1 text-xs text-muted-foreground">{plan.description}</p>}
                         <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                          <li className="flex items-center gap-1">
-                            <Check className="h-3 w-3 text-emerald-500" />
-                            有效期 {plan.duration_days} 天
-                          </li>
-                          {plan.unlimited_posts ? (
-                            <li className="flex items-center gap-1">
-                              <Check className="h-3 w-3 text-emerald-500" />
-                              期间内无限发布
-                            </li>
-                          ) : plan.post_credits > 0 ? (
-                            <li className="flex items-center gap-1">
-                              <Check className="h-3 w-3 text-emerald-500" />
-                              可发布 {plan.post_credits} 条信息
-                            </li>
-                          ) : null}
-                          {plan.category && (
-                            <li className="flex items-center gap-1">
-                              <Check className="h-3 w-3 text-emerald-500" />
-                              适用分类：{plan.category}
-                            </li>
-                          )}
+                          <li className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-500" />有效期 {plan.duration_days} 天</li>
+                          {plan.unlimited_posts ? <li className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-500" />期间内无限发布</li>
+                            : plan.post_credits > 0 ? <li className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-500" />可发布 {plan.post_credits} 条信息</li> : null}
+                          {plan.category && <li className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-500" />适用分类：{plan.category}</li>}
                         </ul>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-xl font-bold">
-                          ${(plan.amount_cents / 100).toFixed(2)}
-                        </p>
-                        <p className="text-[10px] uppercase text-muted-foreground">
-                          {plan.currency}
-                        </p>
+                        <p className="text-xl font-bold">{nativeIOS && appleProduct ? appleProduct.priceString : `$${(plan.amount_cents / 100).toFixed(2)}`}</p>
+                        <p className="text-[10px] uppercase text-muted-foreground">{nativeIOS ? "App Store" : plan.currency}</p>
                       </div>
                     </div>
                     <button
-                      onClick={() => setCheckoutPlan(plan)}
-                      className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                      onClick={() => nativeIOS ? buyWithApple(plan) : setCheckoutPlan(plan)}
+                      disabled={disabled}
+                      className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                     >
-                      立即购买
+                      {purchasingPlan === plan.id ? "等待苹果确认…" : nativeIOS && appleLoading ? "正在读取 App Store…" : nativeIOS && !appleProduct ? "苹果商品尚未配置" : "立即购买"}
                     </button>
                   </div>
-                ))}
+                );
+              })}
             </section>
-          ))
-        )}
+          ))}
 
         <p className="pb-4 text-[11px] leading-relaxed text-muted-foreground">
-          费用仅用于在本平台发布与推广信息，不代表平台参与你与其他用户之间的任何交易。
-          购买后额度立即到账，具体退款规则见服务条款。
+          {nativeIOS ? "由 Apple App Store 安全结算。购买记录与额度跟随当前账号；已购权益不会因后续套餐调整而改变。退款由 Apple 按其政策处理。" : "费用仅用于在本平台发布与推广信息，不代表平台参与你与其他用户之间的任何交易。购买后额度立即到账，具体退款规则见服务条款。"}
         </p>
       </div>
 
-      {checkoutPlan && (
+      {!nativeIOS && checkoutPlan && (
         <div className="fixed inset-0 z-[1000] flex flex-col bg-background">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <span className="text-sm font-medium">
-              支付 {checkoutPlan.name} · ${(checkoutPlan.amount_cents / 100).toFixed(2)}
-            </span>
-            <button
-              onClick={() => setCheckoutPlan(null)}
-              className="rounded-lg p-1.5 hover:bg-accent"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <span className="text-sm font-medium">支付 {checkoutPlan.name} · ${(checkoutPlan.amount_cents / 100).toFixed(2)}</span>
+            <button onClick={() => setCheckoutPlan(null)} className="rounded-lg p-1.5 hover:bg-accent" aria-label="关闭支付"><X className="h-5 w-5" /></button>
           </div>
           <div className="flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <StripeEmbeddedCheckoutForm
-              planKey={checkoutPlan.plan_key}
-              postId={postId}
-            />
+            <StripeEmbeddedCheckoutForm planKey={checkoutPlan.plan_key} postId={postId} />
           </div>
         </div>
       )}

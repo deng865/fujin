@@ -530,6 +530,8 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          apple_original_transaction_id: string | null
+          apple_transaction_id: string | null
           created_at: string | null
           currency: string | null
           duration_days: number | null
@@ -550,6 +552,8 @@ export type Database = {
         }
         Insert: {
           amount: number
+          apple_original_transaction_id?: string | null
+          apple_transaction_id?: string | null
           created_at?: string | null
           currency?: string | null
           duration_days?: number | null
@@ -570,6 +574,8 @@ export type Database = {
         }
         Update: {
           amount?: number
+          apple_original_transaction_id?: string | null
+          apple_transaction_id?: string | null
           created_at?: string | null
           currency?: string | null
           duration_days?: number | null
@@ -1577,6 +1583,7 @@ export type Database = {
         Returns: Json
       }
       consume_post_credit: { Args: { _user_id: string }; Returns: Json }
+      delete_account_data: { Args: { _user_id: string }; Returns: undefined }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {
@@ -1610,6 +1617,10 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      fulfill_payment: {
+        Args: { _payment_id: string; _user_id: string }
+        Returns: boolean
+      }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
         Args: { geom1: unknown; geom2: unknown }

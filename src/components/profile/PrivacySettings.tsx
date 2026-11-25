@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, FileText, Shield } from "lucide-react";
+import { Trash2, FileText, Shield, CheckCircle } from "lucide-react";
+import { isNativeIOS } from "@/lib/nativePlatform";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -33,6 +34,8 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
   const [showMobileWarning, setShowMobileWarning] = useState(false);
   const [showTripWarning, setShowTripWarning] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [accountDeleted, setAccountDeleted] = useState(false);
+  const [showAppleDisconnect, setShowAppleDisconnect] = useState(false);
 
   const handleToggle = (val: boolean) => {
     if (val) {
@@ -62,19 +65,41 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
     setDeleting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("posts").delete().eq("user_id", user.id);
-        await supabase.from("favorites").delete().eq("user_id", user.id);
-      }
+      if (!user) throw new Error("请先登录");
+      const { data, error } = await supabase.functions.invoke("delete-account", { body: {} });
+      if (error || !data?.deleted) throw new Error(data?.error || error?.message || "注销失败");
+      const appleUser = user.app_metadata?.provider === "apple" || user.app_metadata?.providers?.includes("apple");
+      setShowAppleDisconnect(isNativeIOS() && appleUser);
+      setAccountDeleted(true);
       await supabase.auth.signOut();
       toast.success("账号已注销");
-      navigate("/");
     } catch {
-      toast.error("注销失败，请稍后重试");
+      toast.error("注销未完成，请稍后重试或联系客服");
     } finally {
       setDeleting(false);
     }
   };
+
+  if (accountDeleted) {
+    return (
+      <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-4 text-center">
+        <CheckCircle className="h-12 w-12 text-primary" />
+        <h2 className="text-lg font-semibold">账号已删除</h2>
+        <p className="text-sm text-muted-foreground">您的登录账号和关联资料已删除。</p>
+        {showAppleDisconnect && (
+          <a
+            href="https://huaren168.online/~oauth/apple/revoke?redirect_uri=https%3A%2F%2Fhuaren168.online"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-xl bg-foreground px-5 py-3 text-sm font-medium text-background"
+          >
+            Disconnect Apple
+          </a>
+        )}
+        <button onClick={() => navigate("/")} className="rounded-xl border border-border px-5 py-3 text-sm">返回首页</button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
