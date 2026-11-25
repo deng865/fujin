@@ -1,5 +1,9 @@
 export const APPLE_PRODUCT_PREFIX = "life.fujin.app.";
 
+export function paymentChannelForPlatform(nativeIOS: boolean) {
+  return nativeIOS ? "apple_iap" as const : "stripe" as const;
+}
+
 export function appleProductIdForPlan(planKey: string) {
   if (!/^[a-z0-9_]+$/.test(planKey)) throw new Error("Invalid plan key");
   return `${APPLE_PRODUCT_PREFIX}${planKey}`;

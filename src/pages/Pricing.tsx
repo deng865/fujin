@@ -9,7 +9,7 @@ import { useCredits } from "@/hooks/useCredits";
 import PaymentTestModeBanner from "@/components/PaymentTestModeBanner";
 import StripeEmbeddedCheckoutForm from "@/components/payments/StripeEmbeddedCheckout";
 import { isNativeIOS } from "@/lib/nativePlatform";
-import { appleProductIdForPlan } from "@/lib/appleIap";
+import { appleProductIdForPlan, paymentChannelForPlatform } from "@/lib/appleIap";
 import { purchaseApplePlan, recoverApplePurchases } from "@/lib/applePurchases";
 
 interface Plan {
@@ -36,7 +36,7 @@ export default function Pricing() {
   const { postCredits, hasUnlimited, unlimitedUntil, bonusRemaining, bonusExpiresAt, refresh } = useCredits();
   const [searchParams] = useSearchParams();
   const postId = searchParams.get("postId");
-  const nativeIOS = isNativeIOS();
+  const nativeIOS = paymentChannelForPlatform(isNativeIOS()) === "apple_iap";
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);

@@ -71,7 +71,6 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
       const appleUser = user.app_metadata?.provider === "apple" || user.app_metadata?.providers?.includes("apple");
       setShowAppleDisconnect(isNativeIOS() && appleUser);
       setAccountDeleted(true);
-      await supabase.auth.signOut();
       toast.success("账号已注销");
     } catch {
       toast.error("注销未完成，请稍后重试或联系客服");
@@ -96,7 +95,12 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
             Disconnect Apple
           </a>
         )}
-        <button onClick={() => navigate("/")} className="rounded-xl border border-border px-5 py-3 text-sm">返回首页</button>
+        <button
+          onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
+          className="rounded-xl border border-border px-5 py-3 text-sm"
+        >
+          返回首页
+        </button>
       </div>
     );
   }
