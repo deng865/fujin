@@ -2,6 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>华人街坊需要获取您的位置，用于计算距离并展示附近的华人商家、司机、房屋、招聘和生活服务。</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>仅当您作为移动商家上线接单，或在聊天中主动开启实时位置共享时，华人街坊会在后台更新位置，方便客户找到您或查看行程。您可随时收工、结束共享或在系统设置中关闭。</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>仅在您主动开启移动商家接单或聊天实时位置共享时更新位置，您可随时关闭。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>华人街坊使用麦克风录制聊天语音消息，并在您主动发起或接听语音通话时传输声音。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>华人街坊使用相机拍摄帖子照片、头像、聊天图片和举报凭证，仅在您主动拍照时访问。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>华人街坊需要访问您选择的照片，以便上传到帖子、头像、聊天和举报内容；不会自动读取或上传其他照片。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>仅在您主动保存聊天图片时，华人街坊会将该图片写入相册。</string>
   <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>

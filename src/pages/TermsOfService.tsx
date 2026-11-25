@@ -80,7 +80,7 @@ const content = {
       },
       {
         heading: `九、付费功能与退款（如适用）`,
-        body: `如本应用未来推出付费功能或虚拟商品，将通过 Apple / Google 应用内购买系统结算。所有应用内购买遵循对应平台的条款与退款政策（Apple App Store / Google Play）。本应用提供的所有功能在首次发布版本中均为免费。`,
+        body: `网页端的发帖与推广额度由 Stripe 提供信用卡等支付方式结算；iOS App 内的数字额度仅通过 Apple 应用内购买结算。套餐价格、发布次数、有效期和优惠以购买时页面及订单快照为准，后续套餐调整不会减少您已经购买的权益。网页支付退款依本条款及支付服务规则处理；Apple 内购退款由 Apple 按其政策审核。额度属于平台虚拟服务，不可兑换现金或转让给其他账号。`,
       },
       {
         heading: `十、服务可用性与变更`,
@@ -204,7 +204,7 @@ const content = {
       },
       {
         heading: `9. Paid Features & Refunds (if applicable)`,
-        body: `If the App later introduces paid features or virtual goods, billing will go through Apple / Google in-app purchases. All such purchases are subject to the platform's own terms and refund policies (Apple App Store / Google Play). All features in the initial release are free.`,
+        body: `On the web, posting and promotional credits are charged through Stripe using supported payment methods. In the iOS App, digital credits are sold only through Apple In-App Purchase. Prices, credits, validity periods and promotions are frozen in each order at purchase time; later plan changes do not reduce benefits already purchased. Web refunds follow these Terms and the payment provider's rules; Apple reviews App Store refund requests under its own policies. Credits are virtual platform services, cannot be redeemed for cash and cannot be transferred between accounts.`,
       },
       {
         heading: `10. Service Availability & Changes`,

@@ -45,6 +45,7 @@ const content = {
           `<strong>Cloudflare R2</strong>（美国）：图片、视频、语音消息等媒体文件的对象存储。`,
           `<strong>LiveKit</strong>（美国）：实时音视频通话的信令与媒体传输。通话内容默认不被录制。`,
           `<strong>Google / Apple OAuth</strong>：仅在您选择社交登录时使用，依其各自隐私政策处理。`,
+          `<strong>Stripe / Apple App Store</strong>：分别处理网页端和 iOS 内购付款。我们会保存订单、套餐权益、交易标识和支付状态用于入账、防重复发放及客服核对；完整银行卡号由支付服务商处理，我们不会接触或保存。`,
           `<strong>Apple Push Notification Service / Firebase Cloud Messaging</strong>：发送推送通知。`,
           `<strong>法律要求</strong>：当法律法规、法院命令或政府机关合法要求时披露。`,
           `<strong>业务转让</strong>：在合并、收购或资产出售情况下，以与本政策一致的方式转让。`,
@@ -57,7 +58,7 @@ const content = {
       {
         heading: `五、数据保留期限`,
         list: [
-          `<strong>账号信息</strong>：直至您主动注销账号；注销后 30 天内从生产环境删除（备份系统中至多保留 90 天后被覆盖）。`,
+          `<strong>账号信息</strong>：直至您主动注销账号；注销成功后删除登录主体和关联业务数据（加密备份至多保留 90 天后被覆盖）。`,
           `<strong>聊天消息</strong>：保留至会话双方任一方注销账号；图片/视频/语音文件随消息撤回或账号注销同步删除。`,
           `<strong>位置历史</strong>：实时位置坐标仅用于即时显示，不长期保留；历史 GPS 轨迹不被存档。`,
           `<strong>日志与设备信息</strong>：最多保留 12 个月用于安全审计。`,
@@ -148,6 +149,7 @@ const content = {
           `<strong>Cloudflare R2</strong> (USA): object storage for images, videos, and voice messages.`,
           `<strong>LiveKit</strong> (USA): signaling and media transport for real-time voice calls. Calls are not recorded by default.`,
           `<strong>Google / Apple OAuth</strong>: only when you choose social login; their respective privacy policies apply.`,
+          `<strong>Stripe / Apple App Store</strong>: process web and iOS payments respectively. We store order, benefit, transaction identifier and payment status records for fulfillment, duplicate prevention and support. Full card numbers are handled by the payment provider and are not accessed or stored by us.`,
           `<strong>Apple Push Notification Service / Firebase Cloud Messaging</strong>: delivery of push notifications.`,
           `<strong>Legal Requirements</strong>: when required by law, court order, or lawful government request.`,
           `<strong>Business Transfers</strong>: in a merger, acquisition, or asset sale, transferred under terms consistent with this policy.`,
@@ -160,7 +162,7 @@ const content = {
       {
         heading: `5. Data Retention`,
         list: [
-          `<strong>Account data</strong>: kept until you delete your account; removed from production within 30 days of deletion (backups overwritten within 90 days).`,
+          `<strong>Account data</strong>: kept until you delete your account; the login identity and associated app records are removed when deletion succeeds (encrypted backups are overwritten within 90 days).`,
           `<strong>Chat messages</strong>: kept until either party deletes their account; media files are deleted upon message recall or account deletion.`,
           `<strong>Location history</strong>: real-time coordinates are used only for instant display and are NOT archived as historical GPS tracks.`,
           `<strong>Logs & device info</strong>: retained for up to 12 months for security auditing.`,

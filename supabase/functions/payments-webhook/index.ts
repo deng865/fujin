@@ -13,79 +13,19 @@ function getSupabase() {
 }
 
 async function grantEntitlement(userId: string, planKey: string, sessionId?: string) {
+  if (!sessionId) return;
   const supabase = getSupabase();
-
-  const { data: plan } = await supabase
-    .from("pricing_plans")
-    .select("*")
-    .eq("plan_key", planKey)
-    .maybeSingle();
-
-  if (!plan) {
-    console.error("Unknown planKey in webhook:", planKey);
-    return;
+  const { data: payment, error } = await supabase.from("payments").select("id, user_id, plan_key")
+    .eq("stripe_session_id", sessionId).maybeSingle();
+  if (error) throw error;
+  if (!payment || payment.user_id !== userId || payment.plan_key !== planKey) {
+    throw new Error("Stripe event does not match its pending payment");
   }
-
-  const { data: existing } = await supabase
-    .from("user_credits")
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  const now = Date.now();
-  const durationMs = (plan.duration_days ?? 30) * 24 * 60 * 60 * 1000;
-
-  let postCredits = existing?.post_credits ?? 0;
-  let unlimitedUntil: string | null = existing?.unlimited_until ?? null;
-
-  if (plan.unlimited_posts) {
-    const base = unlimitedUntil && new Date(unlimitedUntil).getTime() > now
-      ? new Date(unlimitedUntil).getTime()
-      : now;
-    unlimitedUntil = new Date(base + durationMs).toISOString();
-  } else if (plan.post_credits > 0) {
-    postCredits += plan.post_credits;
-  }
-
-  await supabase.from("user_credits").upsert(
-    {
-      user_id: userId,
-      post_credits: postCredits,
-      unlimited_until: unlimitedUntil,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" },
-  );
-
-  if (sessionId) {
-    await supabase
-      .from("payments")
-      .update({
-        payment_status: "completed",
-        expires_at: plan.unlimited_posts ? unlimitedUntil : null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("stripe_session_id", sessionId);
-  }
-
-  // Boost plans apply to the specific post recorded on the payment.
-  if (plan.is_boost && sessionId) {
-    const { data: payment } = await supabase
-      .from("payments")
-      .select("post_id")
-      .eq("stripe_session_id", sessionId)
-      .maybeSingle();
-    if (payment?.post_id) {
-      await supabase
-        .from("posts")
-        .update({
-          is_boosted: true,
-          boost_expires_at: new Date(now + durationMs).toISOString(),
-          bumped_at: new Date().toISOString(),
-        })
-        .eq("id", payment.post_id);
-    }
-  }
+  const { error: fulfillError } = await supabase.rpc("fulfill_payment", {
+    _payment_id: payment.id,
+    _user_id: userId,
+  });
+  if (fulfillError) throw fulfillError;
 }
 
 async function handleWebhook(req: Request, env: StripeEnv) {
