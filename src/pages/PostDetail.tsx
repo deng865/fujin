@@ -3,7 +3,8 @@ import { useMapChoice } from "@/components/MapChoiceSheet";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation } from "lucide-react";
+import { ArrowLeft, MapPin, DollarSign, Clock, User, MessageCircle, Phone, Send, Flag, Navigation, Copy, ExternalLink } from "lucide-react";
+import { buildWhatsAppUrl } from "@/lib/nearby";
 import { formatDistanceToNow } from "date-fns";
 import { useFavorites } from "@/hooks/useFavorites";
 import FavoriteButton from "@/components/FavoriteButton";
@@ -28,6 +29,7 @@ interface PostDetailData {
   user_id: string;
   contact_phone: string | null;
   contact_wechat: string | null;
+  contact_whatsapp: string | null;
   is_mobile: boolean;
   profiles?: {
     name: string;
@@ -329,13 +331,44 @@ export default function PostDetail() {
                 </div>
               )}
               {post.contact_wechat && (
-                <div className="flex items-center gap-3">
-                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">微信: {post.contact_wechat}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <MessageCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate">微信: {post.contact_wechat}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(post.contact_wechat || "");
+                      toast({ title: "已复制微信号" });
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-primary shrink-0"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    复制
+                  </button>
                 </div>
               )}
-              {!post.contact_phone && !post.contact_wechat && (
-                <p className="text-sm text-muted-foreground">发布者未留联系方式 / No contact info provided</p>
+              {post.contact_whatsapp && (() => {
+                const waUrl = buildWhatsAppUrl(post.contact_whatsapp);
+                return (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <MessageCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                      {waUrl ? (
+                        <a href={waUrl} target="_blank" rel="noreferrer" className="text-sm text-primary underline truncate inline-flex items-center gap-1">
+                          WhatsApp: {post.contact_whatsapp}
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        </a>
+                      ) : (
+                        <span className="text-sm truncate">WhatsApp: {post.contact_whatsapp}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+              {!post.contact_phone && !post.contact_wechat && !post.contact_whatsapp && (
+                <p className="text-sm text-muted-foreground">仅支持站内私信 / In-app chat only</p>
               )}
             </div>
           )}

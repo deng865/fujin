@@ -22,7 +22,7 @@ function defaultSchedule(): DaySchedule[] {
 }
 
 const initialFormData = {
-  title: "", description: "", price: "", phone: "", wechatId: "",
+  title: "", description: "", price: "", phone: "", wechatId: "", whatsapp: "",
   imageUrls: [] as string[], bedrooms: "", bathrooms: "", priceUnit: "month",
   carModel: "", vehicleColor: "", licensePlate: "", availableTime: "", driverPriceUnit: "trip",
   salaryRange: "", jobType: "",
@@ -125,6 +125,7 @@ export default function CreatePost() {
         price: data.price != null ? String(data.price) : "",
         phone: data.contact_phone || "",
         wechatId: data.contact_wechat || "",
+        whatsapp: data.contact_whatsapp || "",
         imageUrls: data.image_urls || [],
         carModel,
         vehicleColor,
@@ -313,6 +314,7 @@ export default function CreatePost() {
         image_urls: formData.imageUrls.length > 0 ? formData.imageUrls : null,
         contact_phone: formData.phone.trim() || null,
         contact_wechat: formData.wechatId.trim() || null,
+        contact_whatsapp: formData.whatsapp.trim() || null,
         is_mobile: isMobile,
         operating_hours: operatingHours,
         mobile_location_precise: isMobile,

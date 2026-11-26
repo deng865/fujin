@@ -11,6 +11,7 @@ export interface FormData {
   price: string;
   phone: string;
   wechatId: string;
+  whatsapp: string;
   imageUrls: string[];
   bedrooms: string;
   bathrooms: string;
@@ -195,30 +196,47 @@ export default function DynamicForm({ category, data, onChange, isMobile = false
       </div>
 
       {/* Contact info */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">电话 Phone</Label>
-          <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={data.phone}
-              onChange={(e) => onChange({ phone: e.target.value })}
-              placeholder="可选"
-              className="pl-9 rounded-xl h-11"
-            />
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">电话 Phone</Label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={data.phone}
+                onChange={(e) => onChange({ phone: e.target.value })}
+                placeholder="可选"
+                className="pl-9 rounded-xl h-11 text-[16px]"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">微信 WeChat</Label>
+            <div className="relative">
+              <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={data.wechatId}
+                onChange={(e) => onChange({ wechatId: e.target.value })}
+                placeholder="可选"
+                className="pl-9 rounded-xl h-11 text-[16px]"
+              />
+            </div>
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">微信 WeChat</Label>
+          <Label className="text-xs text-muted-foreground">WhatsApp</Label>
           <div className="relative">
             <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              value={data.wechatId}
-              onChange={(e) => onChange({ wechatId: e.target.value })}
-              placeholder="可选"
-              className="pl-9 rounded-xl h-11"
+              value={data.whatsapp}
+              onChange={(e) => onChange({ whatsapp: e.target.value })}
+              placeholder="可选，含国家代码如 +55 / +254 / +1"
+              className="pl-9 rounded-xl h-11 text-[16px]"
             />
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            电话、微信、WhatsApp 均可自由选填；全部留空则仅支持站内私信。
+          </p>
         </div>
       </div>
 

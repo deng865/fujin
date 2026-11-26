@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Trash2, FileText, Shield, CheckCircle } from "lucide-react";
 import { isNativeIOS } from "@/lib/nativePlatform";
+import { getDistanceUnitPref, setDistanceUnitPref, type DistanceUnitPref } from "@/lib/nearby";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -36,6 +37,13 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
   const [deleting, setDeleting] = useState(false);
   const [accountDeleted, setAccountDeleted] = useState(false);
   const [showAppleDisconnect, setShowAppleDisconnect] = useState(false);
+  const [unitPref, setUnitPref] = useState<DistanceUnitPref>(() => getDistanceUnitPref());
+
+  const handleUnitChange = (next: DistanceUnitPref) => {
+    setUnitPref(next);
+    setDistanceUnitPref(next);
+    toast.success("距离单位已更新");
+  };
 
   const handleToggle = (val: boolean) => {
     if (val) {
@@ -116,6 +124,36 @@ export default function PrivacySettings({ locationSharing, onLocationSharingChan
           <Switch aria-label="浏览定位" checked={browseEnabled} onCheckedChange={onBrowseChange} />
         </div>
         {!browseEnabled && <p className="text-xs text-muted-foreground">已停止浏览定位，可在首页手动选择区域；距离为区域参考距离。</p>}
+      </section>
+      <section className="border-b border-border py-4 space-y-2">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-sm font-medium">距离单位</h2>
+            <p className="text-xs text-muted-foreground mt-1">默认按定位自动切换：美国/英国用英里（mi），其余国家用公里（km）。</p>
+          </div>
+          <div className="inline-flex rounded-xl border border-border bg-muted/40 p-0.5 shrink-0">
+            {(
+              [
+                { value: "auto", label: "自动" },
+                { value: "mi", label: "英里" },
+                { value: "km", label: "公里" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => handleUnitChange(opt.value)}
+                className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                  unitPref === opt.value
+                    ? "bg-background text-foreground font-medium shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
       {hasMobilePosts && <section className="border-b border-border py-4 space-y-2">
         <div className="flex items-center justify-between gap-4">

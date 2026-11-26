@@ -99,6 +99,7 @@ interface Profile {
   name: string;
   phone: string | null;
   wechat_id: string | null;
+  whatsapp_id: string | null;
   avatar_url: string | null;
   vehicle_model: string | null;
   vehicle_color: string | null;
@@ -130,6 +131,7 @@ export default function ProfilePage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [wechatId, setWechatId] = useState("");
+  const [whatsappId, setWhatsappId] = useState("");
   const [vehicleModel, setVehicleModel] = useState("");
   const [vehicleColor, setVehicleColor] = useState("");
   const [licensePlate, setLicensePlate] = useState("");
@@ -142,7 +144,7 @@ export default function ProfilePage() {
       const [{ data: profileData }, { data: postsData }] = await Promise.all([
         supabase
           .from("profiles")
-          .select("name, phone, wechat_id, avatar_url, vehicle_model, vehicle_color, license_plate, user_type, average_rating, total_ratings")
+          .select("name, phone, wechat_id, whatsapp_id, avatar_url, vehicle_model, vehicle_color, license_plate, user_type, average_rating, total_ratings")
           .eq("id", user.id)
           .single(),
         supabase
@@ -158,6 +160,7 @@ export default function ProfilePage() {
         setName(profileData.name);
         setPhone(profileData.phone || "");
         setWechatId(profileData.wechat_id || "");
+        setWhatsappId((profileData as any).whatsapp_id || "");
         setVehicleModel((profileData as any).vehicle_model || "");
         setVehicleColor((profileData as any).vehicle_color || "");
         setLicensePlate((profileData as any).license_plate || "");
@@ -183,7 +186,7 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     if (!user) return;
     const updateData: any = {
-      name, phone: phone || null, wechat_id: wechatId || null,
+      name, phone: phone || null, wechat_id: wechatId || null, whatsapp_id: whatsappId.trim() || null,
     };
     const { error } = await supabase.from("profiles").update(updateData).eq("id", user.id);
     if (error) { toast.error("更新失败"); return; }
@@ -384,6 +387,16 @@ export default function ProfilePage() {
           <div className="space-y-1">
             <Label className="text-xs">微信 / WeChat</Label>
             <Input value={wechatId} onChange={(e) => setWechatId(e.target.value)} className="rounded-xl" />
+            <p className="text-[11px] text-muted-foreground">此信息不显示，用来快捷发送联系方式</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">WhatsApp</Label>
+            <Input
+              value={whatsappId}
+              onChange={(e) => setWhatsappId(e.target.value)}
+              placeholder="可选，含国家代码如 +1 / +55 / +254"
+              className="rounded-xl"
+            />
             <p className="text-[11px] text-muted-foreground">此信息不显示，用来快捷发送联系方式</p>
           </div>
           <Button onClick={handleSaveProfile} className="w-full rounded-xl mt-4">

@@ -1,4 +1,53 @@
 export interface Coords { lat: number; lng: number }
+export type DistanceUnit = "mi" | "km";
+export type DistanceUnitPref = "auto" | DistanceUnit;
+
+export const DISTANCE_UNIT_STORAGE_KEY = "distance_unit_pref";
+export const DISTANCE_UNIT_EVENT = "distance-unit-change";
+const KM_PER_MI = 1.609344;
+
+/** Bounding boxes for countries/territories where road distances use miles (US, UK, Myanmar, Liberia). */
+const IMPERIAL_REGIONS: [number, number, number, number][] = [
+  [24.3, 49.4, -125.0, -66.8],  // Contiguous US
+  [51.2, 71.5, -179.2, -129.9], // Alaska
+  [18.8, 22.3, -160.3, -154.7], // Hawaii
+  [17.6, 18.6, -67.3, -64.5],   // Puerto Rico & USVI
+  [49.8, 60.9, -8.2, 1.8],      // United Kingdom
+  [9.7, 28.6, 92.1, 101.2],     // Myanmar
+  [4.3, 8.6, -11.5, -7.3],      // Liberia
+];
+
+export function detectDistanceUnit(origin: Coords): DistanceUnit {
+  const inImperial = IMPERIAL_REGIONS.some(
+    ([minLat, maxLat, minLng, maxLng]) =>
+      origin.lat >= minLat && origin.lat <= maxLat && origin.lng >= minLng && origin.lng <= maxLng,
+  );
+  return inImperial ? "mi" : "km";
+}
+
+export function getDistanceUnitPref(): DistanceUnitPref {
+  try {
+    const v = localStorage.getItem(DISTANCE_UNIT_STORAGE_KEY);
+    if (v === "mi" || v === "km" || v === "auto") return v;
+  } catch {}
+  return "auto";
+}
+
+export function setDistanceUnitPref(pref: DistanceUnitPref): void {
+  try {
+    localStorage.setItem(DISTANCE_UNIT_STORAGE_KEY, pref);
+    window.dispatchEvent(new Event(DISTANCE_UNIT_EVENT));
+  } catch {}
+}
+
+export function resolveDistanceUnit(origin: Coords, pref: DistanceUnitPref = "auto"): DistanceUnit {
+  return pref === "auto" ? detectDistanceUnit(origin) : pref;
+}
+
+export function buildWhatsAppUrl(raw: string): string | null {
+  const digits = raw.replace(/\D/g, "").replace(/^00/, "");
+  return digits.length >= 7 ? `https://wa.me/${digits}` : null;
+}
 
 export const CITIES = [
   { name: "达拉斯", lat: 32.7767, lng: -96.797 },
@@ -16,9 +65,18 @@ export function distanceMi(a: Coords, b: Coords): number {
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
-export function formatMi(mi: number): string {
+export function formatDistance(mi: number, unit: DistanceUnit): string {
+  if (unit === "km") {
+    const km = mi * KM_PER_MI;
+    if (km < 0.1) return "附近";
+    return km < 10 ? `${km.toFixed(1)} km` : `${Math.round(km)} km`;
+  }
   if (mi < 0.1) return "附近";
   return mi < 10 ? `${mi.toFixed(1)} mi` : `${Math.round(mi)} mi`;
+}
+
+export function formatMi(mi: number): string {
+  return formatDistance(mi, "mi");
 }
 
 /** No category opens a map; maps appear only inside an active ride chat. */
@@ -39,6 +97,17 @@ export function sortByDistance<T extends { latitude: number; longitude: number }
 export const RADIUS_OPTIONS: { label: string; mi: number | null }[] = [
   { label: "5 mi 内", mi: 5 }, { label: "15 mi 内", mi: 15 }, { label: "不限", mi: null },
 ];
+
+export function getRadiusOptions(unit: DistanceUnit): { label: string; mi: number | null }[] {
+  if (unit === "km") {
+    return [
+      { label: "10 km 内", mi: 10 / KM_PER_MI },
+      { label: "25 km 内", mi: 25 / KM_PER_MI },
+      { label: "不限", mi: null },
+    ];
+  }
+  return RADIUS_OPTIONS;
+}
 
 export function withinRadius<T extends { distance: number }>(items: T[], mi: number | null): T[] {
   return mi == null ? items : items.filter((p) => p.distance <= mi);

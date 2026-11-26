@@ -7,7 +7,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
 import { isCurrentlyOpen } from "@/lib/operatingHours";
 import CategoryScroll from "@/components/CategoryScroll";
-import { CITIES, MAP_CATEGORIES, formatMi, sortByDistance, sortByRating, type Coords } from "@/lib/nearby";
+import {
+  CITIES,
+  MAP_CATEGORIES,
+  DISTANCE_UNIT_EVENT,
+  formatDistance,
+  getDistanceUnitPref,
+  resolveDistanceUnit,
+  sortByDistance,
+  sortByRating,
+  type Coords,
+  type DistanceUnitPref,
+} from "@/lib/nearby";
 import { useLocationPrivacy } from "@/hooks/useLocationPrivacy";
 import { PRIVACY_EVENT } from "@/lib/locationPrivacy";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,16 +41,24 @@ export default function NearbyHome() {
   const navigate = useNavigate();
   const { browseEnabled } = useLocationPrivacy();
   const [manualArea, setManualArea] = useState(() => localStorage.getItem("browse_area") || "达拉斯");
+  const [unitPref, setUnitPref] = useState<DistanceUnitPref>(() => getDistanceUnitPref());
   const [clock, setClock] = useState(Date.now());
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     const update = () => { setClock(Date.now()); setRefresh(n => n + 1); };
+    const onUnitChange = () => setUnitPref(getDistanceUnitPref());
     const timer = window.setInterval(update, 15000);
     window.addEventListener(PRIVACY_EVENT, update);
-    return () => { window.clearInterval(timer); window.removeEventListener(PRIVACY_EVENT, update); };
+    window.addEventListener(DISTANCE_UNIT_EVENT, onUnitChange);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener(PRIVACY_EVENT, update);
+      window.removeEventListener(DISTANCE_UNIT_EVENT, onUnitChange);
+    };
   }, []);
   const { favoriteIds, toggleFavorite } = useFavorites();
   const [origin, setOrigin] = useState<Coords>(CITIES.find(c => c.name === manualArea) || CITIES[0]);
+  const distanceUnit = useMemo(() => resolveDistanceUnit(origin, unitPref), [origin, unitPref]);
     const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<string | null>(null);
@@ -178,7 +197,7 @@ export default function NearbyHome() {
               {p.description && <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">{p.description}</p>}
               {p.description?.includes("认领") && <span className="mt-0.5 text-xs text-primary">店主？点此免费认领</span>}
               <div className="mt-auto flex items-center gap-2 pt-1 text-sm">
-                <span className="font-semibold text-primary">{locationStatus !== "located" ? "约 " : ""}{formatMi(p.distance)}</span>
+                <span className="font-semibold text-primary">{locationStatus !== "located" ? "约 " : ""}{formatDistance(p.distance, distanceUnit)}</span>
                 {p.open === true && <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5">营业中</span>}
                 {p.open === false && <span className="text-xs rounded-full bg-muted text-muted-foreground px-2 py-0.5">已打烊</span>}
                 {p.is_mobile && <span className="text-xs rounded-full bg-muted text-muted-foreground px-2 py-0.5">上门服务</span>}

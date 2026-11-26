@@ -611,6 +611,7 @@ export type Database = {
           category: string
           contact_phone: string | null
           contact_wechat: string | null
+          contact_whatsapp: string | null
           created_at: string
           description: string | null
           device_id: string | null
@@ -639,6 +640,7 @@ export type Database = {
           category?: string
           contact_phone?: string | null
           contact_wechat?: string | null
+          contact_whatsapp?: string | null
           created_at?: string
           description?: string | null
           device_id?: string | null
@@ -667,6 +669,7 @@ export type Database = {
           category?: string
           contact_phone?: string | null
           contact_wechat?: string | null
+          contact_whatsapp?: string | null
           created_at?: string
           description?: string | null
           device_id?: string | null
@@ -769,6 +772,7 @@ export type Database = {
           vehicle_model: string | null
           verified: boolean | null
           wechat_id: string | null
+          whatsapp_id: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -790,6 +794,7 @@ export type Database = {
           vehicle_model?: string | null
           verified?: boolean | null
           wechat_id?: string | null
+          whatsapp_id?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -811,6 +816,7 @@ export type Database = {
           vehicle_model?: string | null
           verified?: boolean | null
           wechat_id?: string | null
+          whatsapp_id?: string | null
         }
         Relationships: []
       }
